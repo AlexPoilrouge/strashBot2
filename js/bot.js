@@ -4,14 +4,18 @@ const Discord= require('discord.js');
 
 const utils= require('./utils')
 
+const wk= require('./worker')
+
 const config= require('config');
 
 class StrashBot extends Discord.Client{
     constructor(token, worker){
         super();
 
-        this.worker= worker;
+        this.worker= new wk.Worker(this);
         this.token= token;
+
+        console.log("token: "+token);
     }
 
     get validTest(){
@@ -22,10 +26,25 @@ class StrashBot extends Discord.Client{
         this.on('ready', ()=>{
             console.log("Pif paf! StrashBot rrrready to rumblllllllllle!");
             
+            console.log("Servers:")
+            this.guilds.forEach((guild) => {
+                console.log(" - " + guild.name)
+            })
+
+            this.worker.ready();
         });
         
         this.on('message', (message)=>{
             if(message.author.id === this.user.id) return; // Prevent bot from responding to its own messages
+
+            if(message.channel.type === 'dm'){
+                console.log(`Recieving DM command from ${message.author.id}`);
+                this.worker.dMessage(message);
+            }
+            else{
+                console.log(`Recieving command from channel ${message.channel.id}`);
+                this.worker.processMessage(message);
+            }
         });
         
         this.on('messageReactionAdd', (reaction, user) => {
@@ -72,7 +91,7 @@ class StrashBot extends Discord.Client{
             console.log("bot config isn't valid, won't login to discord");
         }
         else{
-            super.login(token)
+            super.login(this.token)
             .then()
             .catch( err => { console.log("Error when login to discord attempt…"); console.log(err); });
         }

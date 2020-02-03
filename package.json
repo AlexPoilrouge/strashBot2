@@ -1,0 +1,17 @@
+{
+  "name": "strashbot",
+  "version": "0.2.0",
+  "description": "",
+  "main": "bot_main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Dr_Nope",
+  "license": "ISC",
+  "dependencies": {
+    "config": "^3.2.5",
+    "discord.js": "^11.5.1",
+    "fs": "0.0.1-security",
+    "path": "^0.12.7"
+  }
+}

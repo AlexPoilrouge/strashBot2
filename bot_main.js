@@ -1,7 +1,9 @@
 
 const sb= require('./js/bot');
 
-let bot= new sb.StrashBot(token, worker);
+const config= require('config');
+
+let bot= new sb.StrashBot(config.get('StrashBot.token'));
 
 bot.setup()
 
