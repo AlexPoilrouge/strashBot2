@@ -57,4 +57,18 @@ JSONCheck ={
     },
 };
 
+function commandDecompose(message){
+    if(!message.content.startsWith('!')){
+        return null;
+    }
+
+    let splitCmd= message.content.substr(1).split(" ");
+    return {
+        'command': splitCmd[0].toLowerCase(),
+        'args': splitCmd.slice(1),
+        'msg_obj': message,
+    }
+}
+
 module.exports.JSONCheck= JSONCheck;
+module.exports.commandDecompose= commandDecompose;

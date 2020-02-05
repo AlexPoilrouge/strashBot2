@@ -16,7 +16,7 @@ class Settings{
 
         fs.writeFile(this.guildConfigs.file, data, err => {
             if(err){
-                console.log(`[FC Saving] Couldn't write in file '${this.fcJSONFile}'…` );
+                console.log(`[FC Saving] Couldn't write in file '${this.guildConfigs.file}'…` );
                 console.log(err);
             }
         });
@@ -31,7 +31,7 @@ class Settings{
             console.log(`[Settings] Error reading data from '${this.guildConfigs.file}'`);
         }
 
-        this.bot.guilds.forEach((guild) => {
+        this._bot.guilds.forEach((guild) => {
             if(!(Boolean(this.guildConfigs.settings[guild.id]))){
                 this.guildConfigs.settings[guild.id]= {};
             }
@@ -39,4 +39,10 @@ class Settings{
 
         this.saveGuildsSetup();
     }
+
+    get guildsSettings(){
+        return this.guildConfigs.settings;
+    }
 };
+
+module.exports.Settings= Settings;

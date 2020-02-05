@@ -1,7 +1,15 @@
+const Settings= require('./settings').Settings;
+const Commander= require('./commander').Commander;
+
+const utils= require('./utils')
+
 
 class Worker{
     constructor(bot){
         this._bot= bot;
+
+        this._settings= new Settings(this._bot);
+        this._commander= new Commander(this);
     }
 
     destroy(){}
@@ -11,14 +19,25 @@ class Worker{
     }
 
     ready(){
+        this._settings.checkGuildsSetup();
+
         console.log("ready");
     }
 
     processMessage(message){
-        console.log("message");
+        console.log("message: "+message.content);
+
+        let cmd= utils.commandDecompose(message);
+        if(cmd){
+            this._commander.processCommand(cmd);
+        }
     }
 
-    dMessage(message){
+    event(){
+        this._commander.onEvent(...arguments);
+    }
+
+    processDMessage(message){
         console.log("dMessage");
     }
 

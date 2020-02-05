@@ -83,6 +83,13 @@ class StrashBot extends Discord.Client{
             console.log("SmashBot disconnected.");
             console.log(event);
         });
+
+        this.on('channelDelete', channel =>{
+            this.worker.event('channelDelete', channel);
+        })
+        this.on('roleDelete', channel =>{
+            this.worker.event('roleDelete', role);
+        })
     }
 
     login(){
@@ -95,6 +102,10 @@ class StrashBot extends Discord.Client{
             .then()
             .catch( err => { console.log("Error when login to discord attempt…"); console.log(err); });
         }
+    }
+
+    get masterID(){
+        return config.get('StrashBot.masterID');
     }
 };
 
