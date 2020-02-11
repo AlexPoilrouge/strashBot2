@@ -19,7 +19,6 @@ class CommandSettings{
         n= (n.endsWith(".js"))? n.slice(0,-3) : n;
 
         var fn= `${this._dirPath}/${n}.json`;
-        console.log(`fn: ${fn}`)
 
         var commandFileSettings= this._cmdSettings[cmdFileName];
         if(!Boolean(commandFileSettings)){
@@ -28,7 +27,7 @@ class CommandSettings{
         }
         commandFileSettings['file']= path.resolve(__dirname, fn);
 
-        if(fs.existsSync()){
+        if(fs.existsSync(commandFileSettings['file'])){
             var data= fs.readFileSync(commandFileSettings['file']);
 
             if(Boolean(data)){
@@ -43,6 +42,7 @@ class CommandSettings{
 
             var data= JSON.stringify({}, null, 2);
 
+            console.log("suspect1")
             fs.writeFile(commandFileSettings['file'], data, err => {
                 if(err){
                     console.log(`[CS Saving] Couldn't write in file '${commandFileSettings['file']}'…` );
@@ -56,6 +56,8 @@ class CommandSettings{
         var obj= this._cmdSettings[cmdFile]['object_json'];
         var data= JSON.stringify(obj, null, 2);
 
+
+        console.log("suspect2")
         fs.writeFile(this._cmdSettings[cmdFile]['file'], data, err => {
             if(err){
                 console.log(`[CS Saving] Couldn't write in file '${this._cmdSettings[cmdFileName]['file']}'…` );
@@ -136,16 +138,40 @@ class Commander{
                 help: ((Boolean(rcf.command) && Boolean(h=rcf.command.help))? h:null),
                 event: ((Boolean(rcf.command) && Boolean(h=rcf.command.event))? h:null),
                 utils: utils,
+                threshold: [((Boolean(rcf.command))?rcf.getCacheWarnTreshold:0), false],
             }); 
             t._cmdSettings.add(file);
 
-            if(Boolean(rcf.command) && Boolean(rcf.command.init)){
-                console.log(`[Commander] init for command '${rcf.name}'…`);
-                rcf.command.init(utils);
+            if(Boolean(rcf.command)){
+                if(Boolean(rcf.command.init)){
+                    console.log(`[Commander] init for command '${rcf.name}'…`);
+                    rcf.command.init(utils);
+                }
+                if(Boolean(rcf.command.init_per_guild)){
+                    console.log(`-sssssshhhhht ${this._worker.bot.guilds.size}`)
+                    this._worker.bot.guilds.forEach(g => {
+                        console.log(`-g ${g.id}`)
+                        rcf.command.init_per_guild(utils,g);
+                    });
+                }
             }
         });
 
-        console.log(`${this.loaded_commands[0].name} : ${this.loaded_commands[0].func}`)
+    }
+
+    _msgRoomUpdate(left){
+        console.log("left: "+left)
+        this.loaded_commands.forEach(l_cmd =>{
+            if(Boolean(l_cmd.threshold) && l_cmd.threshold[0]()>=left){
+                if(!l_cmd.threshold[1]){
+                    l_cmd.event("messageCacheThreshold", left);
+                    l_cmd.threshold[1]= true;
+                }
+                if(left<1){
+                    l_cmd.threshold[1]= false;
+                }
+            }
+        })
     }
 
     processCommand(cmdObj, isDM= false){
@@ -194,12 +220,12 @@ class Commander{
             b= undefined;
         }
 
-        console.log(`${this.loaded_commands[0].name} : ${this.loaded_commands[0].func}`)
+        //console.log(`${this.loaded_commands[0].name} : ${this.loaded_commands[0].func}`)
 
         if(b!==undefined) cmdObj.msg_obj.react((b)?'✅':'❌');
     }
 
-    _onEvent(eventName){
+    onEvent(eventName){
         this.loaded_commands.forEach(lCmd =>{
             if(lCmd.event){
                 lCmd.event(eventName, lCmd.utils, ...Array.from(arguments).slice(1));

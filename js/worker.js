@@ -24,9 +24,10 @@ class Worker{
         console.log("ready");
     }
 
-    processMessage(message){
+    processMessage(message, cacheRoom){
         console.log("message: "+message.content);
 
+        this._commander._msgRoomUpdate(cacheRoom)
         let cmd= utils.commandDecompose(message);
         if(cmd){
             this._commander.processCommand(cmd);

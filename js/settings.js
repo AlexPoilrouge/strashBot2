@@ -12,6 +12,7 @@ class Settings{
     }
 
     saveGuildsSetup(){
+        console.log("saved sett")
         var data= JSON.stringify(this.guildConfigs.settings, null, 2);
 
         fs.writeFile(this.guildConfigs.file, data, err => {
@@ -24,8 +25,10 @@ class Settings{
 
     checkGuildsSetup(){
         var data= fs.readFileSync(this.guildConfigs.file);
+        console.log("file read");
         if(Boolean(data)){
             this.guildConfigs.settings= JSON.parse(data);
+            console.log("hmmmm... "+this.guildConfigs.settings);
         }
         else{
             console.log(`[Settings] Error reading data from '${this.guildConfigs.file}'`);
