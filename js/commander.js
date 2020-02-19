@@ -2,6 +2,16 @@ const glob= require( 'glob' );
 const path= require( 'path' );
 const fs= require( 'fs' );
 
+const DEFINES= require('./defines')
+
+let hereLog= (...args) => {console.log("[Commander]", ...args);};
+
+function __sleep(ms){
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+      });
+}
+
 
 class CommandSettings{
     constructor(){
@@ -9,101 +19,194 @@ class CommandSettings{
         fs.mkdirSync(path.resolve(__dirname, this._dirPath), { recursive: true });
 
         this._cmdSettings= {};
+        
+        this._save_lock= false;
     }
 
     add(cmdFileName){
         if(!Boolean(cmdFileName)) return;
 
-        var n= path.basename(cmdFileName);
-        n= (n.startsWith("cmd_"))? n.slice(4) : n;
-        n= (n.endsWith(".js"))? n.slice(0,-3) : n;
-
-        var fn= `${this._dirPath}/${n}.json`;
+        var cmd_name= path.basename(cmdFileName);
+        cmd_name= (cmd_name.startsWith("cmd_"))? cmd_name.slice(4) : cmd_name;
+        cmd_name= (cmd_name.endsWith(".js"))? cmd_name.slice(0,-3) : cmd_name;
 
         var commandFileSettings= this._cmdSettings[cmdFileName];
         if(!Boolean(commandFileSettings)){
             this._cmdSettings[cmdFileName]= {};
             commandFileSettings= this._cmdSettings[cmdFileName];
         }
-        commandFileSettings['file']= path.resolve(__dirname, fn);
+        commandFileSettings['name']= cmd_name;
+    }
 
-        if(fs.existsSync(commandFileSettings['file'])){
-            var data= fs.readFileSync(commandFileSettings['file']);
+    addGuild(cmdName, guildID){
+        var commandFileSettings= this._cmdSettings[cmdName];
+        if(!Boolean(commandFileSettings))
+            return false;
+
+        var perGuildSettings= undefined;
+        if(!Boolean(perGuildSettings=commandFileSettings[guildID])){
+            commandFileSettings[guildID]= {};
+            perGuildSettings= commandFileSettings[guildID];
+        }
+
+        var fn= `${this._dirPath}/${commandFileSettings['name']}_${guildID}.json`;
+        perGuildSettings['file']= path.resolve(__dirname, fn);
+        if(fs.existsSync(perGuildSettings['file'])){
+            var data= fs.readFileSync(perGuildSettings['file']);
 
             if(Boolean(data)){
-                commandFileSettings['object_json']= JSON.parse(data);
+                perGuildSettings['object_json']= JSON.parse(data);
             }
             else{
-                console.log(`[Command Settings] Error reading data from '${commandFileSettings['file']}'`);
+                hereLog(`[Settings] Error reading data from '${perGuildSettings['file']}'`);
             }
         }
         else{
-            commandFileSettings['object_json']= {};
+            perGuildSettings['object_json']= {};
 
             var data= JSON.stringify({}, null, 2);
 
-            console.log("suspect1")
-            fs.writeFile(commandFileSettings['file'], data, err => {
+            fs.writeFile(perGuildSettings['file'], data, err => {
                 if(err){
-                    console.log(`[CS Saving] Couldn't write in file '${commandFileSettings['file']}'…` );
-                    console.log(err);
+                    hereLog(`[CS Saving](2) Couldn't write in file '${perGuildSettings['file']}'…` );
+                    hereLog(err);
                 }
             });
         }
     }
 
-    _saveData(cmdFile){
+    async rmGuild(cmdName, guildID){
+        var commandFileSettings= this._cmdSettings[cmdName];
+        if(!Boolean(commandFileSettings))
+            return;
+
+        var perGuildSettings= undefined;
+        if(!Boolean(perGuildSettings=commandFileSettings[guildID])){
+            commandFileSettings[guildID]= {};
+            perGuildSettings= commandFileSettings[guildID];
+        }
+
+        while(this._save_lock){
+            await __sleep(1000);
+        }
+        this._save_lock= true;
+        var f= undefined;
+        if(Boolean(f=perGuildSettings['file']) && fs.existsSync(f)){
+            fs.unlink(f, err =>{
+                if(err){
+                    hereLog(`[CS Deleting] error with ${f} unlink…`);
+                    hereLog(err);
+                }
+                hereLog(`[CS Deleting] ${f} unlink…`);
+            });
+        }
+        this._save_lock=false;
+
+        delete commandFileSettings[guildID];
+    }
+
+    async _saveData(cmdFile, guildID){
+        var ttt=Date.now();
+        while(this._save_lock){
+            await __sleep(1000);
+        }
+        this._save_lock= true;
+        
         var obj= this._cmdSettings[cmdFile]['object_json'];
         var data= JSON.stringify(obj, null, 2);
 
+        var commandFileSettings= this._cmdSettings[cmdFile];
+        var perGuildSettings= undefined;
+        if(!Boolean(perGuildSettings=commandFileSettings[guildID])){
+            this.addGuild(cmdFile, guildID);
+            if(!Boolean(perGuildSettings=commandFileSettings[guildID])){
+                return false;
+            }
+        }
 
-        console.log("suspect2")
-        fs.writeFile(this._cmdSettings[cmdFile]['file'], data, err => {
+        var obj= perGuildSettings['object_json'];
+        var data= JSON.stringify(obj, null, 2);
+
+
+        await fs.writeFile(perGuildSettings['file'], data, err => {
             if(err){
-                console.log(`[CS Saving] Couldn't write in file '${this._cmdSettings[cmdFileName]['file']}'…` );
-                console.log(err);
+                hereLog(`[CS Saving](1) Couldn't write in file '${perGuildSettings['file']}'…` );
+                hereLog(err);
             }
         });
+
+        this._save_lock= false;
     }
 
     getField(cmdFile, guild, fieldName){
-        var sett= this._cmdSettings[cmdFile];
-        if(!Boolean(sett) || !Boolean(sett['object_json'])) return undefined;
+        var commandFileSettings= undefined;
+        var perGuildSettings= undefined;
+        var obj= undefined;
+        if(!Boolean(commandFileSettings=this._cmdSettings[cmdFile]) ||
+            !Boolean(perGuildSettings=commandFileSettings[guild.id]) ||
+            !Boolean(obj=perGuildSettings['object_json'])
+        ){
+            return undefined;
+        }
         else{
-            var obj= sett['object_json'];
-            if(!Boolean(obj[guild.id]) || !Boolean(obj[guild.id][fieldName])) return undefined;
-            else return obj[guild.id][fieldName];
+            var fields=fieldName.split('.');
+            var t= obj;
+            for (var f of fields){
+                if(!Boolean(t=obj[f])){
+                    break;
+                }
+            }
+            if(!Boolean(t)) return undefined;
+            return t;
         }
     }
 
     setField(cmdFile, guild, fieldName, value){
-        var sett= this._cmdSettings[cmdFile];
-        if(!Boolean(sett) || !Boolean(sett['object_json'])) return false;
+        var commandFileSettings= undefined;
+        var perGuildSettings= undefined;
+        var obj= undefined;
+        if(!Boolean(commandFileSettings=this._cmdSettings[cmdFile]) ||
+            !Boolean(perGuildSettings=commandFileSettings[guild.id]) ||
+            !Boolean(obj=perGuildSettings['object_json'])
+        ){
+            return false;
+        }
         else{
-            var obj= sett['object_json'];
-            if(!Boolean(obj[guild.id])){
-                obj[guild.id]= {};
+            var fields=fieldName.split('.');
+            var t= obj;
+            var tt= undefined;
+            for (var f of fields){
+                tt=t;
+                if(!Boolean(t=obj[f])){
+                    obj[f]= undefined;
+                    t=obj[f];
+                }
             }
-            obj[guild.id][fieldName]= value;
-            
-            this._saveData(cmdFile);
+
+            var l=0;
+            if(!Boolean(l=fields.length)) obj= value;
+            else{
+                tt[fields[l-1]]= value;
+            }
+            this._saveData(cmdFile, guild.id);
 
             return true;
         }
+
         
     }
 
     removeField(cmdFile, guild, fieldName){
-        var sett= this._cmdSettings[cmdFile];
-        if(Boolean(sett) && Boolean(sett['object_json'])){
-            var obj= sett['object_json'];
-            if(Boolean(obj[guild.id]) && Boolean(obj[guild.id][fieldName])){
-                delete obj[guild.id][fieldName];
-            
-                this._saveData(cmdFile);
-            }
+        var commandFileSettings= undefined;
+        var perGuildSettings= undefined;
+        var obj= undefined;
+        if(Boolean(commandFileSettings=this._cmdSettings[cmdFile]) &&
+            Boolean(perGuildSettings=commandFileSettings[guild.id]) &&
+            Boolean(obj=perGuildSettings['object_json'])
+        ){
+            delete obj[fieldName];
+            this._saveData(cmdFile, guild.id);
         }
-
     }
 }
 
@@ -114,53 +217,72 @@ class Commander{
         this._cmdSettings= new CommandSettings();
 
         this.loaded_commands= [];
+
         this._loadCommands();
     }
 
     _loadCommands(){
         let t=this;
         glob.sync('./js/commands/cmd_*.js').map( file =>{
-            console.log(`[Commander] loading '${file}'…`);
+            hereLog(`[Commander] loading '${file}'…`);
 
             let rcf= require(path.resolve(file))
-            var m= null, h= null;
-            
-            let utils= {
+            var m= null, h= null, e=null, i= null, c= null;
+
+            var utils= {
                 settings: {
-                    set: (guild, field, value) => {return t._cmdSettings.setField(file, guild, field, value);},
-                    get: (guild, field) => {return t._cmdSettings.getField(file, guild, field);},
-                    remove: (guild, field) => {t._cmdSettings.setField(file, guild, field);},
-                }
+                    set: (guild, field, value) => {return this._cmdSettings.setField(file, guild, field, value);},
+                    get: (guild, field) => {return this._cmdSettings.getField(file, guild, field);},
+                    remove: (guild, field) => {this._cmdSettings.removeField(file, guild, field);},
+                },
+                getMemberClearanceLevel: this._getMemberClearanceLevel,
             };
+            
             t.loaded_commands.push( {
                 name: rcf.name,
-                func: ((Boolean(rcf.command) && Boolean(m=rcf.command.main))? m:null),
+                init_per_guild: ((Boolean(rcf.command) && Boolean(i=rcf.init_per_guild))? (g =>{i(utils,g)}):null),
+                func: ((Boolean(rcf.command) && Boolean(m=rcf.command.main))? (cmdO, clrlv) => {return m(cmdO, clrlv, utils)}:null),
                 help: ((Boolean(rcf.command) && Boolean(h=rcf.command.help))? h:null),
-                event: ((Boolean(rcf.command) && Boolean(h=rcf.command.event))? h:null),
-                utils: utils,
+                event: ((Boolean(rcf.command) && Boolean(e=rcf.command.event))? ((name, ...args) => {return e(name, utils, ...args);}):null),
+                clear_guild: ((Boolean(rcf.command) && Boolean(c=rcf.clear_guild))? c:null),
                 threshold: [((Boolean(rcf.command))?rcf.getCacheWarnTreshold:0), false],
             }); 
             t._cmdSettings.add(file);
 
             if(Boolean(rcf.command)){
                 if(Boolean(rcf.command.init)){
-                    console.log(`[Commander] init for command '${rcf.name}'…`);
+                    hereLog(`init for command '${rcf.name}'…`);
                     rcf.command.init(utils);
                 }
                 if(Boolean(rcf.command.init_per_guild)){
-                    console.log(`-sssssshhhhht ${this._worker.bot.guilds.size}`)
                     this._worker.bot.guilds.forEach(g => {
-                        console.log(`-g ${g.id}`)
+                        t._cmdSettings.addGuild(file, g.id)
                         rcf.command.init_per_guild(utils,g);
                     });
                 }
             }
         });
+    }
 
+    _addGuildCmd(guild){
+        Object.keys(this._cmdSettings._cmdSettings).forEach( k_file => {
+            this._cmdSettings.addGuild(k_file, guild.id);
+        });
+        this.loaded_commands.forEach(l_cmd => {
+            l_cmd.init_per_guild(guild);
+        });
+    }
+
+    _rmGuildCmd(guild){
+        this.loaded_commands.forEach(l_cmd => {
+            l_cmd.clear_guild(guild);
+        });
+        Object.keys(this._cmdSettings._cmdSettings).forEach( k_file => {
+            this._cmdSettings.rmGuild(k_file, guild.id);
+        });
     }
 
     _msgRoomUpdate(left){
-        console.log("left: "+left)
         this.loaded_commands.forEach(l_cmd =>{
             if(Boolean(l_cmd.threshold) && l_cmd.threshold[0]()>=left){
                 if(!l_cmd.threshold[1]){
@@ -174,33 +296,51 @@ class Commander{
         })
     }
 
-    processCommand(cmdObj, isDM= false){
+    async processCommand(cmdObj, isDM= false){
         var b=false;
         var cmd= cmdObj.command;
         var l_cmd=null;
-        if(cmd==="addadminchannel"){
-            b=this.CMD_addAdminChannel('add', cmdObj.args, cmdObj.msg_obj);
+
+        if(isDM) return;
+
+        var __clearanceManagementCmd= (cmd, sfx, mng_func, s_cmd=undefined) => {
+            if(!cmd.endsWith(sfx)) return false;
+
+            var match= null, pfx= "";
+            if( (match=cmd.match("(.+)"+sfx)) && match.length>1 &&
+                (pfx=match[1]) && ['add','remove', 'rm', 'list','get', 'help'].includes(pfx) )
+            {
+                hereLog(`'${cmd}' command by ${cmdObj.msg_obj.author} on ${cmdObj.msg_obj.channel}`);
+                var sub_cmd= (Boolean(s_cmd))? s_cmd : (pfx==='remove')? 'rm' : (pfx==='list')? 'get' : pfx;
+                return mng_func(sub_cmd, cmdObj.args, cmdObj.msg_obj);
+            }
+            return false;
         }
-        else if(cmd==="removeadminchannel"){
-            b=this.CMD_addAdminChannel('rm', cmdObj.args, cmdObj.msg_obj);
-        }
-        else if(cmd==="listadminchannel" || cmd==="getadminchannel" ){
-            b=this.CMD_addAdminChannel('get', cmdObj.args, cmdObj.msg_obj);
-        }
+
+        if( (b=__clearanceManagementCmd(cmd, "ctrlchannel", this.CMD_manageCtrlChannel.bind(this))) || 
+            (b=__clearanceManagementCmd(cmd, "adminrole", this.CMD_manageAdminRole.bind(this))) )
+        {;}
         else if(cmd==="help"){
             var askedCmd= undefined;
-            if(!Boolean(cmdObj.args) || !Boolean(askedCmd=cmdObj.args[0])) b=false;
+            if(!Boolean(cmdObj.args) || !Boolean(askedCmd=cmdObj.args[0])){
+                cmdObj.msg_obj.author.send(
+                    `__**help** command___:\n\n`+
+                    `\t\`!help command\`\n\n`+
+                    `\tProvides help on a given command.`
+                )
+
+                b= true;
+            }
             else{
                 askedCmd= (askedCmd.startsWith('!'))?
                         askedCmd.slice(1)
                     :   askedCmd;
-                if(["addadminchannel","removeadminchannel","listadminchannel","getadminchannel"].includes(askedCmd)){
-                    b=this.CMD_addAdminChannel('help', cmdObj.args, cmdObj.msg_obj);
-                }
+                if( (b=__clearanceManagementCmd(askedCmd, "ctrlchannel", this.CMD_manageCtrlChannel.bind(this), 'help')) || 
+                    (b=__clearanceManagementCmd(askedCmd, "adminrole", this.CMD_manageAdminRole.bind(this), 'help')) )
+                {;}
                 else if(Boolean(l_cmd=this.loaded_commands.find(e =>{return (e.name===askedCmd);}))){
-                    console.log("ah");
                     if(Boolean(l_cmd.help)){
-                        b= l_cmd.help(cmdObj, this._isSentThroughGuildAdmin(cmdObj.msg_obj));
+                        b= l_cmd.help(cmdObj, this._getClearanceLevel(cmdObj.msg_obj));
                     }
                     else{
                         b= false;
@@ -208,9 +348,9 @@ class Commander{
                 }
             }
         }
-        else if(Boolean(l_cmd=this.loaded_commands.find(e =>{return (e.name===cmd);}))){
+        else if(Boolean(l_cmd=this.loaded_commands.find(e =>{return ( (Array.isArray(e.name) && e.name.includes(cmd)) || (e.name===cmd));}))){
             if(Boolean(l_cmd.func)){
-                b= l_cmd.func(cmdObj,this._isSentThroughGuildAdmin(cmdObj.msg_obj), l_cmd.utils);
+                b= await l_cmd.func(cmdObj, this._getClearanceLevel(cmdObj.msg_obj));
             }
             else{
                 b= undefined;
@@ -220,15 +360,13 @@ class Commander{
             b= undefined;
         }
 
-        //console.log(`${this.loaded_commands[0].name} : ${this.loaded_commands[0].func}`)
-
         if(b!==undefined) cmdObj.msg_obj.react((b)?'✅':'❌');
     }
 
     onEvent(eventName){
         this.loaded_commands.forEach(lCmd =>{
             if(lCmd.event){
-                lCmd.event(eventName, lCmd.utils, ...Array.from(arguments).slice(1));
+                lCmd.event(eventName, ...Array.from(arguments).slice(1));
             }
         });
     }
@@ -237,71 +375,133 @@ class Commander{
         return user.id===this._worker._bot.masterID;
     }
 
-    _isSentThroughGuildAdmin(message){
-        if(this._isMaster(message.author)) return true;
-
-        return ( this.__adminChannelDefined(message.guild)
-            && guildAdminChannels.includes(message.channel.id)
-        );
+    _hasAdminRole(member){
+        var guildSettings= undefined, roles= undefined;
+        return (Boolean(member.roles) &&  Boolean(guildSettings=this._worker._settings.guildsSettings[member.guild.id]) &&
+                (Boolean(roles=guildSettings['adminRoles'])) &&
+                    roles.find(r_id=>{
+                        return (Boolean(member.roles.get(r_id)));
+                    })
+                );
     }
 
-    __adminChannelDefined(guild){
-        var guildSettings= null;
-        return ( Boolean(guildSettings=this._worker._settings.guildsSettings[guild.id])
-            && Boolean(guildSettings['adminChannels'] ) );
+    _isCtrlChannel(channel){
+        var guildSettings= undefined, channels= undefined;
+        return (Boolean(guildSettings=this._worker._settings.guildsSettings[channel.guild.id]) &&
+                (Boolean(channels=guildSettings['ctrlChannels'])) &&
+                    channels.includes(channel.id)
+                );
     }
 
+    _getMemberClearanceLevel(member){
+        return DEFINES.CLEARANCE_LEVEL.NONE |
+                ((this._isMaster(member.user))? DEFINES.CLEARANCE_LEVEL.MASTER_ID : 0) |
+                ((this._hasAdminRole(member))? DEFINES.CLEARANCE_LEVEL.ADMIN_ROLE : 0);
+    }
 
-    CMD_addAdminChannel(cmd, args, message){
-        if(!this._isSentThroughGuildAdmin(message)){
-            message.channel.send("Only a user with “*admin*” access can manage StrashBot's admin channel…");
+    _getClearanceLevel(message){
+        return (this._getMemberClearanceLevel(message.member) |
+                (this._isCtrlChannel(message.channel))? DEFINES.CLEARANCE_LEVEL.CONTROL_CHANNEL : 0);
+    }
+
+    _meta_CMD_management(cmd, message, mentionType, guildSettingsField){
+        if( this._getClearanceLevel(message) < DEFINES.CLEARANCE_LEVEL.ADMIN_ROLE ){
+            message.author.send(`Only a user with “*admin*” access can manage StrashBot's ${guildSettingsField}…`);
 
             return false;
         }
-        else{
-            message.channel.send('sup?');
-            let guild= message.guild;
 
-            if(Boolean(message.mentions) && Boolean(message.mentions.channels) && (message.mentions.channels.size>0 || cmd==="get")){
-                if(!this.__adminChannelDefined(message.guild)){
-                    this._worker._settings.guildsSettings[guild.id]['adminChannels']=[];
-                }
+        let guild= message.guild;
 
-                var adminCh= this._worker._settings.guildsSettings[guild.id]['adminChannels'];
-                if(cmd==="add"){
-                    message.mentions.channels.tap( channel => {
-                        if(!adminCh.includes(channel.id)) adminCh.push(channel.id);
-                    });
-
-                    this._worker._settings.saveGuildsSetup();
-                }
-                else if(cmd==="rm"){
-                    message.mentions.channels.tap( channel => {
-                        if(adminCh.includes(channel.id)) this._worker._settings.guildsSettings[guild.id]['adminChannels']= adminCh.filter(e => {return e!=channel.id});
-                    });
-
-                    this._worker._settings.saveGuildsSetup();
-                }
-                else if(cmd==="get"){
-                    var str= "";
-                    adminCh.forEach(element => {
-                        str+=`\t- <#${element}>`;
-                    });
-                    if(str.length<=0){
-                        str= "\tthere are none…"
-                    }
-
-                    message.author.send(`Channels I recognize for “*admin*” purposes for ${guild}:\n${str}`);
-                }
-
-                return true;
+        if((Boolean(message.mentions) && Boolean(message.mentions[mentionType]) && (message.mentions[mentionType].size>0)) ||
+            ["get","help"].includes(cmd)
+        ){
+            var guildSettings= null;
+            if(!Boolean(guildSettings=this._worker._settings.guildsSettings[guild.id])){
+                return false
             }
-            else{
-                message.channel.send("No channel mentions detected");
-
-                return false;
+            if(!Boolean(guildSettings[guildSettingsField])){
+                this._worker._settings.guildsSettings[guild.id][guildSettingsField]=[];
             }
+
+            var obj= this._worker._settings.guildsSettings[guild.id][guildSettingsField];
+            if(cmd==="add"){
+                message.mentions[mentionType].tap( type => {
+                    if(!obj.includes(type.id)) obj.push(type.id);
+                });
+
+                this._worker._settings.saveGuildsSetup();
+            }
+            else if(cmd==="rm"){
+                message.mentions[mentionType].tap( type => {
+                    if(obj.includes(type.id)) this._worker._settings.guildsSettings[guild.id][guildSettingsField]= obj.filter(e => {return e!=type.id});
+                });
+
+                this._worker._settings.saveGuildsSetup();
+            }
+            else if(cmd==="get"){
+                var str= "";
+                obj.forEach(element => {
+                    str+=`\t- ${(guildSettingsField==='ctrlChannels')?
+                                `<#${element}>`
+                                : (guildSettingsField==='adminRoles')?
+                                    (Boolean(guild.roles) && Boolean(guild.roles.get(element)))?
+                                        guild.roles.get(element).name
+                                        : `<@${element}>`
+                                    : "unknown"
+                        }`
+                });
+                if(str.length<=0){
+                    str= "\tthere are none…"
+                }
+
+                message.author.send(`Admin roles for ${guild}:\n${str}`);
+            }
+            else if(cmd==="help"){
+                message.author.send("No help available…");
+            }
+
+            return true;
         }
+        else{
+            message.author.send(`No ${mentionType} mention detected`);
+
+            return false;
+        }
+    }
+
+    CMD_manageCtrlChannel(cmd, args, message){
+        if(cmd==="help"){
+            message.author.send(`__**adminrole** command family___:\n\n`+
+                `*Admin Roles only:**\n\n`+
+                `\t\`!addadminrole @role\`\n\n`+
+                `\tThe members of the mentionned role will be granted 'admin' acknowledgment privileges by myself.\n\n`+
+                `\t\`!rmadminrole @role\`\n\n`+
+                `\tIf members of mentionned role previously had 'admin' privileges, it will no longer be the case.\n\n`+
+                `\t\`!getadminrole\`\n\n`+
+                `\tLists all of the roles that have 'admin' privileges.`
+            );
+            return true;
+        }
+        else
+            return this._meta_CMD_management(cmd, message, 'channels', 'ctrlChannels');
+    }
+
+    CMD_manageAdminRole(cmd, args, message){
+        if(cmd==="help"){
+            message.author.send(`__**ctrlchannel** command family___:\n\n`+
+                `*Admin Roles only:**\n\n`+
+                `\t\`!addctrlchannel #channel\`\n\n`+
+                `\tThe mentionned channel will be recognized has a 'control' channel.\n\n`+
+                `\t\`!rmctrlchannel #channel\`\n\n`+
+                `\tIf the mentionned channel previously was previously considered has a 'control' channel, it will no longer be the case.\n\n`+
+                `\t\`!getctrlchannel\`\n\n`+
+                `\tLists all of the control channels.`
+            );
+            return true;
+        }
+        else
+            return this._meta_CMD_management(cmd, message, 'roles', 'adminRoles');
     }
 }
 

@@ -1,6 +1,9 @@
 const fs = require('fs');
 const path= require('path');
 
+let hereLog= (...args) => {console.log("[Settings]", ...args);};
+
+
 class Settings{
     constructor(bot){
         this._bot= bot;
@@ -12,26 +15,23 @@ class Settings{
     }
 
     saveGuildsSetup(){
-        console.log("saved sett")
         var data= JSON.stringify(this.guildConfigs.settings, null, 2);
 
         fs.writeFile(this.guildConfigs.file, data, err => {
             if(err){
-                console.log(`[FC Saving] Couldn't write in file '${this.guildConfigs.file}'…` );
-                console.log(err);
+                hereLog(`[FC Saving] Couldn't write in file '${this.guildConfigs.file}'…` );
+                hereLog(err);
             }
         });
     }
 
     checkGuildsSetup(){
         var data= fs.readFileSync(this.guildConfigs.file);
-        console.log("file read");
         if(Boolean(data)){
             this.guildConfigs.settings= JSON.parse(data);
-            console.log("hmmmm... "+this.guildConfigs.settings);
         }
         else{
-            console.log(`[Settings] Error reading data from '${this.guildConfigs.file}'`);
+            hereLog(`Error reading data from '${this.guildConfigs.file}'`);
         }
 
         this._bot.guilds.forEach((guild) => {

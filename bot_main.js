@@ -16,4 +16,5 @@ bot.login();
  *  ** Unstall particular ID function, to use when role/channel is deleted
  *  ** Rework Commander and whatnot so that it's works when guild is joind during runtime
  *  ** Support guild leave?
+ *  ** utils, not saved with loaded commands but
  */

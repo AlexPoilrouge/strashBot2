@@ -3,6 +3,7 @@ const Commander= require('./commander').Commander;
 
 const utils= require('./utils')
 
+let hereLog= (...args) => {console.log("[Worker]", ...args);};
 
 class Worker{
     constructor(bot){
@@ -21,12 +22,10 @@ class Worker{
     ready(){
         this._settings.checkGuildsSetup();
 
-        console.log("ready");
+        hereLog("ready");
     }
 
     processMessage(message, cacheRoom){
-        console.log("message: "+message.content);
-
         this._commander._msgRoomUpdate(cacheRoom)
         let cmd= utils.commandDecompose(message);
         if(cmd){
@@ -38,20 +37,24 @@ class Worker{
         this._commander.onEvent(...arguments);
     }
 
+    newGuild(guild){
+        this._commander._addGuildCmd(guild);
+    }
+
+    byeGuild(guild){
+        this._commander._rmGuildCmd(guild);
+    }
+
     processDMessage(message){
-        console.log("dMessage");
     }
 
     reactionAdd(reaction, user){
-        console.log("reaction added");
     }
 
     reactionRemove(reaction, user){
-        console.log("reaction removed");
     }
 
     memberRemove(member){
-        console.log("member removed;")
     }
 };
 

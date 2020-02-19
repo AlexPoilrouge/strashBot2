@@ -12,6 +12,8 @@ const config= require('config');
 
 const MSG_CACHE= 500;
 
+let hereLog= (...args) => {console.log("[bot]", ...args);};
+
 class StrashBot extends Discord.Client{
     constructor(token, worker){
         super({messageCacheMaxSize: MSG_CACHE});
@@ -21,7 +23,7 @@ class StrashBot extends Discord.Client{
 
         this.token= token;
         this.worker= undefined;
-        console.log("token: "+token);
+        hereLog("token: "+token);
     }
 
 
@@ -33,11 +35,11 @@ class StrashBot extends Discord.Client{
         this.on('ready', ()=>{
             this.worker= new wk.Worker(this);
 
-            console.log("Pif paf! StrashBot rrrready to rumblllllllllle!");
+            hereLog("Pif paf! StrashBot rrrready to rumblllllllllle!");
             
-            console.log("Servers:")
+            hereLog("Guilds:")
             this.guilds.forEach((guild) => {
-                console.log(" - " + guild.name)
+                hereLog(" - " + guild.name)
             })
 
             this.worker.ready();
@@ -50,17 +52,15 @@ class StrashBot extends Discord.Client{
             var d= (this._msgCache-this._msgCount);
 
             if(message.channel.type === 'dm'){
-                console.log(`Recieving DM command from ${message.author.id}`);
+                hereLog(`Recieving DM command from ${message.author.id}`);
                 this.worker.dMessage(message, d);
             }
             else{
-                console.log(`Recieving command from channel ${message.channel.id}`);
                 this.worker.processMessage(message, d);
             }
         });
         
         this.on('messageReactionAdd', (reaction, user) => {
-            console.log("eh")
             if(user.id!==this.user.id)
                 this.worker.event('messageReactionAdd', reaction, user);
         });
@@ -70,38 +70,41 @@ class StrashBot extends Discord.Client{
                 this.worker.event('messageReactionRemove', reaction, user);
         });
         
-        this.on('messageReactionRemoveAll', (reaction, user) => {
-            if(user.id!==this.user.id)
-                this.worker.event('messageReactionRemoveAll', reaction, user);
+        this.on('messageReactionRemoveAll', (message) => {
+            this.worker.event('messageReactionRemoveAll', message);
         });
         
         this.on('guildMemberRemove', (member) => {
             this.worker.memberRemove(member);
         });
         
+        this.on('guildMemberUpdate', (oldMember, newMember) => {
+            this.worker.event('guildMemberUpdate', oldMember, newMember);
+        });
+        
         this.on('error', (error)=>{
-            console.log("SmashBot encountered an error…");
-            console.log(error);
+            hereLog("SmashBot encountered an error…");
+            hereLog(error);
         });
         
         this.on('reconnecting', ()=>{
-            console.log("SmashBot is attempting a reconnection through websocket…");
+            hereLog("SmashBot is attempting a reconnection through websocket…");
             this.worker.destroy();
         });
         
         this.on('resume', (replayed) =>{
             this.worker.destroy();
-            console.log("SmashBot's websocket is resuming… "+replayed+" events were played.");
+            hereLog("SmashBot's websocket is resuming… "+replayed+" events were played.");
         });
         
         this.on('warn', (info) =>{
-            console.log("SmashBot WARNING!!! : "+info);
+            hereLog("SmashBot WARNING!!! : "+info);
         });
         
         this.on('disconnect', (event)=>{
             this.worker.destroy();
-            console.log("SmashBot disconnected.");
-            console.log(event);
+            hereLog("SmashBot disconnected.");
+            hereLog(event);
         });
 
         this.on('channelDelete', channel =>{
@@ -116,18 +119,25 @@ class StrashBot extends Discord.Client{
         this.on('roleUpdate', (oldRole, newRole) =>{
             this.worker.event('roleUpdate', oldRole, newRole);
         })
+        this.on("guildCreate", guild  =>{
+            hereLog(`new guild ${guild}!`)
+            this.worker.newGuild(guild);
+        })
+        this.on("guildDelete", guild  =>{
+            hereLog(`bye ${guild}…`)
+            this.worker.byeGuild(guild);
+        })
     }
 
     async login(){
         if(!this.validTest){
-            console.log( utils.JSONCheck.report(config.get('StrashBot')) );
-            console.log("bot config isn't valid, won't login to discord");
+            hereLog( utils.JSONCheck.report(config.get('StrashBot')) );
+            hereLog("bot config isn't valid, won't login to discord");
         }
         else{
             await super.login(this.token)
             .then()
-            .catch( err => { console.log("Error when login to discord attempt…"); console.log(err); });
-            console.log("aaa");
+            .catch( err => { hereLog("Error when login to discord attempt…"); hereLog(err); });
         }
     }
 

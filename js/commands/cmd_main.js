@@ -1,32 +1,39 @@
 const cron= require('node-cron');
 
-function __deleteMemberMainRoles(member, charChanObj){
+const CLEARANCE_LEVEL= require('../defines').CLEARANCE_LEVEL;
+
+var _followedFiles= 0;
+
+
+let hereLog= (...args) => {console.log("[cmd_main]", ...args);};
+
+async function __deleteMemberMainRoles(member, charChanObj){
+    hereLog(`delete main roles for ${member}`)
     var rms= [];
     member.roles.forEach( (r, id, map) =>{
-        var charChanFound= undefined;
-        console.log("r "+r.id+","+r.name)
-        if( Boolean(charChanFound=Object.values(charChanObj).find(chObj =>{
-            console.log(`${chObj.role} === ${r.id}`)
+        var found_cco= undefined;
+        if( Boolean(found_cco=Object.values(charChanObj).find(chObj =>{
                 return Boolean(chObj.role) && (chObj.role===r.id)
             }))
         ){
-            console.log("roles "+r.id+","+r.name)
-            rms.push(charChanFound);
+            rms.push([r,found_cco]);
         }
-        rms.forEach(cco => {
-            var r= cco.role;
-            console.log("found role "+r.id+","+r.name)
-            member.removeRole(r);
-    
-            if(!Boolean(r.members) || r.members.size<=0){
-                r.delete();
-                delete cco[role];
-            }
-        });
     });
+    
+    for (var r_cco of rms){
+        var role= r_cco[0];
+        var cco= r_cco[1];
+        await member.removeRole(role);
+
+        if(!Boolean(role.members) || role.members.size<=0){
+            role.delete();
+            delete cco["role"];
+        }
+    }
 }
 
 async function _postColorVoteMessage(channel, charChanObj){
+    hereLog(`post color vote on ${channel}`)
     var r= undefined, role= undefined;
     if(!Boolean(charChanObj) || !Boolean(r=charChanObj.role) || !Boolean(role=channel.guild.roles.get(r))){
         return false;
@@ -47,6 +54,7 @@ async function _postColorVoteMessage(channel, charChanObj){
         });
 
         charChanObj.color_message= msg.id;
+        ++_followedFiles;
     })
 
     return true;
@@ -56,11 +64,21 @@ async function _process_color_vote(message, emojis_colors, charChanObj){
     var charObj= undefined;
     if(!Boolean(charChanObj) || !Boolean(charObj=charChanObj[message.channel.id])) return false;
 
+    if(!Boolean(charObj.color_message) || (charObj.color_message!=message.id)) return false;
+
     var r= undefined, role= undefined;
     if(!Boolean(r= charObj.role) || !Boolean(role=message.guild.roles.get(r))) return false;
 
     var max= -1, res=undefined, count= -1;
     var emojis= Object.keys(emojis_colors);
+
+    for (var emj of emojis){
+        if( Boolean(message.reactions) &&
+            !Boolean(message.reactions.find(r => {return (r.emoji.name===emj && !r.me);}))
+        ){
+            await message.react(emj);
+        }
+    }
     
     for(var reac of message.reactions){
         var mr= reac[1]
@@ -80,8 +98,6 @@ async function _process_color_vote(message, emojis_colors, charChanObj){
         }
     }
 
-    console.log("max "+max+"; res "+res+"; c ."+emojis_colors[res]);
-
     if(!Boolean(res)) return false;
     role.setColor(emojis_colors[res]);
 
@@ -92,12 +108,26 @@ function __stallMember(id, stalledObj){
     var stalled= stalledObj;
     if(!Boolean(stalled)) stalled={};
 
-    if(!Boolean(stalled.day+1)) stalled.day= (new Date()).getDay();
+    if(!Boolean(stalled.date)) stalled.date= Date.now();
     
     if(!Boolean(stalled.members)) stalled.members=[id];
     else if(!Boolean(stalled.members.includes(id))) stalled.members.push(id);
 
     return stalled;
+}
+
+function _unstallMember(id, stalledObj){
+    if(!Boolean(stalledObj.members)) return {};
+
+    var stalled= stalledObj.members.filter(uid => {
+        return uid !== id;
+    });
+
+    if(!Boolean(stalled)) return {};
+    
+    stalledObj.members= stalled;
+
+    return stalledObj;
 }
 
 function _cache_maintenance(guilds, settings){
@@ -118,8 +148,9 @@ function _cache_maintenance(guilds, settings){
 }
 
 function _onChannelMissing(charChan, guild, chanID){
-    var r= undefined, role=undefined;
-    if(Boolean(r=char.role) && Boolean(role=guild.roles.get(r))){
+    hereLog(`on channel missing… ${chanID}`)
+    var cco= undefined, r= undefined, role=undefined;
+    if(Boolean(cco=charChan[chanID]) && Boolean(r=cco.role) && Boolean(role=guild.roles.get(r))){
         role.delete();
     }
 
@@ -131,10 +162,10 @@ function _onChannelMissing(charChan, guild, chanID){
 var l_guilds= [];
 
 function cmd_init(utils){
-    console.log(`-> sup?`);
+    hereLog(`cmd init`);
 
     cron.schedule('0 0 * * 1', () => {
-        console.log("every monday at 00:00 ?");
+        hereLog("monday at 00:00 ? unstall members");
 
         l_guilds.forEach(g => {
             utils.settings.set(guild,'stalledMembers', {});
@@ -144,48 +175,73 @@ function cmd_init(utils){
 
 function cmd_init_per_guild(utils, guild){
     l_guilds.push(guild);
-    console.log(`cmd_init_per_guild(${guild.id})`);
+    hereLog(`cmd init for guild ${guild}`);
 
-    charChan= utils.settings.get(guild, 'channelCharacter');
+    var charChan= utils.settings.get(guild, 'channelCharacter');
     if(Boolean(charChan)){
-        console.log("wiiii")
         Object.keys(charChan).forEach( chan => {
-            console.log(`chan ${chan}`)
             var cco= undefined;
             var channel= undefined;
             if(Boolean(chan) && Boolean(cco=charChan[chan])){
-                if(Boolean(cco.color_message)){
-                    if(Boolean(channel=guild.channels.get(chan))){
-                        console.log(`channel.fetchMessage(${cco.color_message})`);
+                if(!Boolean(channel=guild.channels.get(chan))){
+                    _onChannelMissing(charChan, guild, chan);
+                }
+                else{
+                    if(Boolean(cco.color_message)){
                         channel.fetchMessage(cco.color_message).then(msg =>{
                             _process_color_vote(msg, emojis_color, charChan);
                         })
                         .catch(err => {
-                            console.log("nooooooo "+err)
                             delete (cco['color_message']);
+                            _followedFiles= ((--_followedFiles)<0)?0:1;
                             utils.settings.set(guild, 'channelCharacter', charChan);
                         });
                     }
-                    else{
-                        _onChannelMissing(charChan, guild, chan);
+                    if(Boolean(cco.role)
+                    ){
+                        var r= undefined;
+                        if (!Boolean(r=guild.roles.get(cco.role))){
+                            delete cco['role'];
+                        }
+                        else{
+                            guild.fetchMembers().then( gld =>{
+                                if(r.members.size<=0){
+                                    delete cco['role'];
+                                    utils.settings.set(guild, 'channelCharacter', charChan);
+                                    r.delete();
+                                }
+                            });
+                        }
                     }
+                    utils.settings.set(guild, 'channelCharacter', charChan);
                 }
-                if(Boolean(cco.role) && !Boolean(guild.roles.get(cco.role))){
-                    delete cco['role'];
-                }
-                console.log("huh?")
-                utils.settings.set(guild, 'channelCharacter', charChan);
             }
         });
     }
+
+    var stalled= utils.settings.get(guild, "stalledMembers");
+    if(Boolean(stalled)){
+        var r= {};
+        var time= stalled.date;
+        if(Boolean(time)){
+            var d= new Date(time);
+            var now= new Date();
+            if( ((now-d)<604800000) && (d.getDay()<=now.getDay()) ){
+                r=stalled;
+            }
+        }
+
+        utils.settings.set(guild, "stalledMembers", r);
+    }
 }
 
-async function cmd_main(cmdObj, isAdmin, utils){
-    console.log(`ah the 'main' command; ${(isAdmin)?"My lord": "you not admin though…"}`);
+async function cmd_main(cmdObj, clearanceLvl, utils){
+    hereLog(`main command called (clearance: ${clearanceLvl}) by ${cmdObj.msg_obj.author} on ${cmdObj.msg_obj.channel}`);
 
     let args= cmdObj.args;
     let message= cmdObj.msg_obj
-    if(args[0]==="add" && isAdmin){
+    if(args[0]==="add" && (clearanceLvl>CLEARANCE_LEVEL.NONE)){
+        hereLog("'add' subcommand");
         if( args.length<3 || !Boolean(args[1].match(/[A-Za-z0-9\ \-\.]+/))
             || !Boolean(args[2].match(/<#[0-9]+>/))
         ){
@@ -216,7 +272,8 @@ async function cmd_main(cmdObj, isAdmin, utils){
 
         return true;
     }
-    else if(args[0]==="clear" && isAdmin){
+    else if(args[0]==="clear" && (clearanceLvl>CLEARANCE_LEVEL.NONE)){
+        hereLog("'clear' subcommand")
         if( args.length<2 || !Boolean(args[1].match(/<#[0-9]+>/))){
             message.author.send("Format:\n\t`!main clear [#channel]`")
             return false;
@@ -245,7 +302,6 @@ async function cmd_main(cmdObj, isAdmin, utils){
         var role= undefined;
         if(Boolean(chanChar[chan.id].role) && Boolean(role=chan.guild.roles.get(chanChar[chan.id].role))){
             str+=`\nDeleting '${role.name}' role…`;
-            role.delete();
         }
         if(Boolean(chanChar[chan.id].color_message)){
             chan.fetchMessage().then(msg => {
@@ -253,17 +309,21 @@ async function cmd_main(cmdObj, isAdmin, utils){
             });
         }
         delete chanChar[chan.id];
+        _followedFiles= ((--_followedFiles)<0)?0:1;
 
         utils.settings.set(message.guild, 'channelCharacter', chanChar);
 
         message.author.send(str);
+        if(Boolean(role)) role.delete();
 
         return true;
     }
-    else if(args[0]==="unstall" && isAdmin){
+    else if(args[0]==="unstall" && (clearanceLvl>CLEARANCE_LEVEL.NONE)){
+        hereLog("'unstall' subcommand")
         return utils.settings.set(message.guild,'stalledMembers', {});
     }
     else if(args[0]==="here"){
+        hereLog("'here' subcommand")
         var chanChar= utils.settings.get(message.guild, 'channelCharacter');
         var charObj= undefined;
 
@@ -280,9 +340,11 @@ async function cmd_main(cmdObj, isAdmin, utils){
         return true;
     }
     else if(args[0]==="list"){
+        hereLog("'list' subcommand")
         return false;
     }
     else if(args[0]==="none"){
+        hereLog("'none' subcommand")
         var chanChar= utils.settings.get(message.guild, 'channelCharacter');
         if(!Boolean(chanChar)) return true;
 
@@ -292,15 +354,15 @@ async function cmd_main(cmdObj, isAdmin, utils){
             return false;
         }
 
-        __deleteMemberMainRoles(message.member, chanChar);
+        await __deleteMemberMainRoles(message.member, chanChar);
 
         utils.settings.set(message.guild, 'stalledMembers', __stallMember(message.author.id, stalled));
-        utils.settings.get(message.guild, 'channelCharacter', chanChar);
+        utils.settings.set(message.guild, 'channelCharacter', chanChar);
 
         return true;
     }
     else if(args[0]==="color"){
-        console.log("huh");
+        hereLog("'color' subcommand")
         var charChan= utils.settings.get(message.guild, 'channelCharacter');
         var chanCharObj= undefined;
 
@@ -322,14 +384,13 @@ async function cmd_main(cmdObj, isAdmin, utils){
 
             return false;
         }
-        console.log("what? "+chanCharObj.color_message)
         if(Boolean(chanCharObj.color_message)){
-            console.log("phew…")
             message.channel.fetchMessage(chanCharObj.color_message).then(msg =>{
                 message.channel.send(`Color vote for "${role}" role is here: <${msg.url}>`);
             })
             .catch(err => {
                 delete chanCharObj['color_message'];
+                _followedFiles= ((--_followedFiles)<0)?0:1;
                 utils.settings.set(message.guild, 'channelCharacter', charChan);
                 _postColorVoteMessage(message.channel, chanCharObj);
             });
@@ -342,21 +403,18 @@ async function cmd_main(cmdObj, isAdmin, utils){
         }
     }
     else{
-        console.log("hey")
+        hereLog("'vanilla' subcommand")
         var chanChar= utils.settings.get(message.guild, 'channelCharacter');
         var stalled= utils.settings.get(message.guild, 'stalledMembers');
         var chanCharObj= undefined;
 
         if(!Boolean(chanChar) || !Boolean(chanCharObj=chanChar[message.channel.id])|| !Boolean(chanCharObj.character)) return false;
-        console.log("ho")
         if(Boolean(stalled) && Boolean(stalled.members) && Boolean(stalled.members.includes(message.author.id))){
             message.author.send("Tu ne peux pas changer de *main* à nouveau cette semaine…");
             return false;
         }
 
-        console.log(`stalled: ${stalled}`);
-
-        __deleteMemberMainRoles(message.member, chanChar);
+        await __deleteMemberMainRoles(message.member, chanChar);
 
         let roleName= `${chanCharObj.character} main`;
         var r= chanCharObj.role;
@@ -373,6 +431,7 @@ async function cmd_main(cmdObj, isAdmin, utils){
             message.guild.createRole({
                 name: roleName,
                 mentionable: true,
+                permissions: [],
             })
             .then(
                 role => {
@@ -393,7 +452,8 @@ async function cmd_main(cmdObj, isAdmin, utils){
     return true;
 }
 
-function cmd_help(cmdObj, isAdmin){
+function cmd_help(cmdObj, clearanceLvl){
+    hereLog(`help request by ${cmdObj.msg_obj.author} on ${cmdObj.msg_obj.channel}`)
     let message= cmdObj.msg_obj;
 
     message.author.send(
@@ -410,8 +470,8 @@ function cmd_help(cmdObj, isAdmin){
         `\tCast a  vote for the role color (only members acknowledged as 'mains' of the character associated to the channel can vote)`+
         // `\t\`!main list\`\n\n`+
         // `\tList available characters with their associated channels.`+
-        ((isAdmin)?
-            `\n\n**Admin only:**\n`+
+        ((clearanceLvl>CLEARANCE_LEVEL.NONE)?
+            `\n\n**Admin Roles and/or Control Channels only:**\n`+
             `\t\`!main add [character-name] [#channel]\`\n\n`+
             `\tAdd a character to the collection.\n`+
             `\t⚠️ *The channel must already exist!*\n\n`+
@@ -439,10 +499,10 @@ const emojis_color= {'⚪':"WHITE",
 };
 
 function cmd_event(eventName, utils){
+    hereLog(`Recieved event '${eventName}'…`)
     if(eventName==="messageReactionAdd" || eventName==="messageReactionRemove")
     {
         var reaction= arguments[2];
-        console.log("ah")
         
         var n= reaction.emoji.name;
 
@@ -461,6 +521,7 @@ function cmd_event(eventName, utils){
         if(!Boolean(charChar) || !Boolean(charChan[message.channel.id])) return false;
 
         delete charChan[message.channel.id][color_message];
+        _followedFiles= ((--_followedFiles)<0)?0:1;
 
         utils.settings.set(channel.guild, 'channelCharacter', chanChar);
 
@@ -486,10 +547,9 @@ function cmd_event(eventName, utils){
         var char= undefined;
         if(!Boolean(chanChar) || !Boolean(char=chanChar[message.channel.id])) return false;
 
-        console.log("allo?")
         if(Boolean(char.color_message) && char.color_message===message.id){
-            console.log("hum????")
             delete char['color_message'];
+            _followedFiles= ((--_followedFiles)<0)?0:1;
 
             utils.settings.set(message.guild, 'channelCharacter', chanChar);
         }
@@ -505,7 +565,8 @@ function cmd_event(eventName, utils){
 
         var ch= undefined, channel=undefined;
         if(Boolean(ch=Object.keys(chanChar).find(chan => {
-                return chanChar[chan].role.id===newRole.id;
+                return ( Boolean(chanChar[chan].role) &&
+                    (chanChar[chan].role.id===newRole.id)) ;
             }))
             && Boolean(channel=newRole.guild.channels.get(ch))
         ){
@@ -539,9 +600,18 @@ function cmd_event(eventName, utils){
                     msg.delete();
                 });
                 delete chanChar[channel.id]['color_message'];
+                _followedFiles= ((--_followedFiles)<0)?0:1;
             }
 
             utils.settings.set(channel.guild, 'channelCharacter', chanChar);
+
+            if(Boolean(role.members)){
+                var stalledObj= utils.settings.get(channel.guild, 'stalledMembers');
+                for (var m of role.members){
+                    stalledObj= _unstallMember(m.id, stalledObj);
+                }
+                utils.settings.set(channel.guild, 'stalledMembers', stalledObj);
+            }
 
             return true;
         }
@@ -549,20 +619,54 @@ function cmd_event(eventName, utils){
             return false;
         }
     }
+    else if(eventName==="guildMemberUpdate"){
+        var oldMember= arguments[2];
+        var newMember= arguments[3];
+
+        hereLog("guildMemberUpdate!")
+        if (oldMember.roles.size > newMember.roles.size) {
+            var suprRoles= oldMember.roles.filter(r => {return !newMember.roles.has(r);});
+            
+            var charChan= utils.settings.get(newMember.guild, 'channelCharacter');
+            if(!Boolean(charChan)) return false;
+            
+            var b= false;
+            Object.values(charChan).forEach( cco => {
+                var cco_r= undefined, f_role= undefined;
+                if(Boolean(cco_r=cco.role) && Boolean(f_role=suprRoles.get(cco_r))){
+                    f_role.delete();
+                    delete cco['role'];
+                    b= true;
+                }
+            });
+            if(b) utils.settings.set(newMember.guild, 'channelCharacter', charChan);
+
+            return b;
+        }
+        return false;
+    }
     else if(eventName==="messageCacheThreshold"){
         var cacheSpaceRemaining= arguments[2];
         _cache_maintenance(l_guilds, utils.settings);
-        console.log("remaining: "+cacheSpaceRemaining);
+        hereLog("remaining cache space: "+cacheSpaceRemaining);
     }
     else{
         return false;
     }
 }
 
+function cmd_guild_clear(guild){
+    l_guilds.filter(e => {
+        if(e.id!==guild.id) return true;
+
+        return false;
+    });
+}
+
 function getTreshold(){
-    return 5;
+    return _followedFiles;
 }
 
 module.exports.name= "main";
-module.exports.command= {init: cmd_init, init_per_guild: cmd_init_per_guild, main: cmd_main, help: cmd_help, event: cmd_event};
+module.exports.command= {init: cmd_init, init_per_guild: cmd_init_per_guild, main: cmd_main, help: cmd_help, event: cmd_event, clear_guild: cmd_guild_clear};
 module.exports.getCacheWarnTreshold= getTreshold;
