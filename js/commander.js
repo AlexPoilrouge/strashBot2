@@ -221,7 +221,7 @@ class Commander{
         this._loadCommands();
     }
 
-    _loadCommands(){
+    async _loadCommands(){
         let t=this;
         glob.sync('./js/commands/cmd_*.js').map( file =>{
             hereLog(`[Commander] loading '${file}'…`);
@@ -246,6 +246,7 @@ class Commander{
                 event: ((Boolean(rcf.command) && Boolean(e=rcf.command.event))? ((name, ...args) => {return e(name, utils, ...args);}):null),
                 clear_guild: ((Boolean(rcf.command) && Boolean(c=rcf.clear_guild))? c:null),
                 threshold: [((Boolean(rcf.command))?rcf.getCacheWarnTreshold:0), false],
+                _wait_init: true,
             }); 
             t._cmdSettings.add(file);
 
@@ -257,19 +258,23 @@ class Commander{
                 if(Boolean(rcf.command.init_per_guild)){
                     this._worker.bot.guilds.forEach(g => {
                         t._cmdSettings.addGuild(file, g.id)
-                        rcf.command.init_per_guild(utils,g);
+                        rcf.command._wait_init= true;
+                        await rcf.command.init_per_guild(utils,g);
+                        rcf.command._wait_init= false;
                     });
                 }
             }
         });
     }
 
-    _addGuildCmd(guild){
+    async _addGuildCmd(guild){
         Object.keys(this._cmdSettings._cmdSettings).forEach( k_file => {
             this._cmdSettings.addGuild(k_file, guild.id);
         });
         this.loaded_commands.forEach(l_cmd => {
-            l_cmd.init_per_guild(guild);
+            l_cmd._wait_init= true;
+            await l_cmd.init_per_guild(guild);
+            l_cmd._wait_init= false;
         });
     }
 
@@ -350,6 +355,9 @@ class Commander{
         }
         else if(Boolean(l_cmd=this.loaded_commands.find(e =>{return ( (Array.isArray(e.name) && e.name.includes(cmd)) || (e.name===cmd));}))){
             if(Boolean(l_cmd.func)){
+                while(l_cmd._wait_init){
+                    __sleep(500);
+                }
                 b= await l_cmd.func(cmdObj, this._getClearanceLevel(cmdObj.msg_obj));
             }
             else{

@@ -303,10 +303,12 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         if(Boolean(chanChar[chan.id].role) && Boolean(role=chan.guild.roles.get(chanChar[chan.id].role))){
             str+=`\nDeleting '${role.name}' role…`;
         }
-        if(Boolean(chanChar[chan.id].color_message)){
-            chan.fetchMessage().then(msg => {
+        var col_msg= undefined;
+        if(Boolean(col_msg=chanChar[chan.id].color_message)){
+            chan.fetchMessage(col_msg).then(msg => {
                 msg.delete();
-            });
+            })
+            .catch(err => hereLog(err));
         }
         delete chanChar[chan.id];
         _followedFiles= ((--_followedFiles)<0)?0:1;
