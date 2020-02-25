@@ -26,7 +26,7 @@ class Worker{
     }
 
     processMessage(message, cacheRoom){
-        this._commander._msgRoomUpdate(cacheRoom)
+        this._commander._msgRoomUpdate(cacheRoom);
         let cmd= utils.commandDecompose(message);
         if(cmd){
             this._commander.processCommand(cmd);
@@ -45,7 +45,12 @@ class Worker{
         this._commander._rmGuildCmd(guild);
     }
 
-    processDMessage(message){
+    processDMessage(message, cacheRoom){
+        this._commander._msgRoomUpdate(cacheRoom);
+        let cmd= utils.commandDecompose(message);
+        if(cmd){
+            this._commander.processCommand(cmd, true);
+        }
     }
 
     reactionAdd(reaction, user){

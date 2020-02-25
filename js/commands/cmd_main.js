@@ -342,8 +342,26 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         return true;
     }
     else if(args[0]==="list"){
-        hereLog("'list' subcommand")
-        return false;
+        var chanChar= utils.settings.get(message.guild, 'channelCharacter');
+        if(!Boolean(chanChar)){
+            message.author.send(`I didn't find any channel in "${message.guild}" associated with any character…`);
+            return false
+        }
+        
+        var str= `In guild "${message.guild}"`, b=false;
+        Object.keys(chanChar).forEach(ch_k=>{
+            var n_char= undefined, chan= undefined;
+            if(Boolean(n_char=chanChar[ch_k].character) && Boolean(chan=message.guild.channels.get(ch_k))){
+                str+=`⋅ Channel "${chan.name}" is associated with character "${n_char}"\n`;
+                b= true;
+            }
+        });
+        if(b){
+            str= `I didn't find any channel in "${message.guild}" associated with any character…`;
+        }
+        message.author.send(str);
+
+        return b;
     }
     else if(args[0]==="none"){
         hereLog("'none' subcommand")

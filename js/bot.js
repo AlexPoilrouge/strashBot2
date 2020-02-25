@@ -53,7 +53,7 @@ class StrashBot extends Discord.Client{
 
             if(message.channel.type === 'dm'){
                 hereLog(`Recieving DM command from ${message.author.id}`);
-                this.worker.dMessage(message, d);
+                this.worker.processDMessage(message, d);
             }
             else{
                 this.worker.processMessage(message, d);
@@ -105,6 +105,7 @@ class StrashBot extends Discord.Client{
             this.worker.destroy();
             hereLog("SmashBot disconnected.");
             hereLog(event);
+            process.exit(0);
         });
 
         this.on('channelDelete', channel =>{

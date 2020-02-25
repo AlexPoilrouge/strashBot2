@@ -7,8 +7,9 @@ let hereLog= (...args) => {console.log("[cmd_punish_role]", ...args);};
 var l_guilds= [];
 
 
-function __get_stored_role(name, guild, utils){
+function __get_stored_role(guild, name, utils){
     let r_id=  utils.settings.get(guild, name);
+    hereLog(`r_id: ${r_id}`)
     var role= undefined;
     if(!Boolean(r_id) ||
         !(Boolean(guild.roles) && Boolean(role=guild.roles.get(r_id)))
@@ -20,7 +21,7 @@ function __get_stored_role(name, guild, utils){
     }
 }
 
-function __punish_func(guild, member, p_role, utils){
+async function __punish_func(guild, member, p_role, utils){
     var sentenced= utils.settings.get(guild, 'punished');
     var old_s= undefined;
     var old_sr= [];
@@ -42,8 +43,10 @@ function __punish_func(guild, member, p_role, utils){
     if(Boolean(member.roles)){
         var saved_roles= old_sr;
         member.roles.forEach(role =>{
-            if(!saved_roles.includes(role.id))
+            if(!saved_roles.includes(role.id) && (role.id!==p_role.id)){
+                hereLog(`-- push( ${role.name} )`)
                 saved_roles.push(role.id);
+            }
         });
         if(Boolean(old_s)){
             saved_roles.filter(e => {return e!==old_s && e!==p_role.id;})
@@ -54,11 +57,13 @@ function __punish_func(guild, member, p_role, utils){
 
     utils.settings.set(guild, 'punished', sentenced);
 
-    member.removeRoles(saved_roles).catch(err=>{hereLog(err);});
-    member.addRole(stored_role).catch(err=>{hereLog(err);});
+    hereLog(`addRole ${p_role.name}`)
+    await member.addRole(p_role).catch(err=>{hereLog(err);});
+    hereLog(`removesRole ${saved_roles.map(r=>{return r;})}`)
+    await member.removeRoles(saved_roles).catch(err=>{hereLog(err);});
 }
 
-function _cmd_prison(cmdObj, clearanceLvl, utils){
+async function _cmd_prison(cmdObj, clearanceLvl, utils){
     let args= cmdObj.args;
     let message= cmdObj.msg_obj;
     let sub_cmd= args[0];
@@ -102,6 +107,7 @@ function _cmd_prison(cmdObj, clearanceLvl, utils){
         if(Boolean(message.mentions) && Boolean(members=message.mentions.members)){
             var b= false;
             members.forEach(member =>{
+            // for( var member of members){
                 var clr_lvl= utils.getMemberClearanceLevel(member);
                 if(clr_lvl<=CLEARANCE_LEVEL.NONE){
                     __punish_func(message.guild, member, stored_role, utils); 
@@ -136,30 +142,32 @@ function _cmd_prison(cmdObj, clearanceLvl, utils){
     }
 }
 
-function _free(cmdObj, member, utils){
-    var punished= utils.settings.get(guild,'punished');
+async function _free(cmdObj, member, utils){
+    var punished= utils.settings.get(cmdObj.msg_obj.guild,'punished');
     var con= undefined;
     if(!Boolean(punished) || !Boolean(con=punished[member.id])){
         cmdObj.msg_obj.author.send("Can't find any convict to release…");
         return false;
     }
 
-    var old_roles= con.roles;
-    if(Boolean(old_roles)){
-        member.addRoles(old_roles).catch(err =>{
-            hereLog(err);
-        });
-    }
-
     var s_role= con.sentence;
     if(Boolean(s_role)){
-        member.removeRole(sentence).catch(err =>{
+        hereLog(`removeRole ${s_role}`)
+        await member.removeRole(s_role).catch(err =>{
             hereLog(err);
         });
     }
 
-    delete punished(member.id);
-    utils.settings.set(guild,'punished', punished);
+    var old_roles= con.roles;
+    if(Boolean(old_roles)){
+        hereLog(`addRoles ${old_roles}`)
+        await member.addRoles(old_roles).catch(err =>{
+            hereLog(err);
+        });
+    }
+
+    delete punished[member.id];
+    utils.settings.set(cmdObj.msg_obj.guild,'punished', punished);
 
     return true;
 }
@@ -177,33 +185,38 @@ async function cmd_init_per_guild(utils, guild){
     var punished= utils.settings.get(guild, 'punished');
     if(Boolean(punished)){
         var deleters= [];
-        Object.keys(punished).forEach(k_m_id =>{
+        var punished_keys= Object.keys(punished);
+        for(var k_m_id of punished_keys){
+            var pun_m= punished[k_m_id];
             await guild.fetchMember(k_m_id).then( m =>{
-                if(Boolean(p_r_id) && m.roles.get(p_r_id)){
-                    m.removeRole(p_r_id).catch(err => hereLog(err));
-                }
-                if(Boolean(s_r_id) && m.roles.get(s_r_id)){
-                    m.removeRole(s_r_id).catch(err => hereLog(err));
-                }
-                var saved= undefined;
-                if(Boolean(saved=punished[k_m_id].roles)){
-                    m.addRoles(saved).catch(err => hereLog(err));
-                }
+                var m_sent= Boolean(pun_m)? pun_m.sentence : undefined;
 
-                if( (Boolean(p_r_id) && !Boolean(m.roles.get(p_r_id))) ||
-                    (Boolean(s_r_id) && !Boolean(m.roles.get(s_r_id)))  )
-                {
-                    if(Boolean(saved=punished[k_m_id].roles)){
-                        m.addRoles(saved).catch(err => hereLog(err));
+                if(Boolean(m_sent) && !Boolean(m.roles.get(m_sent))){
+                    if(Boolean(pun_m.roles)){
+                        m.addRoles(pun_m.roles).catch(err => {hereLog(err);});
                     }
 
-                    deleters.push(k_m_id);
+                    delete punished[k_m_id];
+                }
+                else{
+                    var r= undefined;
+                    if(Boolean(r=m.roles.get(p_r_id)) || Boolean(r=m.roles.get(s_r_id))){
+                        __punish_func(guild,m,r,utils);
+                    }
                 }
             })
             .catch(err => hereLog(err))
-        });
-        deleters.forEach(d =>{
-            delete punished[d];
+        };
+
+        await guild.fetchMembers().then(g=>{
+            g.members.forEach(m=>{
+                var pun_m= undefined;
+                if((Boolean(r=m.roles.get(p_r_id)) || Boolean(r=m.roles.get(s_r_id))) &&
+                    !(Boolean(pun_m=punished[m.id]) && Boolean(pun_m.sentence))
+                ){
+                    __punish_func(guild,m,r,utils);
+                }
+            });
         })
         utils.settings.set(guild,'punished',punished);
     }
@@ -211,12 +224,13 @@ async function cmd_init_per_guild(utils, guild){
 
 async function cmd_main(cmdObj, clearanceLvl, utils){
     let command= cmdObj.command;
+    let message= cmdObj.msg_obj;
     hereLog(`${command} command called (clearance: ${clearanceLvl}) by ${cmdObj.msg_obj.author} on ${cmdObj.msg_obj.channel}`)
 
     if(clearanceLvl<=CLEARANCE_LEVEL.NONE) return false;
 
     if(command==="prison"){
-        return _cmd_prison(cmdObj, clearanceLvl, utils)
+        return await _cmd_prison(cmdObj, clearanceLvl, utils)
     }
     else if(command=="free"){
         var members= undefined;
@@ -232,6 +246,24 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
         return b;
     }
+    else if(command==="convicts"){
+        var punished= utils.settings.get(message.guild, 'punished');
+        var convicts= undefined
+        if(!Boolean(punished) || !Boolean(convicts=Object.keys(punished)) || convicts.length<=0){
+            message.author.send("No convicts found (maybe they broke out??? 😱 )");
+            return true;
+        }
+
+        str= "Convicts list:\n\n";
+        convicts.forEach(con => {
+            var con_obj= punished[con];
+            str+= `\t[ ${(Boolean(con) && Boolean(con_obj.sentence))?message.guild.roles.get(con_obj.sentence).name:'???'} ] <@${con}>`;
+            str+= (Boolean(con) && Boolean(con_obj.roles))?"( stripped from "+con_obj.roles.map(r=>{return message.guild.roles.get(r).name;})+" )":'';
+        });
+        message.author.send(str);
+
+        return true;
+    }
 
     return false;
 }
@@ -245,21 +277,23 @@ function cmd_event(eventName, utils){
     if(eventName==="guildMemberUpdate"){
         var oldMember= arguments[2];
         var newMember= arguments[3];
+        hereLog(`old ${oldMember.roles.map(r=>{return r.name;})}`)
+        hereLog(`new ${newMember.roles.map(r=>{return r.name;})}`)
 
         if (oldMember.roles.size > newMember.roles.size) {
-            var suprRoles= oldMember.roles.filter(r => {return !newMember.roles.has(r);});
+            var suprRoles= oldMember.roles.filter(r => {return !newMember.roles.has(r.id);});
 
-            var p_r= utils.settings.get(newMember.guild, 'prison_role');
-            var s_r= utils.settings.get(newMember.guild, 'silence_role');
+            var punished= utils.settings.get(newMember.guild, 'punished');
+            var p_sent= (Boolean(p_sent=punished[newMember.id]))? p_sent.sentence: undefined;
 
-            if(suprRoles.some(s_role => {return s_role.id===p_r || s_role.id===s_r})){
+            if(Boolean(p_sent) && suprRoles.some(s_role => {return s_role.id===p_sent;})){
                 var punished= utils.settings.get(newMember.guild, 'punished');
                 var old_roles= undefined, con= undefined;
-                if(Boolean(punished) && Boolean(con=punished[member.id]) && Boolean(old_roles=con.roles)){
+                if(Boolean(punished) && Boolean(con=punished[newMember.id]) && Boolean(old_roles=con.roles)){
                     newMember.addRoles(old_roles).catch(err => {hereLog(err);});
                 }
 
-                delete punished[member.id];
+                delete punished[newMember.id];
                 utils.settings.set(newMember.guild, 'punished',punished);
             }
         }
@@ -278,6 +312,6 @@ function getTreshold(){
     return 0;
 }
 
-module.exports.name= ["prison","silence","free"];
+module.exports.name= ["prison","silence","free","convicts"];
 module.exports.command= {init: cmd_init, init_per_guild: cmd_init_per_guild, main: cmd_main, help: cmd_help, event: cmd_event, clear_guild: cmd_guild_clear};
 module.exports.getCacheWarnTreshold= getTreshold;

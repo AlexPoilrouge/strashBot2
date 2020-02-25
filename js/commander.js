@@ -2,6 +2,10 @@ const glob= require( 'glob' );
 const path= require( 'path' );
 const fs= require( 'fs' );
 
+const config= require('config');
+
+
+
 const DEFINES= require('./defines')
 
 let hereLog= (...args) => {console.log("[Commander]", ...args);};
@@ -221,7 +225,7 @@ class Commander{
         this._loadCommands();
     }
 
-    async _loadCommands(){
+    _loadCommands(){
         let t=this;
         glob.sync('./js/commands/cmd_*.js').map( file =>{
             hereLog(`[Commander] loading '${file}'…`);
@@ -235,10 +239,11 @@ class Commander{
                     get: (guild, field) => {return this._cmdSettings.getField(file, guild, field);},
                     remove: (guild, field) => {this._cmdSettings.removeField(file, guild, field);},
                 },
-                getMemberClearanceLevel: this._getMemberClearanceLevel,
+                getMemberClearanceLevel: this._getMemberClearanceLevel.bind(this),
             };
             
-            t.loaded_commands.push( {
+            var tmp_l_cmd= undefined;
+            t.loaded_commands.push( tmp_l_cmd={
                 name: rcf.name,
                 init_per_guild: ((Boolean(rcf.command) && Boolean(i=rcf.init_per_guild))? (g =>{i(utils,g)}):null),
                 func: ((Boolean(rcf.command) && Boolean(m=rcf.command.main))? (cmdO, clrlv) => {return m(cmdO, clrlv, utils)}:null),
@@ -256,22 +261,22 @@ class Commander{
                     rcf.command.init(utils);
                 }
                 if(Boolean(rcf.command.init_per_guild)){
-                    this._worker.bot.guilds.forEach(g => {
+                    tmp_l_cmd._wait_init= true;
+                    this._worker.bot.guilds.forEach(async g => {
                         t._cmdSettings.addGuild(file, g.id)
-                        rcf.command._wait_init= true;
                         await rcf.command.init_per_guild(utils,g);
-                        rcf.command._wait_init= false;
                     });
+                    tmp_l_cmd._wait_init= false;
                 }
             }
         });
     }
 
-    async _addGuildCmd(guild){
+    _addGuildCmd(guild){
         Object.keys(this._cmdSettings._cmdSettings).forEach( k_file => {
             this._cmdSettings.addGuild(k_file, guild.id);
         });
-        this.loaded_commands.forEach(l_cmd => {
+        this.loaded_commands.forEach(async l_cmd => {
             l_cmd._wait_init= true;
             await l_cmd.init_per_guild(guild);
             l_cmd._wait_init= false;
@@ -302,11 +307,36 @@ class Commander{
     }
 
     async processCommand(cmdObj, isDM= false){
-        var b=false;
+        var b=undefined;
         var cmd= cmdObj.command;
         var l_cmd=null;
 
-        if(isDM) return;
+        if(isDM){
+            hereLog(`Private '${cmd}' command from '${cmdObj.msg_obj.author.username} (${cmdObj.msg_obj.author})'\n${cmdObj.msg_obj}`);
+            if(cmd==="tell" && this._isMaster(cmdObj.msg_obj.author)){
+                if(Boolean(cmdObj.args) && cmdObj.args.length>0){
+                    this._worker._bot.user.setActivity(cmdObj.args.join(' '));
+                    b= true;
+                }
+                else{
+                    b= false;
+                }
+            }
+            else if(cmd==="bye" && this._isMaster(cmdObj.msg_obj.author)){
+                if(Boolean(cmdObj.args)){
+                    this._worker._bot.destroy();
+                    b=true;
+                }
+                else{
+                    b=false;
+                }
+            }
+            else if(cmd==="about"){
+                cmdObj.msg_obj.author.send(`Hi! I am strashbot! Version ${config.get('StrashBot.version')}-${config.get('StrashBot.build')}`);
+
+                b=true;
+            }
+        }
 
         var __clearanceManagementCmd= (cmd, sfx, mng_func, s_cmd=undefined) => {
             if(!cmd.endsWith(sfx)) return false;
@@ -322,9 +352,10 @@ class Commander{
             return false;
         }
 
-        if( (b=__clearanceManagementCmd(cmd, "ctrlchannel", this.CMD_manageCtrlChannel.bind(this))) || 
-            (b=__clearanceManagementCmd(cmd, "adminrole", this.CMD_manageAdminRole.bind(this))) )
-        {;}
+        var t_b= undefined;
+        if( (t_b=__clearanceManagementCmd(cmd, "ctrlchannel", this.CMD_manageCtrlChannel.bind(this))) || 
+            (t_b=__clearanceManagementCmd(cmd, "adminrole", this.CMD_manageAdminRole.bind(this))) )
+        { b= t_b;}
         else if(cmd==="help"){
             var askedCmd= undefined;
             if(!Boolean(cmdObj.args) || !Boolean(askedCmd=cmdObj.args[0])){
@@ -363,9 +394,6 @@ class Commander{
             else{
                 b= undefined;
             }
-        }
-        else{
-            b= undefined;
         }
 
         if(b!==undefined) cmdObj.msg_obj.react((b)?'✅':'❌');
