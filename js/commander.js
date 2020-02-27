@@ -19,7 +19,7 @@ function __sleep(ms){
 
 class CommandSettings{
     constructor(){
-        this._dirPath= "./commands/data"
+        this._dirPath= "../data/commands"
         fs.mkdirSync(path.resolve(__dirname, this._dirPath), { recursive: true });
 
         this._cmdSettings= {};
@@ -359,11 +359,21 @@ class Commander{
         else if(cmd==="help"){
             var askedCmd= undefined;
             if(!Boolean(cmdObj.args) || !Boolean(askedCmd=cmdObj.args[0])){
-                cmdObj.msg_obj.author.send(
-                    `__**help** command___:\n\n`+
+                var str= `__**help** command__:\n\n`+
                     `\t\`!help command\`\n\n`+
-                    `\tProvides help on a given command.`
-                )
+                    `\tProvides help on a given command (given appropriate clearance level).\n\n`+
+                    `__*Commands*:__\n\n`+
+                    `\t\`![add|remove|get]ctrlChannel\`\n`+
+                    `\t\`![add|remove|get]adminRole\`\n`;
+                for (var c of this.loaded_commands){
+                    if(Array.isArray(c.name)){
+                        str+= '\t\`'+c.name.map( e =>{ return '!'+e+' '})+'\`\n';
+                    }
+                    else{
+                        str+= `\t\`!${c.name}\`\n`;
+                    }
+                }
+                cmdObj.msg_obj.author.send(str);
 
                 b= true;
             }
@@ -374,7 +384,7 @@ class Commander{
                 if( (b=__clearanceManagementCmd(askedCmd, "ctrlchannel", this.CMD_manageCtrlChannel.bind(this), 'help')) || 
                     (b=__clearanceManagementCmd(askedCmd, "adminrole", this.CMD_manageAdminRole.bind(this), 'help')) )
                 {;}
-                else if(Boolean(l_cmd=this.loaded_commands.find(e =>{return (e.name===askedCmd);}))){
+                else if(Boolean(l_cmd=this.loaded_commands.find(e =>{return (Array.isArray(e.name) && e.name.includes(askedCmd)) || (e.name===askedCmd);}))){
                     if(Boolean(l_cmd.help)){
                         b= l_cmd.help(cmdObj, this._getClearanceLevel(cmdObj.msg_obj));
                     }

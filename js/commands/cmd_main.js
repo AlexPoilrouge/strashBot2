@@ -356,7 +356,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 b= true;
             }
         });
-        if(b){
+        if(!b){
             str= `I didn't find any channel in "${message.guild}" associated with any character…`;
         }
         message.author.send(str);

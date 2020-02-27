@@ -6,6 +6,8 @@ let hereLog= (...args) => {console.log("[cmd_punish_role]", ...args);};
 
 var l_guilds= [];
 
+let l_cmd= ["prison","silence","free","convicts"];
+
 
 function __get_stored_role(guild, name, utils){
     let r_id=  utils.settings.get(guild, name);
@@ -36,7 +38,7 @@ async function __punish_func(guild, member, p_role, utils){
     if(Boolean(s_mbr.sentence)){
         old_s=s_mbr.sentence;
     }
-    if(Boolean(sentenced.roles)){
+    if(Boolean(s_mbr.roles)){
         old_sr= s_mbr.roles;
     }
 
@@ -57,6 +59,9 @@ async function __punish_func(guild, member, p_role, utils){
 
     utils.settings.set(guild, 'punished', sentenced);
 
+    if(Boolean(old_s) && (old_s!==p_role.id)){
+        await member.removeRole(old_s).catch(err=>{hereLog(err);});
+    }
     hereLog(`addRole ${p_role.name}`)
     await member.addRole(p_role).catch(err=>{hereLog(err);});
     hereLog(`removesRole ${saved_roles.map(r=>{return r;})}`)
@@ -191,7 +196,8 @@ async function cmd_init_per_guild(utils, guild){
             await guild.fetchMember(k_m_id).then( m =>{
                 var m_sent= Boolean(pun_m)? pun_m.sentence : undefined;
 
-                if(Boolean(m_sent) && !Boolean(m.roles.get(m_sent))){
+                var r= undefined;
+                if(!Boolean(m_sent) || !Boolean(r=m.roles.get(m_sent))){
                     if(Boolean(pun_m.roles)){
                         m.addRoles(pun_m.roles).catch(err => {hereLog(err);});
                     }
@@ -199,10 +205,8 @@ async function cmd_init_per_guild(utils, guild){
                     delete punished[k_m_id];
                 }
                 else{
-                    var r= undefined;
-                    if(Boolean(r=m.roles.get(p_r_id)) || Boolean(r=m.roles.get(s_r_id))){
-                        __punish_func(guild,m,r,utils);
-                    }
+                    hereLog(`punish_func(guild,${m},${r},utils)`);
+                    __punish_func(guild,m,r,utils);
                 }
             })
             .catch(err => hereLog(err))
@@ -270,6 +274,25 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
 function cmd_help(cmdObj, clearanceLvl){
     hereLog(`help request by ${cmdObj.msg_obj.author} on ${cmdObj.msg_obj.channel}`);
+    if(clearanceLvl<=CLEARANCE_LEVEL.NONE) return false;
+
+    let message= cmdObj.msg_obj;
+
+    message.author.send(
+        `__**punishment** command family___:\n\n`+
+        `**Admin Roles and/or Control Channels only:**\n\n`+
+        `\t\`!prison role <@role>\`\n\n`+
+        `\tSets the mentioned role associated with the 'prison' command.\n\n`+
+        `\t\`!prison <@usermention>\`\n\n`+
+        `\tGives the "prison" punishment to the mentioned user, stripping him of all of his roles, leaving him only`+
+        `with the 'prison' associated role…\n\n`+
+        `\t\`!convicts\`\n\n`+
+        `\tList all of the conviceted users…\n\n`+
+        `\t\`!free <@usermention>\`\n\n`+
+        `\tRelease the mentionned user of his/her punishment.\n(Manually removing his/her "punishment role" should also work…)\n`
+    );
+
+    return true;
 }
 
 function cmd_event(eventName, utils){
@@ -284,7 +307,7 @@ function cmd_event(eventName, utils){
             var suprRoles= oldMember.roles.filter(r => {return !newMember.roles.has(r.id);});
 
             var punished= utils.settings.get(newMember.guild, 'punished');
-            var p_sent= (Boolean(p_sent=punished[newMember.id]))? p_sent.sentence: undefined;
+            var p_sent= (Boolean(punished) && Boolean(p_sent=punished[newMember.id]))? p_sent.sentence: undefined;
 
             if(Boolean(p_sent) && suprRoles.some(s_role => {return s_role.id===p_sent;})){
                 var punished= utils.settings.get(newMember.guild, 'punished');
@@ -312,6 +335,6 @@ function getTreshold(){
     return 0;
 }
 
-module.exports.name= ["prison","silence","free","convicts"];
+module.exports.name= l_cmd;
 module.exports.command= {init: cmd_init, init_per_guild: cmd_init_per_guild, main: cmd_main, help: cmd_help, event: cmd_event, clear_guild: cmd_guild_clear};
 module.exports.getCacheWarnTreshold= getTreshold;
