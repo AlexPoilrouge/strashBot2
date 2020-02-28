@@ -240,6 +240,7 @@ class Commander{
                     remove: (guild, field) => {this._cmdSettings.removeField(file, guild, field);},
                 },
                 getMemberClearanceLevel: this._getMemberClearanceLevel.bind(this),
+                bot_uid: this._worker._bot.user.id,
             };
             
             var tmp_l_cmd= undefined;
@@ -447,11 +448,12 @@ class Commander{
 
     _getClearanceLevel(message){
         return (this._getMemberClearanceLevel(message.member) |
-                (this._isCtrlChannel(message.channel))? DEFINES.CLEARANCE_LEVEL.CONTROL_CHANNEL : 0);
+                ((this._isCtrlChannel(message.channel))? DEFINES.CLEARANCE_LEVEL.CONTROL_CHANNEL : 0));
     }
 
     _meta_CMD_management(cmd, message, mentionType, guildSettingsField){
-        if( this._getClearanceLevel(message) < DEFINES.CLEARANCE_LEVEL.ADMIN_ROLE ){
+        var clvl= 0;
+        if( (clvl=this._getClearanceLevel(message)) < DEFINES.CLEARANCE_LEVEL.ADMIN_ROLE ){
             message.author.send(`Only a user with “*admin*” access can manage StrashBot's ${guildSettingsField}…`);
 
             return false;

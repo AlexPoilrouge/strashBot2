@@ -2,6 +2,7 @@
     "StrashBot": {
         "version": "STRASHBOT_VER",
         "build": "STRASHBOT_BUILD",
+        "source": "STRASHBOT_SRC",
 
         "token": "STRASHBOT_TOKEN",
 
