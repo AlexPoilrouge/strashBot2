@@ -223,6 +223,9 @@ class Commander{
         this.loaded_commands= [];
 
         this._loadCommands();
+
+        this._trackedMessages= [];
+        this._trackedMessagesRefreshed= false;
     }
 
     _loadCommands(){
@@ -241,6 +244,11 @@ class Commander{
                 },
                 getMemberClearanceLevel: this._getMemberClearanceLevel.bind(this),
                 bot_uid: this._worker._bot.user.id,
+                cache_message_management:{
+                    keepTrackOf: (msg) => {if(!this._trackedMessages.find(m => {return m.id===msg.id})) this._trackedMessages.push(msg);},
+                    untrack: (msg) => {this._trackedMessages= this._trackedMessages.filter(m => {return m.id!==msg.id;});},
+                    isTracked: (msg) => {return Boolean(this._trackedMessages.find(m => {return m.id===msg.id}));},
+                }
             };
             
             var tmp_l_cmd= undefined;
@@ -251,7 +259,6 @@ class Commander{
                 help: ((Boolean(rcf.command) && Boolean(h=rcf.command.help))? h:null),
                 event: ((Boolean(rcf.command) && Boolean(e=rcf.command.event))? ((name, ...args) => {return e(name, utils, ...args);}):null),
                 clear_guild: ((Boolean(rcf.command) && Boolean(c=rcf.clear_guild))? c:null),
-                threshold: [((Boolean(rcf.command))?rcf.getCacheWarnTreshold:0), false],
                 _wait_init: true,
             }); 
             t._cmdSettings.add(file);
@@ -293,18 +300,18 @@ class Commander{
         });
     }
 
-    _msgRoomUpdate(left){
-        this.loaded_commands.forEach(l_cmd =>{
-            if(Boolean(l_cmd.threshold) && l_cmd.threshold[0]()>=left){
-                if(!l_cmd.threshold[1]){
-                    l_cmd.event("messageCacheThreshold", left);
-                    l_cmd.threshold[1]= true;
-                }
-                if(left<1){
-                    l_cmd.threshold[1]= false;
-                }
+    _msgRoomUpdate(roomLeft){
+        if(this._trackedMessages.length>=roomLeft){
+            if(!this._trackedMessagesRefreshed){
+                this._trackedMessages.forEach(msg =>{
+                    msg.channel.fetchMessage(msg.id).catch(err=>{hereLog(err);});
+                });
+                this._trackedMessagesRefreshed= true;
             }
-        })
+            if(roomLeft<1){
+                this._trackedMessagesRefreshed= false;
+            }
+        }
     }
 
     async processCommand(cmdObj, isDM= false){
@@ -333,7 +340,13 @@ class Commander{
                 }
             }
             else if(cmd==="about"){
-                cmdObj.msg_obj.author.send(`Hi! I am strashbot! Version ${config.get('StrashBot.version')}-${config.get('StrashBot.build')}`);
+                var str= `Hi! 👋 I am strashbot! Version ${config.get('StrashBot.version')}-${config.get('StrashBot.build')}`;
+                var src= undefined;
+                if(Boolean(src=config.get('StrashBot.source'))){
+                    str+=`\n\tYou can get to know me better and explore my insides at ${src}. 😊`
+                }
+
+                cmdObj.msg_obj.author.send(str);
 
                 b=true;
             }
@@ -361,19 +374,22 @@ class Commander{
             var askedCmd= undefined;
             if(!Boolean(cmdObj.args) || !Boolean(askedCmd=cmdObj.args[0])){
                 var str= `__**help** command__:\n\n`+
-                    `\t\`!help command\`\n\n`+
+                    `\t\`!help command\``+
                     `\tProvides help on a given command (given appropriate clearance level).\n\n`+
                     `__*Commands*:__\n\n`+
                     `\t\`![add|remove|get]ctrlChannel\`\n`+
                     `\t\`![add|remove|get]adminRole\`\n`;
                 for (var c of this.loaded_commands){
                     if(Array.isArray(c.name)){
-                        str+= '\t\`'+c.name.map( e =>{ return '!'+e+' '})+'\`\n';
+                        str+= '\t\`'+c.name.map( e =>{ return '!'+e+' '})+' \`\n';
                     }
                     else{
                         str+= `\t\`!${c.name}\`\n`;
                     }
                 }
+                str+= `\n__*DM Commands*:__\n\n`+
+                    `\t\`!about\` \tBasic infos about myself.`;
+
                 cmdObj.msg_obj.author.send(str);
 
                 b= true;
@@ -542,7 +558,7 @@ class Commander{
                 `\t\`!addctrlchannel #channel\`\n\n`+
                 `\tThe mentionned channel will be recognized has a 'control' channel.\n\n`+
                 `\t\`!rmctrlchannel #channel\`\n\n`+
-                `\tIf the mentionned channel previously was previously considered has a 'control' channel, it will no longer be the case.\n\n`+
+                `\tIf the mentionned channel was previously considered has a 'control' channel, it will no longer be the case.\n\n`+
                 `\t\`!getctrlchannel\`\n\n`+
                 `\tLists all of the control channels.`
             );

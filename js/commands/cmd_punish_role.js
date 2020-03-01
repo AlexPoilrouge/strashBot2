@@ -255,6 +255,12 @@ async function cmd_init_per_guild(utils, guild){
     var p_r_id= utils.settings.get(guild, 'prison_role');
     var s_r_id= utils.settings.get(guild, 'silence_role');
     var punished= utils.settings.get(guild, 'punished');
+    if(Boolean(p_r_id) && !Boolean(guild.roles.get(p_r_id))){
+        utils.settings.remove(guild, 'prison_role');
+    }
+    if(Boolean(s_r_id) && !Boolean(guild.roles.get(s_r_id))){
+        utils.settings.remove(guild, 'silence_role');
+    }
     if(Boolean(punished)){
         var punished_keys= Object.keys(punished);
         for(var k_m_id of punished_keys){
@@ -365,14 +371,17 @@ function cmd_help(cmdObj, clearanceLvl){
         `\t\`!prison role <@role>\`\n\n`+
         `\tSets the mentioned role associated with the 'prison' command.\n\n`+
         `\t\`!prison which\`\n\n`+
-        `\tShows which is associated with the 'prison' command (along with the 'glued roles').\n\n`+
+        `\tShows which role is associated with the 'prison' command (along with the 'glued roles').\n\n`+
         `\t\`!prison glue <@role>\`\n\n`+
         `\tSets the mentioned role as a 'glued role', a role that can't be stripped during punishment…\n\n`+
         `\t\`!prison unglue <@role>\`\n\n`+
-        `\tRemove the mentioned role, from the 'glue roles'…\n\n`+
+        `\tRemove the mentioned role, from the 'glued roles'…\n\n`+
         `\t\`!prison <@usermention>\`\n\n`+
         `\tGives the "prison" punishment to the mentioned user, stripping him of all of his roles, leaving him only`+
         `with the 'prison' associated role…\n\n`+
+        `\t\`!silence\`\n\n`+
+        `\tThe 'silence' command is used is the exact same fashion as the 'prison' command (with same subcommand and options)\n`+
+        `\tInstead of managing the role associated with the 'prison' punishment, it is used to manage the one associated with the 'silence' punishment.\n\n`
         `\t\`!convicts\`\n\n`+
         `\tList all of the convicted users…\n\n`+
         `\t\`!free <@usermention>\`\n\n`+
@@ -390,12 +399,13 @@ function cmd_event(eventName, utils){
         hereLog(`old ${oldMember.roles.map(r=>{return r.name;})}`)
         hereLog(`new ${newMember.roles.map(r=>{return r.name;})}`)
 
+
+        var punished= utils.settings.get(newMember.guild, 'punished');
+
         if (oldMember.roles.size > newMember.roles.size) {
             var suprRoles= oldMember.roles.filter(r => {return !newMember.roles.has(r.id);});
 
-            var punished= utils.settings.get(newMember.guild, 'punished');
             var p_sent= (Boolean(punished) && Boolean(p_sent=punished[newMember.id]))? p_sent.sentence: undefined;
-
             if(Boolean(p_sent) && suprRoles.some(s_role => {return s_role.id===p_sent;})){
                 var punished= utils.settings.get(newMember.guild, 'punished');
                 var old_roles= undefined, con= undefined;
@@ -406,17 +416,39 @@ function cmd_event(eventName, utils){
                 delete punished[newMember.id];
                 utils.settings.set(newMember.guild, 'punished',punished);
             }
+        }
+        else if(oldMember.roles.size < newMember.roles.size){
+            var addedRoles= newMember.roles.filter(r => {return !oldMember.roles.has(r.id);});
 
+            var pris_r= utils.settings.get(newMember.guild, 'prison_role');
+            var sil_r= utils.settings.get(newMember.guild, 'silence_role');
+            var punish_r= undefined
+            if( (Boolean(pris_r) || Boolean(sil_r)) &&
+                (punish_r=addedRoles.find(s_role => {return (s_role.id===pris_r || s_role.id===sil_r);}))
+            ){
+                if(utils.getMemberClearanceLevel(newMember)<CLEARANCE_LEVEL.ADMIN_ROLE){
+                    __punish_func(newMember.guild, newMember, punish_r, utils);
+                }
+            }
         }
     }
     else if(eventName==="roleDelete"){
         var role= arguments[2];
 
-        var s_r= utils.settings.get(newMember.guild, 'spared-roles');
+        var s_r= utils.settings.get(role.guild, 'spared-roles');
         if(Boolean(s_r) && s_r.length>0){
             s_r.filter(sr =>{return sr!==role.id;});
 
-            utils.settings.set(newMember.guild, 'spared-roles', s_r);
+            utils.settings.set(role.guild, 'spared-roles', s_r);
+        }
+
+        var pris_r= utils.settings.get(role.guild, 'prison_role');
+        var sil_r= utils.settings.get(role.guild, 'silence_role');
+        if(role.id===pris_r){
+            utils.settings.remove(role.guild, 'prison_role');
+        }
+        else if(role.id===sil_r){
+            utils.settings.remove(role.guild, 'silence_role');
         }
     }
 }
@@ -429,10 +461,5 @@ function cmd_guild_clear(guild){
     });
 }
 
-function getTreshold(){
-    return 0;
-}
-
 module.exports.name= l_cmd;
 module.exports.command= {init: cmd_init, init_per_guild: cmd_init_per_guild, main: cmd_main, help: cmd_help, event: cmd_event, clear_guild: cmd_guild_clear};
-module.exports.getCacheWarnTreshold= getTreshold;

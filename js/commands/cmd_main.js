@@ -2,7 +2,6 @@ const cron= require('node-cron');
 
 const CLEARANCE_LEVEL= require('../defines').CLEARANCE_LEVEL;
 
-var _followedFiles= 0;
 
 
 let hereLog= (...args) => {console.log("[cmd_main]", ...args);};
@@ -32,7 +31,7 @@ async function __deleteMemberMainRoles(member, charChanObj){
     }
 }
 
-async function _postColorVoteMessage(channel, charChanObj){
+async function _postColorVoteMessage(channel, charChanObj, utils){
     hereLog(`post color vote on ${channel}`)
     var r= undefined, role= undefined;
     if(!Boolean(charChanObj) || !Boolean(r=charChanObj.role) || !Boolean(role=channel.guild.roles.get(r))){
@@ -54,7 +53,7 @@ async function _postColorVoteMessage(channel, charChanObj){
         });
 
         charChanObj.color_message= msg.id;
-        ++_followedFiles;
+        utils.cache_message_management.keepTrackOf(msg);
     })
 
     return true;
@@ -130,23 +129,6 @@ function _unstallMember(id, stalledObj){
     return stalledObj;
 }
 
-function _cache_maintenance(guilds, settings){
-    guilds.forEach(g =>{
-        var chanChar= settings.get(g, "channelCharacter");
-        if(Boolean(chanChar)){
-            Object.keys(chanChar).forEach( chan => {
-                var charObj= chanChar[chan];
-                if(Boolean(charObj)){
-                    var channel= undefined;
-                    if(Boolean(charObj.color_message) && Boolean(channel= g.channels.get(chan))){
-                        channel.fetchMessage(charObj.color_message);
-                    }
-                }
-            });
-        }
-    })
-}
-
 function _onChannelMissing(charChan, guild, chanID){
     hereLog(`on channel missing… ${chanID}`)
     var cco= undefined, r= undefined, role=undefined;
@@ -193,7 +175,6 @@ function cmd_init_per_guild(utils, guild){
                         })
                         .catch(err => {
                             delete (cco['color_message']);
-                            _followedFiles= ((--_followedFiles)<0)?0:1;
                             utils.settings.set(guild, 'channelCharacter', charChan);
                         });
                     }
@@ -307,11 +288,11 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         if(Boolean(col_msg=chanChar[chan.id].color_message)){
             chan.fetchMessage(col_msg).then(msg => {
                 msg.delete();
+                utils.cache_message_management.untrack(msg);
             })
             .catch(err => hereLog(err));
         }
         delete chanChar[chan.id];
-        _followedFiles= ((--_followedFiles)<0)?0:1;
 
         utils.settings.set(message.guild, 'channelCharacter', chanChar);
 
@@ -410,15 +391,14 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             })
             .catch(err => {
                 delete chanCharObj['color_message'];
-                _followedFiles= ((--_followedFiles)<0)?0:1;
                 utils.settings.set(message.guild, 'channelCharacter', charChan);
-                _postColorVoteMessage(message.channel, chanCharObj);
+                _postColorVoteMessage(message.channel, chanCharObj, utils);
             });
 
             return true;
         }
         else{
-            await _postColorVoteMessage(message.channel, chanCharObj)
+            await _postColorVoteMessage(message.channel, chanCharObj, utils)
             utils.settings.set(message.guild, 'channelCharacter', charChan);
         }
     }
@@ -488,8 +468,8 @@ function cmd_help(cmdObj, clearanceLvl){
         `\tCheck if the channel you type this into is associated to a character role assignation.\n\n`+
         `\t\`!main color\`\n\n`+
         `\tCast a  vote for the role color (only members acknowledged as 'mains' of the character associated to the channel can vote)`+
-        // `\t\`!main list\`\n\n`+
-        // `\tList available characters with their associated channels.`+
+        `\t\`!main list\`\n\n`+
+        `\tList available characters with their associated channels.`+
         ((clearanceLvl>CLEARANCE_LEVEL.NONE)?
             `\n\n**Admin Roles and/or Control Channels only:**\n`+
             `\t\`!main add [character-name] [#channel]\`\n\n`+
@@ -538,10 +518,16 @@ function cmd_event(eventName, utils){
 
         var charChan= utils.settings.get(message.guild, 'channelCharacter');
 
-        if(!Boolean(charChar) || !Boolean(charChan[message.channel.id])) return false;
+        var charChanObj= undefined;
+        if(!Boolean(charChar) || !Boolean(charChanObj=charChan[message.channel.id]) ||
+            !Boolean(charChanObj.color_message) || charChanObj.color_message!==message.id
+        ){
+            return false;
+        }
 
+        utils.cache_message_management.untrack(message);
         delete charChan[message.channel.id][color_message];
-        _followedFiles= ((--_followedFiles)<0)?0:1;
+
 
         utils.settings.set(channel.guild, 'channelCharacter', chanChar);
 
@@ -569,7 +555,7 @@ function cmd_event(eventName, utils){
 
         if(Boolean(char.color_message) && char.color_message===message.id){
             delete char['color_message'];
-            _followedFiles= ((--_followedFiles)<0)?0:1;
+            utils.cache_message_management.untrack(message);
 
             utils.settings.set(message.guild, 'channelCharacter', chanChar);
         }
@@ -618,9 +604,9 @@ function cmd_event(eventName, utils){
             if(Boolean(c=chanChar[channel.id].color_message)) {
                 channel.fetchMessage(c).then( msg => {
                     msg.delete();
+                    utils.cache_message_management.untrack(msg);
                 });
                 delete chanChar[channel.id]['color_message'];
-                _followedFiles= ((--_followedFiles)<0)?0:1;
             }
 
             utils.settings.set(channel.guild, 'channelCharacter', chanChar);
@@ -665,11 +651,6 @@ function cmd_event(eventName, utils){
         }
         return false;
     }
-    else if(eventName==="messageCacheThreshold"){
-        var cacheSpaceRemaining= arguments[2];
-        _cache_maintenance(l_guilds, utils.settings);
-        hereLog("remaining cache space: "+cacheSpaceRemaining);
-    }
     else{
         return false;
     }
@@ -683,10 +664,5 @@ function cmd_guild_clear(guild){
     });
 }
 
-function getTreshold(){
-    return _followedFiles;
-}
-
 module.exports.name= "main";
 module.exports.command= {init: cmd_init, init_per_guild: cmd_init_per_guild, main: cmd_main, help: cmd_help, event: cmd_event, clear_guild: cmd_guild_clear};
-module.exports.getCacheWarnTreshold= getTreshold;
