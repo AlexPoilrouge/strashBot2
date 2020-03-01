@@ -25,7 +25,7 @@ Bot written in node.js.
 Check out Discord's documentation for how to [create a bot account](https://discordpy.readthedocs.io/en/rewrite/discord.html) for your server.
 Once it's done, invite the bot to the server (only possible by user with "manager server" permission) by using a link formatted as follow:
 `https://discordapp.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&scope=bot&permissions=PERMISSION_INTEGER`
-Where `YOUR_CLIENT_ID` can be found on the [discord application page](https://discordapp.com/developers/applications), and the `PERMISSION_INTEGER` can also be compute from there ('Bot' section).
+Where `YOUR_CLIENT_ID` can be found on the [discord application page](https://discordapp.com/developers/applications), and the `PERMISSION_INTEGER` can also be computed from there ('Bot' section).
 
 **Be sure to note your bot's `TOKEN` from the bot section.**
 
