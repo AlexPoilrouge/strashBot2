@@ -32,7 +32,7 @@ async function __deleteMemberMainRoles(member, charChanObj){
 }
 
 async function _postColorVoteMessage(channel, charChanObj, utils){
-    hereLog(`post color vote on ${channel}`)
+    hereLog(`post color vote on ${channel.name}(${channel})`)
     var r= undefined, role= undefined;
     if(!Boolean(charChanObj) || !Boolean(r=charChanObj.role) || !Boolean(role=channel.guild.roles.get(r))){
         return false;
