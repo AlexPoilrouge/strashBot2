@@ -329,11 +329,19 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             return false
         }
         
-        var str= `In guild "${message.guild}"`, b=false;
+        var str= `In guild "${message.guild}": `, b=false;
         Object.keys(chanChar).forEach(ch_k=>{
             var n_char= undefined, chan= undefined;
+            var tmp_str= "";
             if(Boolean(n_char=chanChar[ch_k].character) && Boolean(chan=message.guild.channels.get(ch_k))){
-                str+=`⋅ Channel "${chan.name}" is associated with character "${n_char}"\n`;
+                tmp_str=`⋅ Channel "${chan.name}" is associated with character "${n_char}"\n`;
+                if((tmp_str.length + str.length)>1998){
+                    message.author.send(str);
+                    str= tmp_str;
+                }
+                else{
+                    str+=tmp_str;
+                }
                 b= true;
             }
         });
