@@ -381,7 +381,7 @@ function cmd_help(cmdObj, clearanceLvl){
         `with the 'prison' associated role…\n\n`+
         `\t\`!silence\`\n\n`+
         `\tThe 'silence' command is used is the exact same fashion as the 'prison' command (with same subcommand and options)\n`+
-        `\tInstead of managing the role associated with the 'prison' punishment, it is used to manage the one associated with the 'silence' punishment.\n\n`
+        `\tInstead of managing the role associated with the 'prison' punishment, it is used to manage the one associated with the 'silence' punishment.\n\n`+
         `\t\`!convicts\`\n\n`+
         `\tList all of the convicted users…\n\n`+
         `\t\`!free <@usermention>\`\n\n`+
