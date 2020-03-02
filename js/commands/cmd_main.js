@@ -24,7 +24,8 @@ async function __deleteMemberMainRoles(member, charChanObj){
         var cco= r_cco[1];
         await member.removeRole(role);
 
-        if(!Boolean(role.members) || role.members.size<=0){
+        var l_members= message.guild.roles.get(role.id).members;
+        if(!Boolean(l_members) || l_members.size<=0){
             role.delete();
             delete cco["role"];
         }
