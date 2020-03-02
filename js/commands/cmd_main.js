@@ -427,7 +427,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         let roleName= `${chanCharObj.character} main`;
         var r= chanCharObj.role;
         var role= undefined;
-        if(Boolean(r) && (role=message.member.roles.get(r.id))){
+        if(Boolean(r) && (role=message.member.roles.get(r))){
             message.member.addRole(role);
                     
             utils.settings.set(message.guild, 'stalledMembers', __stallMember(message.author.id,stalled));
