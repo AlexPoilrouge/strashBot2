@@ -64,7 +64,7 @@ async function _process_color_vote(message, emojis_colors, charChanObj){
     var charObj= undefined;
     if(!Boolean(charChanObj) || !Boolean(charObj=charChanObj[message.channel.id])) return false;
 
-    if(!Boolean(charObj.color_message) || (charObj.color_message!=message.id)) return false;
+    if(!Boolean(charObj.color_message) || (charObj.color_message!==message.id)) return false;
 
     var r= undefined, role= undefined;
     if(!Boolean(r= charObj.role) || !Boolean(role=message.guild.roles.get(r))) return false;
@@ -428,7 +428,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         let roleName= `${chanCharObj.character} main`;
         var r= chanCharObj.role;
         var role= undefined;
-        if(Boolean(r) && (role=message.member.roles.get(r))){
+        if(Boolean(r) && (role=message.guild.roles.get(r))){
             message.member.addRole(role);
                     
             utils.settings.set(message.guild, 'stalledMembers', __stallMember(message.author.id,stalled));
