@@ -505,6 +505,7 @@ const emojis_color= {'⚪':"WHITE",
     '🟢':"GREEN",
     '🟡':"GOLD", 
     '🟠':"ORANGE",
+    '⚫':"#31373D",
 };
 
 function cmd_event(eventName, utils){
