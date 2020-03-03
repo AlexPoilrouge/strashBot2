@@ -349,7 +349,13 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         convicts.forEach(con => {
             var con_obj= punished[con];
             str+= `\t[ ${(Boolean(con) && Boolean(con_obj.sentence))?message.guild.roles.get(con_obj.sentence).name:'???'} ] <@${con}>`;
-            str+= (Boolean(con) && Boolean(con_obj.roles))?"( stripped from "+con_obj.roles.map(r=>{return message.guild.roles.get(r).name;})+" )":'';
+            str+= (Boolean(con) && Boolean(con_obj.roles))?"( stripped from "+con_obj.roles.map(r=>{
+                            var r_obj= undefined;
+                            return (Boolean(r_obj=message.guild.roles.get(r)))?
+                                        r_obj.name :
+                                        "[ deleted role ]";
+                        }
+                    )+" )":'';
         });
         message.author.send(str);
 
