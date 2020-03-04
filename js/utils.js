@@ -1,3 +1,7 @@
+
+const path= require( 'path' );
+
+
 JSONCheck ={
     VERSION: 0b1,
     BUILD: 0b10,
@@ -70,5 +74,14 @@ function commandDecompose(message){
     }
 }
 
+function commandNameFromFilePath(fpath){
+    var cmd_name= path.basename(fpath);
+    cmd_name= (cmd_name.startsWith("cmd_"))? cmd_name.slice(4) : cmd_name;
+    cmd_name= (cmd_name.endsWith(".js"))? cmd_name.slice(0,-3) : cmd_name;
+
+    return cmd_name;
+}
+
 module.exports.JSONCheck= JSONCheck;
 module.exports.commandDecompose= commandDecompose;
+module.exports.commandNameFromFilePath= commandNameFromFilePath;

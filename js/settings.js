@@ -34,6 +34,8 @@ class Settings{
             hereLog(`Error reading data from '${this.guildConfigs.file}'`);
         }
 
+        if(!Boolean(this.guildConfigs.settings)) this.guildConfigs.settings= {};
+
         this._bot.guilds.forEach((guild) => {
             if(!(Boolean(this.guildConfigs.settings[guild.id]))){
                 this.guildConfigs.settings[guild.id]= {};

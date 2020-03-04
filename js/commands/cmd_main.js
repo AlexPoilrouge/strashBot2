@@ -22,10 +22,12 @@ async function __deleteMemberMainRoles(member, charChanObj){
     for (var r_cco of rms){
         var role= r_cco[0];
         var cco= r_cco[1];
+        hereLog(`removeRole ${role.name}(${role.id})`);
         await member.removeRole(role);
 
         var l_members= message.guild.roles.get(role.id).members;
         if(!Boolean(l_members) || l_members.size<=0){
+            hereLog(`[1] role delete ${role.name}(${role.id})`);
             role.delete();
             delete cco["role"];
         }
@@ -134,6 +136,7 @@ function _onChannelMissing(charChan, guild, chanID){
     hereLog(`on channel missing… ${chanID}`)
     var cco= undefined, r= undefined, role=undefined;
     if(Boolean(cco=charChan[chanID]) && Boolean(r=cco.role) && Boolean(role=guild.roles.get(r))){
+        hereLog(`[2] role delete ${role.name}(${role.id})`);
         role.delete();
     }
 
@@ -190,6 +193,7 @@ function cmd_init_per_guild(utils, guild){
                                 if(r.members.size<=0){
                                     delete cco['role'];
                                     utils.settings.set(guild, 'channelCharacter', charChan);
+                                    hereLog(`[3] role delete ${r.name}(${r.id})`);
                                     r.delete();
                                 }
                             });
@@ -298,7 +302,10 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         utils.settings.set(message.guild, 'channelCharacter', chanChar);
 
         message.author.send(str);
-        if(Boolean(role)) role.delete();
+        if(Boolean(role)){
+            hereLog(`[4] role delete ${role.name}(${role.id})`);
+            role.delete();
+        }
 
         return true;
     }
@@ -641,7 +648,8 @@ function cmd_event(eventName, utils){
 
         hereLog("guildMemberUpdate!")
         if (oldMember.roles.size > newMember.roles.size) {
-            var suprRoles= oldMember.roles.filter(r => {return !newMember.roles.has(r);});
+            var suprRoles= oldMember.roles.filter(r => {return !newMember.roles.has(r.id);});
+            hereLog(`suprRoles: ${suprRoles.map(r => {return `${r.name} (${r.id})`})}`);
             
             var charChan= utils.settings.get(newMember.guild, 'channelCharacter');
             if(!Boolean(charChan)) return false;
@@ -650,6 +658,7 @@ function cmd_event(eventName, utils){
             Object.values(charChan).forEach( cco => {
                 var cco_r= undefined, f_role= undefined;
                 if(Boolean(cco_r=cco.role) && Boolean(f_role=suprRoles.get(cco_r))){
+                    hereLog(`[5] role delete ${f_role.name}(${f_role.id})`);
                     f_role.delete();
                     delete cco['role'];
                     b= true;

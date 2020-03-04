@@ -128,6 +128,9 @@ class StrashBot extends Discord.Client{
             hereLog(`bye ${guild}…`)
             this.worker.byeGuild(guild);
         })
+        this.on('close', () => {
+            this.removeAllListeners();
+        });
     }
 
     async login(){

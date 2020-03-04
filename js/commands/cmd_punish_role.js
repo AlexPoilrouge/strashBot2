@@ -26,6 +26,20 @@ function __get_stored_role(guild, name, utils){
 async function __punish_func(guild, member, p_role, utils){
     var sentenced= utils.settings.get(guild, 'punished');
     var spared= utils.settings.get(guild, 'spared-roles');
+
+    var mains= [];
+    var m_charChan= utils.settings.get(guild, 'channelCharacter', "main");
+    if(Boolean(m_charChan)){
+        Object.values(m_charChan).forEach(charChan_obj=>{
+            if(charChan_obj.role){
+                mains.push(charChan_obj.role);
+            }
+        });
+    }
+    else{
+        hereLog("-punishing- No 'main' settings found");
+    }
+
     var old_s= undefined;
     var old_sr= [];
     var s_mbr= undefined;
@@ -46,7 +60,9 @@ async function __punish_func(guild, member, p_role, utils){
     if(Boolean(member.roles)){
         var saved_roles= old_sr;
         member.roles.forEach(role =>{
-            if( !saved_roles.includes(role.id) && (role.id!==p_role.id) && (!Boolean(spared) || !spared.includes(role.id)) ){
+            if( !saved_roles.includes(role.id) && (role.id!==p_role.id)
+                    && (!Boolean(spared) || !spared.includes(role.id)) && (!mains.includes(role.id))
+            ){
                 hereLog(`-- push( ${role.name} )`)
                 saved_roles.push(role.id);
             }
@@ -61,11 +77,12 @@ async function __punish_func(guild, member, p_role, utils){
     utils.settings.set(guild, 'punished', sentenced);
 
     if(Boolean(old_s) && (old_s!==p_role.id)){
+        hereLog(`[1] removeRole ${old_s}`)
         await member.removeRole(old_s).catch(err=>{hereLog(err);});
     }
     hereLog(`addRole ${p_role.name}`)
     await member.addRole(p_role).catch(err=>{hereLog(err);});
-    hereLog(`removesRole ${saved_roles.map(r=>{return r;})}`)
+    hereLog(`[2] removesRole ${saved_roles}`)
     await member.removeRoles(saved_roles).catch(err=>{hereLog(err);});
 }
 
@@ -402,8 +419,8 @@ function cmd_event(eventName, utils){
     if(eventName==="guildMemberUpdate"){
         var oldMember= arguments[2];
         var newMember= arguments[3];
-        hereLog(`old ${oldMember.roles.map(r=>{return r.name;})}`)
-        hereLog(`new ${newMember.roles.map(r=>{return r.name;})}`)
+        hereLog(`old ${oldMember.roles.map(r=>{return `${r.name}(${r.id})`;})}`)
+        hereLog(`new ${newMember.roles.map(r=>{return `${r.name}(${r.id})`;})}`)
 
 
         var punished= utils.settings.get(newMember.guild, 'punished');
@@ -440,6 +457,7 @@ function cmd_event(eventName, utils){
     }
     else if(eventName==="roleDelete"){
         var role= arguments[2];
+        hereLog(`recieved roleDelete ${role.name}(${role.id})`);
 
         var s_r= utils.settings.get(role.guild, 'spared-roles');
         if(Boolean(s_r) && s_r.length>0){

@@ -4,7 +4,7 @@ const fs= require( 'fs' );
 
 const config= require('config');
 
-
+const my_utils= require('./utils');
 
 const DEFINES= require('./defines')
 
@@ -30,20 +30,40 @@ class CommandSettings{
     add(cmdFileName){
         if(!Boolean(cmdFileName)) return;
 
-        var cmd_name= path.basename(cmdFileName);
-        cmd_name= (cmd_name.startsWith("cmd_"))? cmd_name.slice(4) : cmd_name;
-        cmd_name= (cmd_name.endsWith(".js"))? cmd_name.slice(0,-3) : cmd_name;
+        // var cmd_name= path.basename(cmdFileName);
+        // cmd_name= (cmd_name.startsWith("cmd_"))? cmd_name.slice(4) : cmd_name;
+        // cmd_name= (cmd_name.endsWith(".js"))? cmd_name.slice(0,-3) : cmd_name;
+        var cmd_name= my_utils.commandNameFromFilePath(cmdFileName);
 
-        var commandFileSettings= this._cmdSettings[cmdFileName];
+        var commandFileSettings= this._cmdSettings[cmd_name];
         if(!Boolean(commandFileSettings)){
-            this._cmdSettings[cmdFileName]= {};
-            commandFileSettings= this._cmdSettings[cmdFileName];
+            this._cmdSettings[cmd_name]= {};
+            commandFileSettings= this._cmdSettings[cmd_name];
         }
-        commandFileSettings['name']= cmd_name;
     }
 
-    addGuild(cmdName, guildID){
-        var commandFileSettings= this._cmdSettings[cmdName];
+    __loadingJSONObj(fileName){
+        if(fs.existsSync(fileName)){
+            var data= fs.readFileSync(fileName);
+
+            var r= undefined;
+            if(Boolean(data) && Boolean(r=JSON.parse(data))){
+                return r;
+            }
+            else{
+                hereLog(`[Settings] Error reading data from '${fileName}'`);
+                return undefined;
+            }
+        }
+        else{
+            return undefined;
+        }
+    }
+
+    addGuild(cmd_name, guildID){
+        // var cmd_name= my_utils.commandNameFromFilePath(cmdFilePath);
+
+        var commandFileSettings= this._cmdSettings[cmd_name];
         if(!Boolean(commandFileSettings))
             return false;
 
@@ -53,17 +73,11 @@ class CommandSettings{
             perGuildSettings= commandFileSettings[guildID];
         }
 
-        var fn= `${this._dirPath}/${commandFileSettings['name']}_${guildID}.json`;
+        var fn= `${this._dirPath}/${cmd_name}_${guildID}.json`;
         perGuildSettings['file']= path.resolve(__dirname, fn);
-        if(fs.existsSync(perGuildSettings['file'])){
-            var data= fs.readFileSync(perGuildSettings['file']);
-
-            if(Boolean(data)){
-                perGuildSettings['object_json']= JSON.parse(data);
-            }
-            else{
-                hereLog(`[Settings] Error reading data from '${perGuildSettings['file']}'`);
-            }
+        var ld_data= this.__loadingJSONObj(perGuildSettings['file']);
+        if(Boolean(ld_data)){
+            perGuildSettings['object_json']= ld_data;
         }
         else{
             perGuildSettings['object_json']= {};
@@ -79,8 +93,10 @@ class CommandSettings{
         }
     }
 
-    async rmGuild(cmdName, guildID){
-        var commandFileSettings= this._cmdSettings[cmdName];
+    async rmGuild(cmd_name, guildID){
+        //var cmd_name= my_utils.commandNameFromFilePath(cmdFilePath);
+
+        var commandFileSettings= this._cmdSettings[cmd_name];
         if(!Boolean(commandFileSettings))
             return;
 
@@ -109,20 +125,44 @@ class CommandSettings{
         delete commandFileSettings[guildID];
     }
 
-    async _saveData(cmdFile, guildID){
+    async reloadData(){
+        while(this._save_lock){
+            await __sleep(1000);
+        }
+        this._save_lock= true;
+
+        Object.keys(this._cmdSettings).forEach( cmd_name => {
+            var cmd_sett_obj= this._cmdSettings[cmd_name];
+
+            var fn= cmd_sett_obj['file'];
+            var data= undefined;
+            if(Boolean(fn) && Boolean(data=this.__loadingJSONObj(fn))){
+                cmd_sett_obj['object_json']= data;
+            }
+            else{
+                hereLog(`[Error] cound't reload data from ${fn}`);
+            }
+        })
+        
+        this._save_lock= false;
+    }
+
+    async _saveData(cmd_name, guildID){
+        //var cmd_name= my_utils.commandNameFromFilePath(cmdFilePath);
+
         var ttt=Date.now();
         while(this._save_lock){
             await __sleep(1000);
         }
         this._save_lock= true;
         
-        var obj= this._cmdSettings[cmdFile]['object_json'];
+        var obj= this._cmdSettings[cmd_name]['object_json'];
         var data= JSON.stringify(obj, null, 2);
 
-        var commandFileSettings= this._cmdSettings[cmdFile];
+        var commandFileSettings= this._cmdSettings[cmd_name];
         var perGuildSettings= undefined;
         if(!Boolean(perGuildSettings=commandFileSettings[guildID])){
-            this.addGuild(cmdFile, guildID);
+            this.addGuild(cmd_name, guildID);
             if(!Boolean(perGuildSettings=commandFileSettings[guildID])){
                 return false;
             }
@@ -142,11 +182,13 @@ class CommandSettings{
         this._save_lock= false;
     }
 
-    getField(cmdFile, guild, fieldName){
+    getField(cmd_name, guild, fieldName){
+        // var cmd_name= my_utils.commandNameFromFilePath(cmdFilePath);
+
         var commandFileSettings= undefined;
         var perGuildSettings= undefined;
         var obj= undefined;
-        if(!Boolean(commandFileSettings=this._cmdSettings[cmdFile]) ||
+        if(!Boolean(commandFileSettings=this._cmdSettings[cmd_name]) ||
             !Boolean(perGuildSettings=commandFileSettings[guild.id]) ||
             !Boolean(obj=perGuildSettings['object_json'])
         ){
@@ -165,11 +207,11 @@ class CommandSettings{
         }
     }
 
-    setField(cmdFile, guild, fieldName, value){
+    setField(cmd_name, guild, fieldName, value){
         var commandFileSettings= undefined;
         var perGuildSettings= undefined;
         var obj= undefined;
-        if(!Boolean(commandFileSettings=this._cmdSettings[cmdFile]) ||
+        if(!Boolean(commandFileSettings=this._cmdSettings[cmd_name]) ||
             !Boolean(perGuildSettings=commandFileSettings[guild.id]) ||
             !Boolean(obj=perGuildSettings['object_json'])
         ){
@@ -192,7 +234,7 @@ class CommandSettings{
             else{
                 tt[fields[l-1]]= value;
             }
-            this._saveData(cmdFile, guild.id);
+            this._saveData(cmd_name, guild.id);
 
             return true;
         }
@@ -200,16 +242,16 @@ class CommandSettings{
         
     }
 
-    removeField(cmdFile, guild, fieldName){
+    removeField(cmd_name, guild, fieldName){
         var commandFileSettings= undefined;
         var perGuildSettings= undefined;
         var obj= undefined;
-        if(Boolean(commandFileSettings=this._cmdSettings[cmdFile]) &&
+        if(Boolean(commandFileSettings=this._cmdSettings[cmd_name]) &&
             Boolean(perGuildSettings=commandFileSettings[guild.id]) &&
             Boolean(obj=perGuildSettings['object_json'])
         ){
             delete obj[fieldName];
-            this._saveData(cmdFile, guild.id);
+            this._saveData(cmd_name, guild.id);
         }
     }
 }
@@ -236,11 +278,22 @@ class Commander{
             let rcf= require(path.resolve(file))
             var m= null, h= null, e=null, i= null, c= null;
 
+            var cmd_name= my_utils.commandNameFromFilePath(file);
+
             var utils= {
                 settings: {
-                    set: (guild, field, value) => {return this._cmdSettings.setField(file, guild, field, value);},
-                    get: (guild, field) => {return this._cmdSettings.getField(file, guild, field);},
-                    remove: (guild, field) => {this._cmdSettings.removeField(file, guild, field);},
+                    set: (guild, field, value, mod_name=undefined) => {
+                        var cmd= (Boolean(mod_name))? mod_name : cmd_name;
+                        return this._cmdSettings.setField(cmd, guild, field, value);
+                    },
+                    get: (guild, field, mod_name=undefined) => {
+                        var cmd= (Boolean(mod_name))? mod_name : cmd_name;
+                        return this._cmdSettings.getField(cmd, guild, field);
+                    },
+                    remove: (guild, field, mod_name=undefined) => {
+                        var cmd= (Boolean(mod_name))? mod_name : cmd_name;
+                        this._cmdSettings.removeField(cmd, guild, field);
+                    },
                 },
                 getMemberClearanceLevel: this._getMemberClearanceLevel.bind(this),
                 bot_uid: this._worker._bot.user.id,
@@ -271,7 +324,7 @@ class Commander{
                 if(Boolean(rcf.command.init_per_guild)){
                     tmp_l_cmd._wait_init= true;
                     this._worker.bot.guilds.forEach(async g => {
-                        t._cmdSettings.addGuild(file, g.id)
+                        t._cmdSettings.addGuild(cmd_name, g.id)
                         await rcf.command.init_per_guild(utils,g);
                     });
                     tmp_l_cmd._wait_init= false;
@@ -281,8 +334,8 @@ class Commander{
     }
 
     _addGuildCmd(guild){
-        Object.keys(this._cmdSettings._cmdSettings).forEach( k_file => {
-            this._cmdSettings.addGuild(k_file, guild.id);
+        Object.keys(this._cmdSettings._cmdSettings).forEach( cmd => {
+            this._cmdSettings.addGuild(cmd, guild.id);
         });
         this.loaded_commands.forEach(async l_cmd => {
             l_cmd._wait_init= true;
@@ -295,8 +348,8 @@ class Commander{
         this.loaded_commands.forEach(l_cmd => {
             l_cmd.clear_guild(guild);
         });
-        Object.keys(this._cmdSettings._cmdSettings).forEach( k_file => {
-            this._cmdSettings.rmGuild(k_file, guild.id);
+        Object.keys(this._cmdSettings._cmdSettings).forEach( cmd => {
+            this._cmdSettings.rmGuild(cmd, guild.id);
         });
     }
 
@@ -349,6 +402,11 @@ class Commander{
                 cmdObj.msg_obj.author.send(str);
 
                 b=true;
+            }
+            else if(cmd==="reload-data"){
+                this._cmdSettings.reloadData();
+
+                b= true;
             }
         }
 
