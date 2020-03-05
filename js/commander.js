@@ -296,7 +296,7 @@ class Commander{
                     },
                 },
                 getMemberClearanceLevel: this._getMemberClearanceLevel.bind(this),
-                bot_uid: this._worker._bot.user.id,
+                bot_client: this._worker._bot,
                 cache_message_management:{
                     keepTrackOf: (msg) => {if(!this._trackedMessages.find(m => {return m.id===msg.id})) this._trackedMessages.push(msg);},
                     untrack: (msg) => {this._trackedMessages= this._trackedMessages.filter(m => {return m.id!==msg.id;});},

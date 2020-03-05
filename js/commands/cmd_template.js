@@ -25,7 +25,7 @@ const CLEARANCE_LEVEL= require('../defines').CLEARANCE_LEVEL;
 //        remove: function (guild, field)
 //     },
 //     getMemberClearanceLevel: function(member),
-//     bot_uid,
+//     bot_client,
 //     cache_message_management:{
 //        keepTrackOf: function (msg),
 //        untrack: function (msg),
@@ -46,7 +46,7 @@ const CLEARANCE_LEVEL= require('../defines').CLEARANCE_LEVEL;
 //       Example: utils.remove(guild, 'online-role');
 //    'utils.getMemberClearanceLevel(member)' is a function you need to call in order to know
 //       the 'clearance level' of a particular guild member. (see below for clearance level)
-//    'utils.bot_uid' is the discord 'user id' of this bot.
+//    'utils.bot_client' is this discord bot client.
 //    'utils.cache_message_management.keepTrackOf(msg)' is a function to want to call when you
 //      want to make sure a message is kept in the cache indefinetely. This is usefull, for
 //      example, when you are tracking reaction on a given message indefinetly, keep it from

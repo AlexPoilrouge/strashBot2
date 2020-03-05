@@ -74,6 +74,10 @@ class StrashBot extends Discord.Client{
             this.worker.event('messageReactionRemoveAll', message);
         });
         
+        this.on('guildMemberAdd', (member) => {
+            this.worker.memberRemove(member);
+        });
+        
         this.on('guildMemberRemove', (member) => {
             this.worker.memberRemove(member);
         });

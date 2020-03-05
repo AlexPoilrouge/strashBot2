@@ -187,7 +187,7 @@ async function __cmd_punish(cmdObj, clearanceLvl, punishment, utils){
             members.forEach(member =>{
             // for( var member of members){
                 var clr_lvl= utils.getMemberClearanceLevel(member);
-                if(member.id===utils.bot_uid){
+                if(member.id===utils.bot_client.user.id){
                     message.author.send(`Nah bruh, ain't gonna screw myself up, fam.`);
                 }
                 else if(clr_lvl<=CLEARANCE_LEVEL.NONE){
