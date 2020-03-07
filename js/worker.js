@@ -51,6 +51,9 @@ class Worker{
         if(cmd){
             this._commander.processCommand(cmd, true);
         }
+        else{
+            this.event('message', message);
+        }
     }
 
     reactionAdd(reaction, user){
