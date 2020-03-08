@@ -66,7 +66,7 @@ function commandDecompose(message){
         return null;
     }
 
-    let splitCmd= message.content.substr(1).split(/\s+/);
+    let splitCmd= message.content.substr(1).split(/[ ]+/);
     return {
         'command': splitCmd[0].toLowerCase(),
         'args': splitCmd.slice(1),
