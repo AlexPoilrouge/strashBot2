@@ -516,7 +516,6 @@ const emojis_color= {'⚪':"WHITE",
 };
 
 function cmd_event(eventName, utils){
-    hereLog(`Recieved event '${eventName}'…`)
     if(eventName==="messageReactionAdd" || eventName==="messageReactionRemove")
     {
         var reaction= arguments[2];

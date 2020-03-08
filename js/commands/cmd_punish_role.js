@@ -415,12 +415,9 @@ function cmd_help(cmdObj, clearanceLvl){
 }
 
 function cmd_event(eventName, utils){
-    hereLog(`Recieved event '${eventName}'…`);
     if(eventName==="guildMemberUpdate"){
         var oldMember= arguments[2];
         var newMember= arguments[3];
-        hereLog(`old ${oldMember.roles.map(r=>{return `${r.name}(${r.id})`;})}`)
-        hereLog(`new ${newMember.roles.map(r=>{return `${r.name}(${r.id})`;})}`)
 
 
         var punished= utils.settings.get(newMember.guild, 'punished');
@@ -457,7 +454,6 @@ function cmd_event(eventName, utils){
     }
     else if(eventName==="roleDelete"){
         var role= arguments[2];
-        hereLog(`recieved roleDelete ${role.name}(${role.id})`);
 
         var s_r= utils.settings.get(role.guild, 'spared-roles');
         if(Boolean(s_r) && s_r.length>0){

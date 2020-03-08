@@ -75,17 +75,25 @@ class StrashBot extends Discord.Client{
         });
         
         this.on('guildMemberAdd', (member) => {
-            this.worker.memberRemove(member);
+            this.worker.event('guildMemberAdd', member);
         });
         
         this.on('guildMemberRemove', (member) => {
-            this.worker.memberRemove(member);
+            this.worker.event('guildMemberRemove', member);
         });
         
         this.on('guildMemberUpdate', (oldMember, newMember) => {
             this.worker.event('guildMemberUpdate', oldMember, newMember);
         });
         
+        this.on('emojiUpdate', (oldEmoji, newEmoji) => {
+            this.worker.event('emojiUpdate', oldEmoji, newEmoji);
+        });
+        
+        this.on('emojiDelete', (emoji) => {
+            this.worker.event('guildMemberUpdate', emoji);
+        });
+
         this.on('error', (error)=>{
             hereLog("SmashBot encountered an error…");
             hereLog(error);

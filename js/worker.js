@@ -31,6 +31,9 @@ class Worker{
         if(cmd){
             this._commander.processCommand(cmd);
         }
+        else{
+            this._commander.onEvent('message',message);
+        }
     }
 
     event(){

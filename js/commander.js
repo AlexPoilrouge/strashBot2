@@ -403,10 +403,59 @@ class Commander{
 
                 b=true;
             }
-            else if(cmd==="reload-data"){
+            else if(cmd==="reload-data" && this._isMaster(cmdObj.msg_obj.author)){
                 this._cmdSettings.reloadData();
 
                 b= true;
+            }
+            else if(cmd==="post-message" && this._isMaster(cmdObj.msg_obj.author)){
+                var g_id= cmdObj.args[0];
+                var ch_id= cmdObj.args[1];
+
+                var guild= undefined, channel= undefined;
+                if(args.length<2){
+                    cmdObj.msg_obj.author.send("Format: `!edit-message <guild_id> <channel_id> <message text…>`");
+                    b= false;
+                }
+                else if(!Boolean(g_id.match(/[0-9]{18}/g)) && !Boolean(guild=this._worker._bot.guilds.get(g_id))){
+                    cmdObj.msg_obj.author.send("Cannot found specified guild…");
+                    b= false;
+                }
+                else if(!Boolean(ch_id.match(/[0-9]{18}/g)) && !Boolean(channel=guild.channels.get(ch_id))){
+                    cmdObj.msg_obj.author.send("Cannot found specified channel…");
+                    b= false;
+                }
+                else{
+                    channel.send(cmdObj.args.slice(2).join(' ')).catch(err => {hereLog(err);})
+                    b= true;
+                }
+            }
+            else if(cmd==="edit-message" && this._isMaster(cmdObj.msg_obj.author)){
+                var g_id= cmdObj.args[0];
+                var ch_id= cmdObj.args[1];
+                var msg_id= cmdObj.args[2];
+
+                var guild= undefined, channel= undefined, message= undefined;
+                if(args.length<3){
+                    cmdObj.msg_obj.author.send("Format: `!edit-message <guild_id> <channel_id> <message_id> <message text…>`");
+                    b= false;
+                }
+                else if(!Boolean(g_id.match(/[0-9]{18}/g)) && !Boolean(guild=this._worker._bot.guilds.get(g_id))){
+                    cmdObj.msg_obj.author.send("Cannot found specified guild…");
+                    b= false;
+                }
+                else if(!Boolean(ch_id.match(/[0-9]{18}/g)) && !Boolean(channel=guild.channels.get(ch_id))){
+                    cmdObj.msg_obj.author.send("Cannot found specified channel…");
+                    b= false;
+                }
+                else if(!Boolean(msg_id.match(/[0-9]{18}/g)) && !Boolean(message=(await channel.fetchMessage(msg_id)))){
+                    cmdObj.msg_obj.author.send("Cannot found specified message…");
+                    b= false;
+                }
+                else{
+                    message.edit(cmdObj.args.slice(3).join(' ')).catch(err => {hereLog(err);})
+                    b=true;
+                }
             }
         }
 
