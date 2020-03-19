@@ -328,7 +328,7 @@ function cmd_event(eventName, utils){
         var user= arguments[3];
 
         var w_react_roles= utils.settings.get(message.guild, 'reaction_roles');
-        if(Boolean(w_react_roles)){
+        if(Boolean(w_react_roles) && message.content.length>=42){
             var roles= Object.values(w_react_roles);
             var give_role_id= undefined, give_role= undefined;
             if( (message.author.id===user.id) &&
