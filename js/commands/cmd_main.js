@@ -154,7 +154,7 @@ function cmd_init(utils){
         hereLog("monday at 00:00 ? unstall members");
 
         l_guilds.forEach(g => {
-            utils.settings.set(guild,'stalledMembers', {});
+            utils.settings.remove(g, 'stalledMembers');
         });
     })
 }
