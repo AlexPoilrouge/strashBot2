@@ -286,6 +286,7 @@ function cmd_help(cmdObj, clearanceLvl){
     return true;
 }
 
+var _reaction_add_lock= false;
 
 function cmd_event(eventName, utils){
     if(eventName==="guildMemberAdd"){
@@ -331,12 +332,14 @@ function cmd_event(eventName, utils){
         if(Boolean(w_react_roles)){
             var roles= Object.values(w_react_roles);
             var give_role_id= undefined, give_role= undefined;
-            if( (message.author.id===user.id) &&
+            if( !_reaction_add_lock && (message.author.id===user.id) &&
                 !Boolean(message.member.roles.find(r => {return roles.includes(r.id);})) &&
                 Boolean(give_role_id=w_react_roles[messageReaction.emoji.toString()]) &&
                 Boolean(give_role=message.guild.roles.get(give_role_id))
             ){
-                message.member.addRole(give_role).catch(err => {hereLog(err);});
+                _reaction_add_lock= true;
+                message.member.addRole(give_role).catch(err => {hereLog(err);})
+                    .finally(_reaction_add_lock=false);
             }
         }
     }
