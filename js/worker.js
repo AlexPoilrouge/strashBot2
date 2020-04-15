@@ -55,7 +55,7 @@ class Worker{
             this._commander.processCommand(cmd, true);
         }
         else{
-            this.event('message', message);
+            this.event('dmessage', message);
         }
     }
 
