@@ -296,12 +296,20 @@ class Commander{
                     },
                 },
                 getMemberClearanceLevel: this._getMemberClearanceLevel.bind(this),
-                bot_client: this._worker._bot,
+                getBotClient: () => { return this._worker._bot;},
                 cache_message_management:{
                     keepTrackOf: (msg) => {if(!this._trackedMessages.find(m => {return m.id===msg.id})) this._trackedMessages.push(msg);},
                     untrack: (msg) => {this._trackedMessages= this._trackedMessages.filter(m => {return m.id!==msg.id;});},
                     isTracked: (msg) => {return Boolean(this._trackedMessages.find(m => {return m.id===msg.id}));},
-                }
+                    fetch: async (msgID) => {
+                        var msg= undefined;
+                        if(Boolean(msg=(this._trackedMessages.find(m => {return m.id===msgID})))){
+                            return msg.channel.fetch(msgID);
+                        }
+                        else return undefined;
+                    }
+                },
+                getMasterID: () => { return this._worker._bot.masterID; }
             };
             
             var tmp_l_cmd= undefined;
