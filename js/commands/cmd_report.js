@@ -503,7 +503,7 @@ function cmd_init(utils){
         l_guilds.forEach(guild => {
             if(Boolean(guild)){
                 var reportOn= utils.settings.get(guild, 'run-report');
-                if (reportOn){
+                if (Boolean(reportOn)){
                     _runReportGuild(guild, utils);
                 }
             }
@@ -523,11 +523,11 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         if (args.length<=0)
             return await _runReportGuild(message.guild, utils, message.author);
         else if( args[0]==='off' ) {
-            utils.settings.set(guild, 'run-report',false);
+            utils.settings.set(message.guild, 'run-report',false);
             return true;
         }
         else if( args[0]==='on' ) {
-            utils.settings.set(guild, 'run-report',true);
+            utils.settings.set(message.guild, 'run-report',true);
             return true;
         }
         else{
