@@ -25,7 +25,7 @@ async function __deleteMemberMainRoles(member, charChanObj){
         hereLog(`removeRole ${role.name}(${role.id})`);
         await member.removeRole(role);
 
-        var l_members= message.guild.roles.get(role.id).members;
+        var l_members= member.guild.roles.get(role.id).members;
         if(!Boolean(l_members) || l_members.size<=0){
             hereLog(`[1] role delete ${role.name}(${role.id})`);
             role.delete();
