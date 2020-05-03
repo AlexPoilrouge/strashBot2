@@ -27,6 +27,10 @@ class ProblemCount{
         this[guildID]['comment']+= `[${(type===ProblemCount.TYPES.ERROR)?'E':(type===ProblemCount.TYPES.INFO)?'I':'W'}] ${comment}; `
     }
 
+    clear(guildID){
+        this[guildID]= {'warnings':0, 'errors':0, 'info':0, 'comment': ''}
+    }
+
     printGuildProblemsSummary(guildID){
         var sumStr= "<h2>Problem summary:</h2>"
 
@@ -428,6 +432,7 @@ async function _runReportGuild(guild, utils, sendToUser= undefined){
         if(fs.existsSync(html_path)) fs.unlinkSync(html_path);
     };
 
+    problems.clear(guild.id)
 
     var report_str=`<h2>${guild.name}</h2> (#${guild.id})\n\n`;
 
