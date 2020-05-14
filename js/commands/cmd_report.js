@@ -509,6 +509,7 @@ function cmd_init(utils){
             if(Boolean(guild)){
                 var reportOn= utils.settings.get(guild, 'run-report');
                 if (Boolean(reportOn)){
+                    hereLog(`Daily report for guild ${guild}`)
                     _runReportGuild(guild, utils);
                 }
             }
