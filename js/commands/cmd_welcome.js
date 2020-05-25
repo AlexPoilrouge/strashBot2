@@ -62,7 +62,7 @@ async function cmd_init_per_guild(utils, guild){
     if(Boolean(w_react_roles)){
         var b= false;
         Object.keys(w_react_roles).forEach(emoji_txt =>{
-            if(!__isSimpleEmoji(emoji_txt) && !__isCustomEmoji(emoji_txt, utils.bot_client)){
+            if(!__isSimpleEmoji(emoji_txt) && !__isCustomEmoji(emoji_txt, utils.getBotClient())){
                 delete w_react_roles[emoji_txt];
                 hereLog(`"${emoji_txt} not recognize as an existing emoji…`);
                 b= true;
@@ -125,7 +125,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         str= '';
         if(arg_l>2){
             do{
-                if( (__isSimpleEmoji(args[i]) || __isCustomEmoji(args[i], utils.bot_client))
+                if( (__isSimpleEmoji(args[i]) || __isCustomEmoji(args[i], utils.getBotClient()))
                     && Boolean(message.mentions) && Boolean(message.mentions.roles) 
                     && __isRoleMention(args[i+1], message.mentions.roles) )
                 {
@@ -200,7 +200,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         else{
             var b= false, t_str="";
             Object.keys(w_reac_roles).forEach(emoji_txt =>{
-                if(!__isCustomEmoji(emoji_txt,utils.bot_client) && !__isSimpleEmoji(emoji_txt)){
+                if(!__isCustomEmoji(emoji_txt,utils.getBotClient()) && !__isSimpleEmoji(emoji_txt)){
                     t_str+= "\t[unavailble emoji] => ";
                 }
                 else{
@@ -286,6 +286,7 @@ function cmd_help(cmdObj, clearanceLvl){
     return true;
 }
 
+var _reaction_add_lock= false;
 
 function cmd_event(eventName, utils){
     if(eventName==="guildMemberAdd"){
@@ -313,9 +314,9 @@ function cmd_event(eventName, utils){
             else{
                 var reacts= Object.keys(w_react_roles);
                 reacts.forEach(react =>{
-                    if(__isCustomEmoji(react, utils.bot_client)){
+                    if(__isCustomEmoji(react, utils.getBotClient())){
                         var id_e= (/^<\:([a-zA-Z\-_0-9]+)\:([0-9]{18})>$/g).exec(react)[2];
-                        var react= utils.bot_client.emojis.get(id_e);
+                        var react= utils.getBotClient().emojis.get(id_e);
                     }
                     message.react(react).catch(err => {hereLog(err);});
                 });
@@ -331,48 +332,50 @@ function cmd_event(eventName, utils){
         if(Boolean(w_react_roles) && message.content.length>=42){
             var roles= Object.values(w_react_roles);
             var give_role_id= undefined, give_role= undefined;
-            if( (message.author.id===user.id) &&
+            if( !_reaction_add_lock && (message.author.id===user.id) &&
                 !Boolean(message.member.roles.find(r => {return roles.includes(r.id);})) &&
                 Boolean(give_role_id=w_react_roles[messageReaction.emoji.toString()]) &&
                 Boolean(give_role=message.guild.roles.get(give_role_id))
             ){
-                message.member.addRole(give_role).catch(err => {hereLog(err);});
+                _reaction_add_lock= true;
+                message.member.addRole(give_role).catch(err => {hereLog(err);})
+                    .finally(_reaction_add_lock=false);
             }
         }
     }
     else if(eventName==="channelDelete"){
         var channel= arguments[2];
 
-        var w_chan_id= utils.settings.get(guild, 'welcome_channel');
+        var w_chan_id= utils.settings.get(channel.guild, 'welcome_channel');
         if(Boolean(w_chan_id) && w_chan_id===channel.id){
-            utils.settings.remove(guild, "welcome_channel");
+            utils.settings.remove(channel.guild, "welcome_channel");
             hereLog(`Deleted channel "${channel.name}"`);
         }
     }
     else if(eventName==="roleDelete"){
         var role= arguments[2];
-        var w_react_roles= utils.settings.get(guild, "reaction_roles");
+        var w_react_roles= utils.settings.get(role.guild, "reaction_roles");
         var emoji_txt= undefined;
         if(Boolean(w_react_roles) && Boolean(emoji_txt=Object.keys(w_react_roles).find(e=> {return w_react_roles[e]===role.id;}))){
             hereLog(`In association "${emoji_txt} => ${w_react_roles[emoji_txt]}", role got deleted…`);
             delete w_react_roles[emoji_txt];
-            utils.settings.set(guild, "reaction_roles", w_react_roles);
+            utils.settings.set(role.guild, "reaction_roles", w_react_roles);
         }
     }
     else if(eventName==="emojiDelete"){
         var guildEmoji= arguments[2];
-        var w_react_roles= utils.settings.get(guild, "reaction_roles");
+        var w_react_roles= utils.settings.get(guildEmoji.guild, "reaction_roles");
         if(Boolean(w_react_roles) && Boolean(w_react_roles[guildEmoji.toString()])){
             hereLog(`In association "${guildEmoji.toString()} => ${w_react_roles[guildEmoji.toString()]}", emoji got deleted…`);
             delete w_react_roles[emoji_txt];
-            utils.settings.set(guild, "reaction_roles", w_react_roles);
+            utils.settings.set(guildEmoji.guild, "reaction_roles", w_react_roles);
         }
     }
     else if(eventName==="emojiUpdate"){
         var oldEmoji= arguments[2];
         var newEmoji= arguments[3];
 
-        var w_react_roles= utils.settings.get(guild, "reaction_roles");
+        var w_react_roles= utils.settings.get(newEmoji.guild, "reaction_roles");
         var r_id= undefined;
         if(Boolean(w_react_roles) && Boolean(oldEmoji.toString()!==newEmoji.toString()) &&
             Boolean(r_id=w_react_roles[oldEmoji.toString()])
@@ -380,7 +383,7 @@ function cmd_event(eventName, utils){
             delete w_react_roles[oldEmoji.toString()];
             w_react_roles[newEmoji.toString()]= r_id;
             hereLog(`New association "${newEmoji.toString()} => ${r_id}", due to emoji update…`);
-            utils.settings.set(guild, "reaction_roles", w_react_roles);
+            utils.settings.set(newEmoji.guild, "reaction_roles", w_react_roles);
         }
     }
 }
