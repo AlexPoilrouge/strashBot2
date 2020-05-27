@@ -98,7 +98,7 @@ async function _reportCmdPunishRole(guild, utils){
     }
     else if (!Boolean(role=guild.roles.get(obj_silenceRole))){
         msg= `slience role (#${obj_silenceRole}) doesn't seem to be a valid role in guild`
-        problems.add(guild.id, msg)
+        problems.add(guild.id, msg, ProblemCount.TYPES.ERROR)
     }
     else{
         msg= `slience role is <a href="#${obj_silenceRole}">${role.name}(#${obj_silenceRole})</a> - ✅`
@@ -417,6 +417,62 @@ function _reportCmdMain(guild, utils){
     return report_str
 }
 
+function _reportCmdKart(guild, utils){
+    var report_str= `<h4>cmd kart:</h4>\n`
+    
+    var obj_kartChan= utils.settings.get(guild,"kart_channel","kart");
+
+    var msg=""
+    var kartChan= undefined;
+    if(!Boolean(obj_kartChan)){
+        var _msg= `No kart channel set… (${obj_kartChan})`
+        problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+        msg+= _msg
+    }
+    else if (!Boolean(kartChan=guild.channels.get(obj_kartChan))){
+        var _msg= `Set kart channel is invalid… (${kartChan} - #${obj_kartChan})`
+        problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+        msg+= _msg
+    }
+    else{
+        msg+= `Kart channel is set to ${kartChan.name} (#${obj_kartChan})`
+    }
+
+    report_str+= `<b> Kart channel:</b>\n${msg}<br/>\n`
+
+
+
+    var obj_owner= utils.settings.get(guild,"serv_owner","kart");
+
+    msg=""
+    var servOwner= undefined;
+    if(!Boolean(obj_owner)){
+        var _msg= `No serv owner (${obj_owner})…;`
+        problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
+        msg+= _msg
+    }
+    else if (!Boolean(servOwner=guild.members.get(obj_owner))){
+        var _msg= `Serv owner is invalid… (${servOwner} - @${obj_owner})`
+        problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+        msg+= _msg
+    }
+    else{
+        var _msg= `SRB2Kart server owner is ${servOwner.user.username} (@${obj_owner})`
+        problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
+        msg+= _msg
+
+        if(!Boolean(obj_kartChan) || !Boolean(kartChan)){
+            _msg= `Owner set (${servOwner.user.username} - @${obj_owner}) but no valid kart channel?! (#${obj_kartChan})`
+            problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+            msg+= "<br/>"+_msg
+        }
+    }
+
+    report_str+= `<b> Kart server owner:</b>\n${msg}<br/>\n`
+
+    return report_str;
+}
+
 async function _runReportGuild(guild, utils, sendToUser= undefined){
     var report_fileName= `report_${guild.name.replace(' ','_')}_${Date.now()}.html`;
     var html_path= `data/${report_fileName}`;
@@ -451,6 +507,10 @@ async function _runReportGuild(guild, utils, sendToUser= undefined){
     report_str+= `<br/>\n`
 
     report_str+= _reportCmdMain(guild, utils);
+    
+    report_str+= `<br/>\n`
+
+    report_str+= _reportCmdKart(guild, utils);
     
     report_str+= `<br/>\n`
 
@@ -515,6 +575,7 @@ function cmd_init(utils){
             }
         });
     });
+    l_guilds= [];
 }
 
 

@@ -264,6 +264,7 @@ async function _free(cmdObj, member, utils){
 
 function cmd_init(utils){
     hereLog(`cmd init`);
+    l_guilds= [];
 }
 
 async function cmd_init_per_guild(utils, guild){

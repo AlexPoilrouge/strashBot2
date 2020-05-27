@@ -158,6 +158,8 @@ function cmd_init(utils){
             utils.settings.remove(g, 'stalledMembers');
         });
     })
+
+    l_guilds= [];
 }
 
 function cmd_init_per_guild(utils, guild){
