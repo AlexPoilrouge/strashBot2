@@ -286,13 +286,20 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
         }
         else if(["leave","quit","ragequit","unlock","disown","alone","gone","flee","john"].includes(args[0])){
+            if(!_isServerRunning()){
+                message.channel.send(`Auncun serveur SRB2Kart actif…`);
+                return false;
+            }
+
             var servOwner= utils.settings.get(message.guild, "serv_owner");
             var owner= undefined;
             if( (clearanceLvl<=CLEARANCE_LEVEL.ADMIN_ROLE) ||
             ( Boolean(servOwner) && Boolean(owner= await utils.getBotClient().fetchUser(servOwner)) && owner.id===message.author.id)
             ){
                 utils.settings.remove(message.guild, "serv_owner");
-                message.channel.send(`⚠ Le serveur SRB2Kart n'a plus d'admin désigné… 😢`);
+                message.channel.send(`⚠ Le serveur SRB2Kart n'a plus d'admin désigné… 😢\n`+
+                    `\t⚠ Il faut qu'un joueur récupère la propriété en utilisant la commande \`!kart claim\`!`
+                );
 
                 return true;
             }
@@ -344,19 +351,19 @@ function cmd_help(cmdObj, clearanceLvl){
         )) +
         "**Following commands are only usable in the designated \"srb2kart channel\"!**\n\n"+
         "\t`!kart start`\n\n"+
-        "\tTry to start the SRB2Kart server.\n\tIf success, the server password is send via private message, and send is considered as the *designated admin* of the server.\n\n"+
+        "\tTry to start the SRB2Kart server.\n\tIf success, the server password is send via private message, the reciever is considered as the *designated admin* of the server.\n\n"+
         "\t`!kart stop`\n\n"+
         "\tIf active, attempt to stop the SRB2Kart server.\n\n"+
         "\t`!kart password`\n\n"+
         "\tRequest to recieve the password of the active (if any) SRB2Kart server. (guild admin or designated SRB2Kart server admin only)\n\n"+
         "\t`!kart claim`\n\n"+
-        "\tClaim the ownership of the current running (if any) SRB2Kart server. (guild admin or designated SRB2Kart server admin only)\n\n"+
-        "\t`!kart transfer`\n\n"+
-        "\tGive the ownership of the current running (if any) SRB2Kart server. (guild admin or designated SRB2Kart server admin only)\n\n"+
+        "\tClaim the vacant ownership of the current running (if any) SRB2Kart server. (guild admin or designated SRB2Kart server admin only)\n\n"+
+        "\t`!kart transfer @usermention`\n\n"+
+        "\tGive the ownership of the current running (if any) SRB2Kart server to the mentionned user. (guild admin or designated SRB2Kart server admin only)\n\n"+
         "\t`!kart leave`\n\n"+
-        "\tGive up the ownership of the current running (if any) SRB2Kart server. (designated SRB2Kart server admin only)\n\n"+
+        "\tGive up the ownership of the current running (if any) SRB2Kart server, leaving it vacant. (designated SRB2Kart server admin only)\n\n"+
         "\t`!kart info`\n\n"+
-        "\tDisplay wether of not the SRB2Kart server is running along with ownership\n\n"+
+        "\tDisplay whether of not the SRB2Kart server is running along with its ownership\n\n"+
         "\t`!kart help`\n\n"+
         "\tDisplay this help (PM)"
     );
@@ -396,7 +403,9 @@ function cmd_event(eventName, utils){
                 var chanKart= utils.settings.get(guild, 'kart_channel');
                 var channel= undefined;
                 if(Boolean(chanKart) && Boolean(channel= guild.channels.get(chanKart))){
-                    channel.send(`⚠ Le serveur SRB2Kart n'a plus d'admin désigné… 😢`);
+                    channel.send(`⚠ Le serveur SRB2Kart n'a plus d'admin désigné… 😢`+
+                        `\t⚠ Il faut qu'un joueur récupère la propriété en utilisant la commande \`!kart claim\`!`
+                    );
                 }
             }
         }
