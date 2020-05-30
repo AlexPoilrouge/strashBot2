@@ -384,7 +384,7 @@ function cmd_event(eventName, utils){
             }
 
             utils.settings.remove(channel.guild, 'kart_channel');
-            utils.settings.remove(guild, "serv_owner");
+            utils.settings.remove(channel.guild, "serv_owner");
 
             return true;
         }
@@ -394,15 +394,15 @@ function cmd_event(eventName, utils){
     else if(eventName==="guildMemberUpdate"){
         var member= arguments[2];
 
-        var servOwner= utils.settings.get(guild, "serv_owner");
+        var servOwner= utils.settings.get(member.guild, "serv_owner");
         var m_owner= undefined;
         if( Boolean(servOwner) && Boolean(await (m_owner= member.guild.fetchMember(servOwner))) && m_owner.id===member.id){
-            utils.settings.remove(guild, "serv_owner");
+            utils.settings.remove(member.guild, "serv_owner");
 
             if(_isServerRunning()){
-                var chanKart= utils.settings.get(guild, 'kart_channel');
+                var chanKart= utils.settings.get(member.guild, 'kart_channel');
                 var channel= undefined;
-                if(Boolean(chanKart) && Boolean(channel= guild.channels.get(chanKart))){
+                if(Boolean(chanKart) && Boolean(channel= member.guild.channels.get(chanKart))){
                     channel.send(`⚠ Le serveur SRB2Kart n'a plus d'admin désigné… 😢`+
                         `\t⚠ Il faut qu'un joueur récupère la propriété en utilisant la commande \`!kart claim\`!`
                     );
