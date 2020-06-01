@@ -2,17 +2,41 @@
 const CLEARANCE_LEVEL= require('../defines').CLEARANCE_LEVEL;
 
 const child_process= require("child_process");
+const fs= require( 'fs' );
+const path= require( 'path' );
+const request = require('request');
 
 
 
 let hereLog= (...args) => {console.log("[cmd_kart]", ...args);};
 
+var kart_settings= undefined;
 
+function __loadingJSONObj(fileName){
+    var fn= path.resolve(__dirname,fileName)
+    if(fs.existsSync(fn)){
+        hereLog("[json] "+fn)
+        var data= fs.readFileSync(fn);
+
+        var r= undefined;
+        if(Boolean(data) && Boolean(r=JSON.parse(data))){
+            return r;
+        }
+        else{
+            hereLog(`[Settings] Error reading data from '${fileName}'`);
+            return undefined;
+        }
+    }
+    else{
+        return undefined;
+    }
+}
 
 function _stopServer(){
     b= false;
     try{
-        child_process.execSync("sudo systemctl stop srb2kart_serv", {timeout: 4000});
+        var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.server_commands.stop))?cmd:"false";
+        child_process.execSync(cmd, {timeout: 4000});
         b= true;
     }
     catch(err){
@@ -25,7 +49,8 @@ function _stopServer(){
 function _startServer(){
     b= false;
     try{
-        child_process.execSync("sudo systemctl start srb2kart_serv", {timeout: 4000});
+        var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.server_commands.start))?cmd:"false";
+        child_process.execSync(cmd, {timeout: 4000});
         b= true;
     }
     catch(err){
@@ -38,7 +63,8 @@ function _startServer(){
 function _isServerRunning(){
     b= false;
     try{
-        child_process.execSync("systemctl is-active srb2kart_serv", {timeout: 4000});
+        var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.server_commands.is_active))?cmd:"false";
+        child_process.execSync(cmd, {timeout: 4000});
         b= true;
     }
     catch(err){
@@ -47,6 +73,63 @@ function _isServerRunning(){
     }
 
     return b;
+}
+
+function _initAddonsConfig(){
+    b= false;
+    try{
+        var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.init))?cmd:"false";
+        child_process.execSync(cmd, {timeout: 4000});
+        b= true;
+    }
+    catch(err){
+        hereLog("Error while updating addons: "+err);
+        b= false;
+    }
+    return b;
+}
+
+function _updateAddonsConfig(){
+    b= false;
+    try{
+        var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.update))?cmd:"false";
+        child_process.execSync(cmd, {timeout: 4000});
+        b= true;
+    }
+    catch(err){
+        hereLog("Error while updating addons: "+err);
+        b= false;
+    }
+    return b;
+}
+
+function _listAddonsConfig(arg=""){
+    hereLog("LIST "+arg)
+    var str= undefined;
+    try{
+        var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.list))?cmd:"false";
+        hereLog("rrr "+kart_settings.config_commands.list)
+        str= child_process.execSync(cmd+((Boolean(arg))?` ${arg}`:""), {timeout: 4000});
+        hereLog("exec "+cmd+((Boolean(arg))?` ${arg}`:""))
+    }
+    catch(err){
+        hereLog("Error while listing addons: "+err);
+        str= undefined
+    }
+    return str;    
+}
+
+function _removeAddonsConfig(arg){
+    var str= undefined;
+    try{
+        var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.remove))?cmd:"false";
+        str= child_process.execSync(cmd+` ${arg}`, {timeout: 4000});
+    }
+    catch(err){
+        hereLog("Error while listing addons: "+err);
+        str= undefined
+    }
+    return str; 
 }
 
 function _getPassword(){
@@ -70,7 +153,11 @@ function _getPassword(){
 
 
 function cmd_init(utils){
-
+    _initAddonsConfig();
+    if(!Boolean(kart_settings=__loadingJSONObj("data/kart.json"))){
+        hereLog("Not able to load 'kart.json' setting…");
+    }
+    hereLog("[init] "+kart_settings)
 }
 
 
@@ -95,6 +182,177 @@ async function cmd_init_per_guild(utils, guild){
     }
 }
 
+async function __downloading(channel, url, permanent=false){
+    var filename= url.split('/').splice(-1)[0];
+
+    var pct= 0;
+    var dl_msg= await channel.send(
+        `Downloading \`${filename}\` on server …\t[${pct} %]`
+    );
+
+    let _error= (msg='') => {
+        if (Boolean(dl_msg)){
+            dl_msg.edit(`Downloading \`${filename}\` on server …\t[ERROR!]`+
+                ((Boolean(msg))?`\n\t(${msg})`:'')
+            );
+
+            dl_msg.react('❌');
+        }
+    }
+
+    if(!Boolean(kart_settings) || !Boolean(kart_settings.dirs.main_folder) ||
+        (permanent && !Boolean(kart_settings.dirs.dl_dirs.permanent)) ||
+        (!permanent && !Boolean(kart_settings.dirs.dl_dirs.temporary))
+    ){
+        _error();
+
+        return;
+    }
+
+    if(Boolean(dl_msg)){
+        let filepath= kart_settings.dirs.main_folder+'/'+
+            ((permanent)?kart_settings.dirs.dl_dirs.permanent:kart_settings.dirs.dl_dirs.temporary)
+            +'/'+filename;
+        hereLog("filepath: "+filepath)
+        const file = fs.createWriteStream(filepath);
+        var receivedBytes = 0;
+        var totalBytes= 0;
+
+        var t= Date.now();
+
+        request.get(url)
+            .on('response', (response) => {
+                if (response.statusCode !== 200) {
+                    _error('Response status was ' + response.statusCode);
+                }
+
+                totalBytes= response.headers['content-length'];
+            })
+            .on('data', (chunk) => {
+                receivedBytes += chunk.length;
+
+                if (Boolean(dl_msg) && (Date.now()-t>=2000)){
+                    dl_msg.edit(`Downloading \`${filename}\` on server …\t[${(receivedBytes/totalBytes)*100} %]`);
+                    t= Date.now();
+                }
+            })
+            .pipe(file)
+            .on('error', (err) => {
+                fs.unlink(filepath, err => {
+                    hereLog(`[file dl error] ${err}`)
+                });
+                _error();
+            });
+
+            file.on('finish', () => {
+                file.close();
+
+                if (Boolean(dl_msg)){
+                    dl_msg.edit(`Downloading \`${filename}\` on server …\t[Done!]`);
+
+                    dl_msg.react('✅');
+                }
+
+                if(!_updateAddonsConfig()){
+                    channel.send(`❌ An error as occured, can't properly add \`${filename}\` to the server addons…`);
+                }
+                else if(_isServerRunning()){
+                    var servOwner= utils.settings.get(channel.guild, "serv_owner");
+                    var owner= undefined;
+                    var str= `\`${filename}\` a bien été ajouté à la session en cours.\n`+
+                        `Cependant l'admin désigné du serveur srb2kart devra charger l'addon manuellement`;
+
+                    if(!Boolean(servOwner) || !Boolean(owner=(await (utils.getBotClient().fetchUser(servOwner))))){
+                        owner.send(`L'addon \`${filename}\` a été ajouté au serveur. Utilisez la commande ingame `+
+                            `\`add_file("${(permanent)?kart_settings.dirs.dl_dirs.permanent:kart_settings.dirs.dl_dirs.temporary}/${filename}")\``+
+                            ` pour l'ajouter à la session en cours.`)
+                    } 
+                    else{
+                        str+= (!permanent)?"":` via la commande \`add_file("${kart_settings.dirs.dl_dirs.temporary}/${filename}")\``;
+                    }
+                    channel.send(str+'.')         
+                }
+                else{
+                    channel.send(`\`${filename}\` a bien été ajouté et sera disponible prêt à l'emploi lors de la prochaine session.`);
+                }
+            });
+        
+            file.on('error', (err) => {
+                fs.unlink(filepath, err => {
+                    hereLog(`[file dl error] ${err}`)
+                });
+                _error(err.message);
+            });
+    }
+}
+
+function _cmd_addons(cmdObj, clearanceLvl, utils){
+    let message= cmdObj.msg_obj;
+    let sub_cmd= cmdObj.args[0]
+    let args= cmdObj.args.slice(1);
+
+    if(["try","add","get","new"].includes(args[0])){
+        var perma= false;
+        hereLog("args[1]="+args[1])
+        if(Boolean(args[1]) && ["keep","dl","perma","fixed","final","definite","extend"].includes(args[1])){
+            perma= true;
+            args= args.slice(1);
+            hereLog("here "+args)
+        }
+        hereLog("> args[1]="+args[1])
+
+        var url= undefined;
+        if(Boolean(args[1]) && args[1].match(/^(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+$/)){
+            url= args[1]
+        }
+        else if(Boolean(message.attachments) && message.attachments.size>=1){
+            url= message.attachments.first().url;
+        }
+
+        let ext= [".pk3",".wad",".lua",".kart",".pk7"];
+        hereLog("url="+url)
+        if(Boolean(url) && ext.some(e => {return url.endsWith(e)})){
+            __downloading(message.channel, url, perma)
+
+            return true;
+        }
+        else{
+            message.channel.send(`Seuls les fichiers addons d'extension \`${ext}\` sont acceptés…`)
+
+            return false
+        }
+    }
+    else if(["rm","remove","del","delete","suppr"].includes(args[0])){
+        if(Boolean(args[1])){
+            var resp= _removeAddonsConfig(args[1]);
+            if(Boolean(resp)){
+                message.channel.send("Removed addons for srb2kart server:\n"+resp);
+                if(_updateAddonsConfig()){
+                    return true;
+                }
+                else{
+                    hereLog("Error occured when updating addons after 'rm' call")
+                    return false;
+                }
+            }
+            else{
+                return false;
+            }
+        }
+    }
+    else if(["list","ls","all","what","which"].includes(args[0]) || !Boolean(args[0])){
+        var list= _listAddonsConfig((Boolean(args[1]))?args[1]:"");
+        if(Boolean(list)){
+            message.channel.send("Addons list for srb2kart server:\n"+list);
+            return true;
+        }
+        else{
+            return false;
+        }
+    }
+
+    return false;
+}
 
 async function cmd_main(cmdObj, clearanceLvl, utils){
     let message= cmdObj.msg_obj;
@@ -143,12 +401,6 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         }
 
         if(["run","launch","start","go","vroum"].includes(args[0])){
-            var chanKart= utils.settings.get(message.guild, 'kart_channel');
-            if(!Boolean(chanKart) || chanKart!==message.channel.id){
-                message.member.send(`[kart command] command \`!kart ${args[0]}\` only possible in dedicated kart channel…`);
-                return false;
-            }
-
             if(_isServerRunning()){
                 str="Server SRB2Kart is already running…";
 
@@ -183,12 +435,6 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
         }
         else if(["halt","quit","stop","nope","kill","shutdown"].includes(args[0])){
-            var chanKart= utils.settings.get(message.guild, 'kart_channel');
-            if(!Boolean(chanKart) || chanKart!==message.channel.id){
-                message.member.send(`[kart command] command \`!kart ${args[0]}\` only possible in dedicated kart channel…`);
-                return false;
-            }
-
             var servOwner= utils.settings.get(message.guild, "serv_owner");
             var owner= undefined;
             if( (!Boolean(servOwner) || !Boolean(owner= await utils.getBotClient().fetchUser(servOwner))) ||
@@ -205,12 +451,6 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
         }
         else if(["password","pwd","access","admin"].includes(args[0])){
-            var chanKart= utils.settings.get(message.guild, 'kart_channel');
-            if(!Boolean(chanKart) || chanKart!==message.channel.id){
-                message.member.send(`[kart command] command \`!kart ${args[0]}\` only possible in dedicated kart channel…`);
-                return false;
-            }
-
             if(!_isServerRunning()){
                 message.channel.send(`Auncun serveur SRB2Kart actif…`);
                 return false;
@@ -326,6 +566,9 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 message.channel.send(str);
                 return true;
             }
+        }
+        else if (["addons","add-ons","addon","add-on","module","modules","mod","mods"].includes(args[0])){
+            return _cmd_addons(cmdObj, clearanceLvl, utils)
         }
         else if (args[0]==="help"){
             return cmd_help(cmdObj, clearanceLvl)

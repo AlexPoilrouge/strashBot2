@@ -1,0 +1,21 @@
+{
+    "server_commands":{
+        "start":"",
+        "stop":"",
+        "is_active":""
+    },
+    "dirs":{
+        "main_folder": "",
+        "dl_dirs": {
+            "temporary":"tmp",
+            "permanent":"dl"
+        }
+    },
+    "config_commands":{
+        "init": "",
+        "update": "",
+        "list": "",
+        "clean": "",
+        "remove": ""
+    }
+}
