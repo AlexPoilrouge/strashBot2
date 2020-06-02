@@ -155,10 +155,10 @@ function _getPassword(){
 
 
 function cmd_init(utils){
-    _initAddonsConfig();
     if(!Boolean(kart_settings=__loadingJSONObj("data/kart.json"))){
         hereLog("Not able to load 'kart.json' setting…");
     }
+    _initAddonsConfig();
 }
 
 
