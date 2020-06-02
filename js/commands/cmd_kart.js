@@ -1,5 +1,6 @@
 
 const CLEARANCE_LEVEL= require('../defines').CLEARANCE_LEVEL;
+const splitString= require('../utils').splitString;
 
 const child_process= require("child_process");
 const fs= require( 'fs' );
@@ -15,7 +16,6 @@ var kart_settings= undefined;
 function __loadingJSONObj(fileName){
     var fn= path.resolve(__dirname,fileName)
     if(fs.existsSync(fn)){
-        hereLog("[json] "+fn)
         var data= fs.readFileSync(fn);
 
         var r= undefined;
@@ -104,17 +104,19 @@ function _updateAddonsConfig(){
 }
 
 function _listAddonsConfig(arg=""){
-    hereLog("LIST "+arg)
     var str= undefined;
     try{
         var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.list))?cmd:"false";
-        hereLog("rrr "+kart_settings.config_commands.list)
         str= child_process.execSync(cmd+((Boolean(arg))?` ${arg}`:""), {timeout: 4000});
-        hereLog("exec "+cmd+((Boolean(arg))?` ${arg}`:""))
     }
     catch(err){
-        hereLog("Error while listing addons: "+err);
-        str= undefined
+        if(Boolean(err.status) && err.status===3){
+            str="No result found…";
+        }
+        else{
+            hereLog("Error while listing addons: "+err);
+            str= undefined;
+        }
     }
     return str;    
 }
@@ -126,7 +128,7 @@ function _removeAddonsConfig(arg){
         str= child_process.execSync(cmd+` ${arg}`, {timeout: 4000});
     }
     catch(err){
-        hereLog("Error while listing addons: "+err);
+        hereLog("Error while removing addons: "+err);
         str= undefined
     }
     return str; 
@@ -157,7 +159,6 @@ function cmd_init(utils){
     if(!Boolean(kart_settings=__loadingJSONObj("data/kart.json"))){
         hereLog("Not able to load 'kart.json' setting…");
     }
-    hereLog("[init] "+kart_settings)
 }
 
 
@@ -184,6 +185,12 @@ async function cmd_init_per_guild(utils, guild){
 
 async function __downloading(channel, url, permanent=false){
     var filename= url.split('/').splice(-1)[0];
+
+    if (_listAddonsConfig(filename)==="No result found…"){
+        channel.send(`The following addons already exist on server:\n${str}`);
+
+        return;
+    }
 
     var pct= 0;
     var dl_msg= await channel.send(
@@ -213,7 +220,6 @@ async function __downloading(channel, url, permanent=false){
         let filepath= kart_settings.dirs.main_folder+'/'+
             ((permanent)?kart_settings.dirs.dl_dirs.permanent:kart_settings.dirs.dl_dirs.temporary)
             +'/'+filename;
-        hereLog("filepath: "+filepath)
         const file = fs.createWriteStream(filepath);
         var receivedBytes = 0;
         var totalBytes= 0;
@@ -286,20 +292,17 @@ async function __downloading(channel, url, permanent=false){
     }
 }
 
-function _cmd_addons(cmdObj, clearanceLvl, utils){
+async function _cmd_addons(cmdObj, clearanceLvl, utils){
     let message= cmdObj.msg_obj;
     let sub_cmd= cmdObj.args[0]
     let args= cmdObj.args.slice(1);
 
     if(["try","add","get","new"].includes(args[0])){
         var perma= false;
-        hereLog("args[1]="+args[1])
         if(Boolean(args[1]) && ["keep","dl","perma","fixed","final","definite","extend"].includes(args[1])){
             perma= true;
             args= args.slice(1);
-            hereLog("here "+args)
         }
-        hereLog("> args[1]="+args[1])
 
         var url= undefined;
         if(Boolean(args[1]) && args[1].match(/^(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+$/)){
@@ -310,7 +313,6 @@ function _cmd_addons(cmdObj, clearanceLvl, utils){
         }
 
         let ext= [".pk3",".wad",".lua",".kart",".pk7"];
-        hereLog("url="+url)
         if(Boolean(url) && ext.some(e => {return url.endsWith(e)})){
             __downloading(message.channel, url, perma)
 
@@ -343,7 +345,16 @@ function _cmd_addons(cmdObj, clearanceLvl, utils){
     else if(["list","ls","all","what","which"].includes(args[0]) || !Boolean(args[0])){
         var list= _listAddonsConfig((Boolean(args[1]))?args[1]:"");
         if(Boolean(list)){
-            message.channel.send("Addons list for srb2kart server:\n"+list);
+            var resp= "Addons list for srb2kart server:\n"+list;
+            var _many_resp= splitString(resp);
+            if (_many_resp.length>1){
+                for (var i=0; i<_many_resp.length; ++i){
+                    await message.channel.send(`${_many_resp[i]}`);
+                }
+            }
+            else{
+                message.channel.send("Addons list for srb2kart server:\n"+list);
+            }
             return true;
         }
         else{
@@ -479,7 +490,6 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             if( (clearanceLvl>CLEARANCE_LEVEL.ADMIN_ROLE)
                 || !Boolean(servOwner) || !Boolean(owner= await utils.getBotClient().fetchUser(servOwner))
             ){
-                hereLog(`servOwner: ${servOwner} - owner: ${owner}`)
                 pwd= _getPassword();
                 message.member.send(`Server admin password: \`${pwd}\`\n\tUne fois connecté au serveur SRB2Kart, ingame utilise la commande \`login ${pwd}\` pour accéder à l'interface d'admin!`);
                 utils.settings.set(message.guild, "serv_owner", message.member.id);
@@ -568,7 +578,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
         }
         else if (["addons","add-ons","addon","add-on","module","modules","mod","mods"].includes(args[0])){
-            return _cmd_addons(cmdObj, clearanceLvl, utils)
+            return (await _cmd_addons(cmdObj, clearanceLvl, utils))
         }
         else if (args[0]==="help"){
             return cmd_help(cmdObj, clearanceLvl)
