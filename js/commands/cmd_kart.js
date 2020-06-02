@@ -187,7 +187,7 @@ async function __downloading(channel, url, permanent=false){
     var filename= url.split('/').splice(-1)[0];
 
     var _ls="";
-    if ((ls=_listAddonsConfig(filename))==="No result found…"){
+    if ((ls=_listAddonsConfig(filename))!=="No result found…"){
         channel.send(`The following addons already exist on server:\n${ls}`);
 
         return;
