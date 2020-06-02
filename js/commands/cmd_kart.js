@@ -271,11 +271,11 @@ async function __downloading(channel, url, permanent=false){
 
                     if(!Boolean(servOwner) || !Boolean(owner=(await (utils.getBotClient().fetchUser(servOwner))))){
                         owner.send(`L'addon \`${filename}\` a été ajouté au serveur. Utilisez la commande ingame `+
-                            `\`add_file("${(permanent)?kart_settings.dirs.dl_dirs.permanent:kart_settings.dirs.dl_dirs.temporary}/${filename}")\``+
+                            `\`addfile "${(permanent)?kart_settings.dirs.dl_dirs.permanent:kart_settings.dirs.dl_dirs.temporary}/${filename}"\``+
                             ` pour l'ajouter à la session en cours.`)
                     } 
                     else{
-                        str+= (!permanent)?"":` via la commande \`add_file("${kart_settings.dirs.dl_dirs.temporary}/${filename}")\``;
+                        str+= (!permanent)?"":` via la commande \`addfile "${kart_settings.dirs.dl_dirs.temporary}/${filename}"\``;
                     }
                     channel.send(str+'.')         
                 }
@@ -621,6 +621,25 @@ function cmd_help(cmdObj, clearanceLvl){
         "\t`!kart help`\n\n"+
         "\tDisplay this help (PM)"
     );
+    cmdObj.msg_obj.author.send(
+        "*SRB2Kart server's addons management:*\n\n"+
+        "\t`!kart addons ls [pattern]`\n\n"+
+        "\tList all availabe addons under three categories:\n"+
+        "\t\t*[Temporary]*: addons that will removed once the current session (or next one if no server is running) is over"+
+        "\t\t*[Downloaded]*: addons that were added manually\n"+
+        "\t\t*[Base]*: addons that are loaded by default\n"+
+        "\tIf `[pattern]` is given, this command will search for matching pattern amongs availabe addons."+
+        "\t\texample: `!kart addons ls rayman`\n\n"+
+        "\t`!kart addons add [url]`\n\n"+
+        "\tDownload an addon onto the server.\n\tIf `[url]` is used, the url must point directly at a file of valid extension (.pk3,.lua,.wad,.kart)"+
+        " example: `https://url/bla/bla/addon.pk3`\n\tIf no url is given, the addon must be an attachment to the same message as the command, and still"+
+        " have a valid addon extension (.pk3,.lua,.wad,.kart)\n"+
+        "\t⚠ If an addons is loaded __during__ an ongoing session, the designated srb2k server's admin must load it manually from within the server "+
+        "ingame console. Example: `addfile \"tmp/addon.pk3\"`\n\n"+
+        "\t`!kart addons rm <addon_name>`\n\n"+
+        "\tRemove the addon designated by the given name from the server.\n"+
+        "\t⚠ this only works for addons under the section *[downloaded]*!"
+    )
     return true;
 }
 
