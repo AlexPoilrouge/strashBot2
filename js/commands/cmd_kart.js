@@ -186,8 +186,9 @@ async function cmd_init_per_guild(utils, guild){
 async function __downloading(channel, url, permanent=false){
     var filename= url.split('/').splice(-1)[0];
 
-    if (_listAddonsConfig(filename)==="No result found…"){
-        channel.send(`The following addons already exist on server:\n${str}`);
+    var _ls="";
+    if ((ls=_listAddonsConfig(filename))==="No result found…"){
+        channel.send(`The following addons already exist on server:\n${ls}`);
 
         return;
     }
