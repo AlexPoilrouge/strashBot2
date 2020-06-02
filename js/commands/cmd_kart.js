@@ -183,7 +183,7 @@ async function cmd_init_per_guild(utils, guild){
     }
 }
 
-async function __downloading(channel, url, permanent=false){
+async function __downloading(channel, url, utils, permanent=false){
     var filename= url.split('/').splice(-1)[0];
 
     var _ls="";
@@ -315,7 +315,7 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
 
         let ext= [".pk3",".wad",".lua",".kart",".pk7"];
         if(Boolean(url) && ext.some(e => {return url.endsWith(e)})){
-            __downloading(message.channel, url, perma)
+            __downloading(message.channel, url, utils, perma)
 
             return true;
         }
@@ -625,10 +625,10 @@ function cmd_help(cmdObj, clearanceLvl){
         "*SRB2Kart server's addons management:*\n\n"+
         "\t`!kart addons ls [pattern]`\n\n"+
         "\tList all availabe addons under three categories:\n"+
-        "\t\t*[Temporary]*: addons that will removed once the current session (or next one if no server is running) is over"+
+        "\t\t*[Temporary]*: addons that will removed once the current session (or next one if no server is running) is over\n"+
         "\t\t*[Downloaded]*: addons that were added manually\n"+
         "\t\t*[Base]*: addons that are loaded by default\n"+
-        "\tIf `[pattern]` is given, this command will search for matching pattern amongs availabe addons."+
+        "\tIf `[pattern]` is given, this command will search for matching pattern amongs availabe addons.\n"+
         "\t\texample: `!kart addons ls rayman`\n\n"+
         "\t`!kart addons add [url]`\n\n"+
         "\tDownload an addon onto the server.\n\tIf `[url]` is used, the url must point directly at a file of valid extension (.pk3,.lua,.wad,.kart)"+
