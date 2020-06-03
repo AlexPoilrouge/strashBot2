@@ -187,10 +187,15 @@ async function __downloading(channel, url, utils, permanent=false){
     var filename= url.split('/').splice(-1)[0];
 
     var _ls="";
-    if ((ls=_listAddonsConfig(filename))!=="No result found…"){
-        channel.send(`The following addons already exist on server:\n${ls}`);
+    if ((_ls=_listAddonsConfig(filename))!=="No result found…"){
+        channel.send(`The following addons already exist on server:\n${_ls}`);
 
         return;
+    }
+
+    let _serv_run= _isServerRunning();
+    if (_serv_run && !permanent){
+        channel.send(`❌ Il est futil d'ajouter un addon *temporaire* alors qu'une session est déjà en cours…`);
     }
 
     var pct= 0;
@@ -263,20 +268,22 @@ async function __downloading(channel, url, utils, permanent=false){
                 if(!_updateAddonsConfig()){
                     channel.send(`❌ An error as occured, can't properly add \`${filename}\` to the server addons…`);
                 }
-                else if(_isServerRunning()){
+                else if(_serv_run){
                     var servOwner= utils.settings.get(channel.guild, "serv_owner");
                     var owner= undefined;
-                    var str= `\`${filename}\` a bien été ajouté à la session en cours.\n`+
+                    var str= `\`${filename}\` a bien été ajouté au serveur.\n`+
+                        `Cependant, il ne peut être utilisé pour une session déjà en cours`;
+                    /*var str= `\`${filename}\` a bien été ajouté à la session en cours.\n`+
                         `Cependant l'admin désigné du serveur srb2kart devra charger l'addon manuellement`;
 
-                    if(!Boolean(servOwner) || !Boolean(owner=(await (utils.getBotClient().fetchUser(servOwner))))){
+                    if(!Boolean(servOwner) || !Boolean(owner=(await utils.getBotClient().fetchUser(servOwner)))){
                         owner.send(`L'addon \`${filename}\` a été ajouté au serveur. Utilisez la commande ingame `+
                             `\`addfile "${(permanent)?kart_settings.dirs.dl_dirs.permanent:kart_settings.dirs.dl_dirs.temporary}/${filename}"\``+
                             ` pour l'ajouter à la session en cours.`)
                     } 
                     else{
                         str+= (!permanent)?"":` via la commande \`addfile "${kart_settings.dirs.dl_dirs.temporary}/${filename}"\``;
-                    }
+                    }*/
                     channel.send(str+'.')         
                 }
                 else{
