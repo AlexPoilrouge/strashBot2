@@ -6,6 +6,7 @@ const child_process= require("child_process");
 const fs= require( 'fs' );
 const path= require( 'path' );
 const request = require('request');
+const urlExistSync = require("url-exist-sync");
 
 
 
@@ -196,6 +197,12 @@ async function __downloading(channel, url, utils, permanent=false){
     let _serv_run= _isServerRunning();
     if (_serv_run && !permanent){
         channel.send(`❌ Il est futil d'ajouter un addon *temporaire* alors qu'une session est déjà en cours…`);
+        return;
+    }
+
+    if (!urlExistSync(url)){
+        channel.send(`❌ L'url \`${url}\` ne semble pas exister…`);
+        return
     }
 
     var pct= 0;
