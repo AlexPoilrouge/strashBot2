@@ -648,11 +648,13 @@ function cmd_help(cmdObj, clearanceLvl){
         "\tDownload an addon onto the server.\n\tIf `[url]` is used, the url must point directly at a file of valid extension (.pk3,.lua,.wad,.kart)"+
         " example: `https://url/bla/bla/addon.pk3`\n\tIf no url is given, the addon must be an attachment to the same message as the command, and still"+
         " have a valid addon extension (.pk3,.lua,.wad,.kart)\n"+
-        "\t⚠ If an addons is loaded __during__ an ongoing session, the designated srb2k server's admin must load it manually from within the server "+
-        "ingame console. Example: `addfile \"tmp/addon.pk3\"`\n\n"+
+        "\t⚠ This addon will be added under the *[temporary]* section, meaning it will be removed after next sessions ends.\n\n"+
+        "\t`!kart addons add keep [url]`\n\n"+
+        "\tSame as the previous command, except that the addons will be added into the *[downloaded]* section. Meaning it wont be removed"+
+        " automatically after a session ends."+
         "\t`!kart addons rm <addon_name>`\n\n"+
         "\tRemove the addon designated by the given name from the server.\n"+
-        "\t⚠ this only works for addons under the section *[downloaded]*!"
+        "\t⚠ this only works for addons under the *[downloaded]* section!"
     )
     return true;
 }
