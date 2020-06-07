@@ -352,21 +352,21 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
             var str= undefined
             try{
                 var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.list))?cmd:"false";
-                str= child_process.execSync(cmd+` ${arg[1]}`, {timeout: 4000});
+                str= child_process.execSync(cmd+` ${args[1]}`, {timeout: 4000});
             }
             catch(err){
                 hereLog("Error while keeping addons: "+err);
                 str= undefined
             }
 
-            if(Boolean(str) && str.includes(`tmp/${arg[1]}`)){
+            if(Boolean(str) && str.includes(`tmp/${args[1]}`)){
                 _removeAddonsConfig(args[1]);
                 _updateAddonsConfig()
 
                 return true;
             }
             else{
-                message.channel.send(`No addon *${arg[1]}* found in ***[temporary]*** section…`);
+                message.channel.send(`No addon *${args[1]}* found in ***[temporary]*** section…`);
 
                 return false;
             }
