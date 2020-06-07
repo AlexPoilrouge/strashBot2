@@ -314,14 +314,22 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
 
     if(["try","add","get","new"].includes(args[0])){
         var perma= false;
-        if(Boolean(args[1]) && ["keep","dl","perma","fixed","final","definite","extend"].includes(args[1])){
-            perma= true;
-            args= args.slice(1);
+        var url_rgx= /^(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+$/;
+        var url= undefined;
+        if(Boolean(args[1])){
+            if(["keep","dl","perma","fixed","final","dl"].includes(args[1])){
+                perma= true;
+                args= args.slice(1);
+            }
+            else if(!args[1].match(url_rgx)){
+                message.channel.send(`'${arg[1]}' is not a recognized instruction or url…`);
+
+                return false;
+            }
         }
 
-        var url= undefined;
-        if(Boolean(args[1]) && args[1].match(/^(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+$/)){
-            url= args[1]
+        if(Boolean(args[1]) && args[1].match(url_rgx)){
+            url= args[1]            
         }
         else if(Boolean(message.attachments) && message.attachments.size>=1){
             url= message.attachments.first().url;
@@ -337,6 +345,31 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
             message.channel.send(`Seuls les fichiers addons d'extension \`${ext}\` sont acceptés…`)
 
             return false
+        }
+    }
+    else if(["keep","perma","fixed","final","dl"].includes(args[0])){
+        if(Boolean(args[1])){
+            var str= undefined
+            try{
+                var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.list))?cmd:"false";
+                str= child_process.execSync(cmd+` ${arg[1]}`, {timeout: 4000});
+            }
+            catch(err){
+                hereLog("Error while keeping addons: "+err);
+                str= undefined
+            }
+
+            if(Boolean(str) && str.includes(`tmp/${arg[1]}`)){
+                _removeAddonsConfig(args[1]);
+                _updateAddonsConfig()
+
+                return true;
+            }
+            else{
+                message.channel.send(`No addon *${arg[1]}* found in ***[temporary]*** section…`);
+
+                return false;
+            }
         }
     }
     else if(["rm","remove","del","delete","suppr"].includes(args[0])){
