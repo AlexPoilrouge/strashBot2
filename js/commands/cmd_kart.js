@@ -351,7 +351,7 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
         if(Boolean(args[1])){
             var str= undefined
             try{
-                var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.list))?cmd:"false";
+                var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.keep))?cmd:"false";
                 str= child_process.execSync(cmd+` ${args[1]}`, {timeout: 4000});
             }
             catch(err){
@@ -359,9 +359,8 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
                 str= undefined
             }
 
-            if(Boolean(str) && str.includes(`tmp/${args[1]}`)){
-                _removeAddonsConfig(args[1]);
-                _updateAddonsConfig()
+            if(Boolean(str)){
+                message.channel.send(str);
 
                 return true;
             }
