@@ -322,7 +322,7 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
                 args= args.slice(1);
             }
             else if(!args[1].match(url_rgx)){
-                message.channel.send(`'${arg[1]}' is not a recognized instruction or url…`);
+                message.channel.send(`'${args[1]}' is not a recognized instruction or url…`);
 
                 return false;
             }
