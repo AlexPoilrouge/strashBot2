@@ -684,6 +684,8 @@ function cmd_help(cmdObj, clearanceLvl){
         "\t`!kart addons add keep [url]`\n\n"+
         "\tSame as the previous command, except that the addons will be added into the *[downloaded]* section. Meaning it wont be removed"+
         " automatically after a session ends."+
+        "\t`!kart addons keep <addon_filename>`\n\n"+
+        "\tMove an addons from the *[temporary]* section to the *[downloaded]* section.\n\n"+
         "\t`!kart addons rm <addon_name>`\n\n"+
         "\tRemove the addon designated by the given name from the server.\n"+
         "\t⚠ this only works for addons under the *[downloaded]* section!"
