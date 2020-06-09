@@ -124,6 +124,7 @@ function _listAddonsConfig(arg=""){
 
 function _removeAddonsConfig(arg){
     var str= undefined;
+<<<<<<< Updated upstream
     try{
         var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.remove))?cmd:"false";
         str= child_process.execSync(cmd+` ${arg}`, {timeout: 4000});
@@ -133,6 +134,18 @@ function _removeAddonsConfig(arg){
         str= undefined
     }
     return str; 
+=======
+    var r=false;
+    try{
+        var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.remove))?cmd:"false";
+        str= child_process.execSync(cmd+` ${arg}`, {timeout: 4000});
+        r=true;
+    }
+    catch(err){
+        hereLog("Error while removing addons: "+err);
+    }
+    return [r,str]; 
+>>>>>>> Stashed changes
 }
 
 function _getPassword(){
@@ -350,22 +363,38 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
     else if(["keep","perma","fixed","final","dl"].includes(args[0])){
         if(Boolean(args[1])){
             var str= undefined
+<<<<<<< Updated upstream
             try{
                 var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.keep))?cmd:"false";
                 str= child_process.execSync(cmd+` ${args[1]}`, {timeout: 4000});
+=======
+            var b=false;
+            try{
+                var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.keep))?cmd:"false";
+                str= child_process.execSync(cmd+` ${args[1]}`, {timeout: 4000});
+                b=true;
+>>>>>>> Stashed changes
             }
             catch(err){
                 hereLog("Error while keeping addons: "+err);
                 str= undefined
             }
 
+<<<<<<< Updated upstream
             if(Boolean(str)){
+=======
+            if(b && Boolean(str)){
+>>>>>>> Stashed changes
                 message.channel.send(str);
 
                 return true;
             }
             else{
+<<<<<<< Updated upstream
                 message.channel.send(`No addon *${args[1]}* found in ***[temporary]*** section…`);
+=======
+                message.channel.send(`Unable to move addon *${args[1]}* to **temporary** section${(Boolean(str))?`:\n\t${str}`:"…"}`);
+>>>>>>> Stashed changes
 
                 return false;
             }
@@ -374,8 +403,13 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
     else if(["rm","remove","del","delete","suppr"].includes(args[0])){
         if(Boolean(args[1])){
             var resp= _removeAddonsConfig(args[1]);
+<<<<<<< Updated upstream
             if(Boolean(resp)){
                 message.channel.send("Removed addons for srb2kart server:\n"+resp);
+=======
+            if(Boolean(resp) && resp[0] && Boolean(resp[1])){
+                message.channel.send("Removed addons for srb2kart server:\n"+resp[1]);
+>>>>>>> Stashed changes
                 if(_updateAddonsConfig()){
                     return true;
                 }
@@ -385,6 +419,10 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
                 }
             }
             else{
+<<<<<<< Updated upstream
+=======
+                message.channel.send(`❌ Unable to remove${(Boolean(resp[1]))?(`:\n*\t${resp[1]}*`):"…"}`);
+>>>>>>> Stashed changes
                 return false;
             }
         }
@@ -412,6 +450,193 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
     return false;
 }
 
+<<<<<<< Updated upstream
+=======
+async function __uploading_cfg(channel, url){
+    if(!Boolean(kart_settings) || !Boolean(kart_settings.dirs.main_folder)){
+        return
+    }
+
+    if (!urlExistSync(url)){
+        channel.send(`❌ L'url \`${url}\` ne semble pas exister…`);
+        return
+    }
+
+    let filename= "new_startup.cfg"
+    let filepath= kart_settings.dirs.main_folder+`/${filename}`;
+
+    var pct= 0;
+    var dl_msg= await channel.send(
+        `Downloading \`${filename}\` on server …\t[${pct} %]`
+    );
+
+    let _error= (msg='') => {
+        if (Boolean(dl_msg)){
+            dl_msg.edit(`Downloading \`${filename}\` on server …\t[ERROR!]`+
+                ((Boolean(msg))?`\n\t(${msg})`:'')
+            );
+
+            dl_msg.react('❌');
+        }
+    }
+
+    if(Boolean(dl_msg)){
+        const file = fs.createWriteStream(filepath);
+        var receivedBytes = 0;
+        var totalBytes= 0;
+
+        var t= Date.now();
+
+        request.get(url)
+            .on('response', (response) => {
+                if (response.statusCode !== 200) {
+                    _error('Response status was ' + response.statusCode);
+                }
+
+                totalBytes= response.headers['content-length'];
+            })
+            .on('data', (chunk) => {
+                receivedBytes += chunk.length;
+
+                if (Boolean(dl_msg) && (Date.now()-t>=2000)){
+                    dl_msg.edit(`Downloading \`${filename}\` on server …\t[${(receivedBytes/totalBytes)*100} %]`);
+                    t= Date.now();
+                }
+            })
+            .pipe(file)
+            .on('error', (err) => {
+                fs.unlink(filepath, err => {
+                    hereLog(`[file dl error] ${err}`)
+                });
+                _error();
+            });
+
+            file.on('finish', () => {
+                file.close();
+
+                if (Boolean(dl_msg)){
+                    dl_msg.edit(`Downloading \`${filename}\` on server …\t[Done!]`);
+
+                    dl_msg.react('✅');
+                }
+
+                var str= undefined
+                try{
+                    var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.change_config))?cmd:"false";
+                    str= child_process.execSync(cmd, {timeout: 4000});
+                }
+                catch(err){
+                    hereLog("Error while keeping addons: "+err);
+                    str= undefined
+                }
+
+                if(Boolean(str)){
+                    let options= (str==="updated")? {} :
+                        {
+                            files: [{
+                                attachment: `${str}`,
+                                name: `startup.cfg.diff`
+                            }]
+                        }
+                    if(_serv_run){
+                        channel.send(`\`startup.cfg\` a bien été mis à jour.\n`+
+                            `Cependant, celan n'aura aucun effet pour la session déjà en cours`,
+                            options
+                        );
+                    }
+                    else{
+                        channel.send(`\`startup.cfg\` a bien été mis à jour et sera effectif lors de la prochaine session.`,
+                                options
+                        );
+                    }
+                }
+                else{
+                    channel.send(`❌ internal error while trying to update *startup.cfg*…`);
+                }
+            });
+        
+            file.on('error', (err) => {
+                fs.unlink(filepath, err => {
+                    hereLog(`[file dl error] ${err}`)
+                });
+                _error(err.message);
+            });
+    }
+}
+
+async function _cmd_config(cmdObj, clearanceLvl, utils){
+    let message= cmdObj.msg_obj;
+    let sub_cmd= cmdObj.args[0]
+    let args= cmdObj.args.slice(1);
+
+    if(["get","dl","download","check"].includes(args[0])){
+        var str= undefined
+        try{
+            var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.get_config))?cmd:"false";
+            str= child_process.execSync(cmd, {timeout: 4000});
+        }
+        catch(err){
+            hereLog("Error while keeping addons: "+err);
+            str= undefined
+        }
+
+        if(Boolean(str) && fs.existsSync(str)){
+            message.channel.send("Srb2kart server's startup user config file:",
+                {
+                    files: [{
+                        attachment: `${str}`,
+                        name: `startup.cfg`
+                    }]
+                }
+            );
+
+            return true;
+        }
+        else{
+            message.channel.send("❌ Can't access server's config file…")
+            return false;
+        }
+    }
+    else if(["set","up","ul","upload","change"].includes(args[0])){
+        if(Boolean(message.attachments) && message.attachments.size>=1){
+            var url= message.attachments.first().url;
+            
+            if(url.endsWith('.cfg')){
+                await __uploading_cfg(message.channel,url);
+
+                return true;
+            }
+            else{
+                message.channel.send("❌ only .cfg files…");
+                return false;
+            }
+        }
+    }
+    else if(["filter","forbidden","out","off","nope","bad","cfg","blacklist","cmd","deny","denies","denied"].includes(args[0])){
+        var str= undefined
+        try{
+            var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.cfg_blacklist))?cmd:"false";
+            str= child_process.execSync(cmd, {timeout: 4000});
+        }
+        catch(err){
+            hereLog("Error while looking for cfg blacklist: "+err);
+            str= undefined
+        }
+
+        if(Boolean(str)){
+            message.channel.send(`Forbidden commands within *custom configuration startup script*:\n\t${str}`);
+            return true;
+        }
+        else{
+            message.channel.send("❌ server internal error");
+            return false;
+        }
+    }
+
+    return false;
+}
+
+>>>>>>> Stashed changes
 async function cmd_main(cmdObj, clearanceLvl, utils){
     let message= cmdObj.msg_obj;
     let args= cmdObj.args;
@@ -538,9 +763,15 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 || !Boolean(servOwner) || !Boolean(owner= await utils.getBotClient().fetchUser(servOwner))
             ){
                 pwd= _getPassword();
+<<<<<<< Updated upstream
                 message.member.send(`Server admin password: \`${pwd}\`\n\tUne fois connecté au serveur SRB2Kart, ingame utilise la commande \`login ${pwd}\` pour accéder à l'interface d'admin!`);
                 utils.settings.set(message.guild, "serv_owner", message.member.id);
                 message.channel.send(`Nouvel admin désigné du serveur SRB2Kart: ${owner}…`);
+=======
+                await message.member.send(`Server admin password: \`${pwd}\`\n\tUne fois connecté au serveur SRB2Kart, ingame utilise la commande \`login ${pwd}\` pour accéder à l'interface d'admin!`);
+                utils.settings.set(message.guild, "serv_owner", message.member.id);
+                message.channel.send(`Nouvel admin désigné du serveur SRB2Kart: ${message.member.user}…`);
+>>>>>>> Stashed changes
 
                 return true;
             }
@@ -627,6 +858,37 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         else if (["addons","add-ons","addon","add-on","module","modules","mod","mods"].includes(args[0])){
             return (await _cmd_addons(cmdObj, clearanceLvl, utils))
         }
+<<<<<<< Updated upstream
+=======
+        else if (["config","startup"].includes(args[0])){
+            return (await _cmd_config(cmdObj, clearanceLvl, utils))
+        }
+        else if (["log","logs","log.txt"].includes(args[0])){
+            var str= undefined
+            try{
+                var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.get_log))?cmd:"false";
+                str= child_process.execSync(cmd, {timeout: 4000});
+            }
+            catch(err){
+                hereLog("Error while looking for log.txt: "+err);
+                str= undefined
+            }
+    
+            if(Boolean(str)){
+                message.channel.send(`Server's last recorded logs:`,
+                    {files: [{
+                        attachment: `${str}`,
+                        name: `log.txt`
+                    }]}
+                );
+                return true;
+            }
+            else{
+                message.channel.send("❌ server internal error");
+                return false;
+            }            
+        }
+>>>>>>> Stashed changes
         else if (args[0]==="help"){
             return cmd_help(cmdObj, clearanceLvl)
         }
@@ -685,8 +947,13 @@ function cmd_help(cmdObj, clearanceLvl){
         "\tSame as the previous command, except that the addons will be added into the *[downloaded]* section. Meaning it wont be removed"+
         " automatically after a session ends.\n\n"+
         "\t`!kart addons keep <addon_filename>`\n\n"+
+<<<<<<< Updated upstream
         "\tMove an addons from the *[temporary]* section to the *[downloaded]* section.\n\n"+
         "\t`!kart addons rm <addon_name>`\n\n"+
+=======
+        "\tMove an addon from the *[temporary]* section to the *[downloaded]* section.\n\n"+
+        "\t`!kart addons rm <addon_filename>`\n\n"+
+>>>>>>> Stashed changes
         "\tRemove the addon designated by the given name from the server.\n"+
         "\t⚠ this only works for addons under the *[downloaded]* section!"
     )
