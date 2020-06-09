@@ -127,7 +127,7 @@ case "$CMD" in
 "GET_CONFIG")
     _CFG_FILE="startup.cfg"
     if [ -f "$_CFG_FILE" ]; then
-        realpath "$_CFG_FILE"
+        echo -n "$( realpath "$_CFG_FILE" )"
     else
         exit 6
     fi
@@ -152,9 +152,9 @@ case "$CMD" in
     if [ -f "${_CFG_FILE}" ]; then
         diff -u "${_CFG_FILE}" "$2" > "${_DIFF_FILE}"
 
-        echo "$( realpath ${_DIFF_FILE} )"
+        echo -n "$( realpath ${_DIFF_FILE} )"
     else
-        echo "updated"
+        echo -n "updated"
     fi
 
     mv "${2}" "${_CFG_FILE}"
@@ -168,7 +168,7 @@ case "$CMD" in
 "GET_LOG")
     _LOG_FILE="log.txt"
     if [ -f "${_LOG_FILE}" ]; then
-        echo "$( realpath "${_LOG_FILE}" )"
+        echo -n "$( realpath "${_LOG_FILE}" )"
     else
         exit 8
     fi
