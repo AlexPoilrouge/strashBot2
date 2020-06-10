@@ -315,10 +315,10 @@ class Commander{
             var tmp_l_cmd= undefined;
             t.loaded_commands.push( tmp_l_cmd={
                 name: rcf.name,
-                init_per_guild: ((Boolean(rcf.command) && Boolean(i=rcf.command.init_per_guild))? (g =>{i(this._utils,g)}):null),
-                func: ((Boolean(rcf.command) && Boolean(m=rcf.command.main))? (cmdO, clrlv) => {return m(cmdO, clrlv, this._utils)}:null),
+                init_per_guild: ((Boolean(rcf.command) && Boolean(i=rcf.command.init_per_guild))? (g =>{i(t._utils,g)}):null),
+                func: ((Boolean(rcf.command) && Boolean(m=rcf.command.main))? (cmdO, clrlv) => {return m(cmdO, clrlv, t._utils)}:null),
                 help: ((Boolean(rcf.command) && Boolean(h=rcf.command.help))? h:null),
-                event: ((Boolean(rcf.command) && Boolean(e=rcf.command.event))? ((name, ...args) => {return e(name, this._utils, ...args);}):null),
+                event: ((Boolean(rcf.command) && Boolean(e=rcf.command.event))? ((name, ...args) => {return e(name, t._utils, ...args);}):null),
                 clear_guild: ((Boolean(rcf.command) && Boolean(c=rcf.clear_guild))? c:null),
                 _wait_init: true,
             }); 
@@ -327,13 +327,13 @@ class Commander{
             if(Boolean(rcf.command)){
                 if(Boolean(rcf.command.init)){
                     hereLog(`init for command '${rcf.name}'…`);
-                    rcf.command.init(this._utils);
+                    rcf.command.init(t._utils);
                 }
                 if(Boolean(rcf.command.init_per_guild)){
                     tmp_l_cmd._wait_init= true;
                     this._worker.bot.guilds.forEach(async g => {
                         t._cmdSettings.addGuild(cmd_name, g.id)
-                        await rcf.command.init_per_guild(this._utils,g);
+                        await rcf.command.init_per_guild(t._utils,g);
                     });
                     tmp_l_cmd._wait_init= false;
                 }
@@ -345,10 +345,11 @@ class Commander{
         Object.keys(this._cmdSettings._cmdSettings).forEach( cmd => {
             this._cmdSettings.addGuild(cmd, guild.id);
         });
+        let t= this;
         this.loaded_commands.forEach(async l_cmd => {
             if(Boolean(l_cmd) && Boolean(l_cmd.init_per_guild)){
                 l_cmd._wait_init= true;
-                await l_cmd.init_per_guild(this._utils, guild);
+                await l_cmd.init_per_guild(t._utils, guild);
                 l_cmd._wait_init= false;
             }
             else{
