@@ -264,12 +264,7 @@ class Commander{
 
         this.loaded_commands= [];
 
-        this._loadCommands();
-
-        this._trackedMessages= [];
-        this._trackedMessagesRefreshed= false;
-
-        this._utils={
+        this._utils= (cmd_name) => { return {
             settings: {
                 set: (guild, field, value, mod_name=undefined) => {
                     var cmd= (Boolean(mod_name))? mod_name : cmd_name;
@@ -299,7 +294,12 @@ class Commander{
                 }
             },
             getMasterID: () => { return this._worker._bot.masterID; }
-        };
+        }; };
+
+        this._loadCommands();
+
+        this._trackedMessages= [];
+        this._trackedMessagesRefreshed= false;
     }
 
     _loadCommands(){
@@ -312,13 +312,15 @@ class Commander{
 
             var cmd_name= my_utils.commandNameFromFilePath(file);
             
+            var utils= this._utils(cmd_name)
+
             var tmp_l_cmd= undefined;
             t.loaded_commands.push( tmp_l_cmd={
                 name: rcf.name,
-                init_per_guild: ((Boolean(rcf.command) && Boolean(i=rcf.command.init_per_guild))? (g =>{i(t._utils,g)}):null),
-                func: ((Boolean(rcf.command) && Boolean(m=rcf.command.main))? (cmdO, clrlv) => {return m(cmdO, clrlv, t._utils)}:null),
+                init_per_guild: ((Boolean(rcf.command) && Boolean(i=rcf.command.init_per_guild))? (g =>{i(utils,g)}):null),
+                func: ((Boolean(rcf.command) && Boolean(m=rcf.command.main))? (cmdO, clrlv) => {return m(cmdO, clrlv, utils)}:null),
                 help: ((Boolean(rcf.command) && Boolean(h=rcf.command.help))? h:null),
-                event: ((Boolean(rcf.command) && Boolean(e=rcf.command.event))? ((name, ...args) => {return e(name, t._utils, ...args);}):null),
+                event: ((Boolean(rcf.command) && Boolean(e=rcf.command.event))? ((name, ...args) => {return e(name, utils, ...args);}):null),
                 clear_guild: ((Boolean(rcf.command) && Boolean(c=rcf.clear_guild))? c:null),
                 _wait_init: true,
             }); 
@@ -327,13 +329,13 @@ class Commander{
             if(Boolean(rcf.command)){
                 if(Boolean(rcf.command.init)){
                     hereLog(`init for command '${rcf.name}'…`);
-                    rcf.command.init(t._utils);
+                    rcf.command.init(utils);
                 }
                 if(Boolean(rcf.command.init_per_guild)){
                     tmp_l_cmd._wait_init= true;
                     this._worker.bot.guilds.forEach(async g => {
                         t._cmdSettings.addGuild(cmd_name, g.id)
-                        await rcf.command.init_per_guild(t._utils,g);
+                        await rcf.command.init_per_guild(utils,g);
                     });
                     tmp_l_cmd._wait_init= false;
                 }
@@ -349,7 +351,7 @@ class Commander{
         this.loaded_commands.forEach(async l_cmd => {
             if(Boolean(l_cmd) && Boolean(l_cmd.init_per_guild)){
                 l_cmd._wait_init= true;
-                await l_cmd.init_per_guild(t._utils, guild);
+                await l_cmd.init_per_guild(t._utils(l_cmd.name), guild);
                 l_cmd._wait_init= false;
             }
             else{
