@@ -268,6 +268,38 @@ class Commander{
 
         this._trackedMessages= [];
         this._trackedMessagesRefreshed= false;
+
+        this._utils={
+            settings: {
+                set: (guild, field, value, mod_name=undefined) => {
+                    var cmd= (Boolean(mod_name))? mod_name : cmd_name;
+                    return this._cmdSettings.setField(cmd, guild, field, value);
+                },
+                get: (guild, field, mod_name=undefined) => {
+                    var cmd= (Boolean(mod_name))? mod_name : cmd_name;
+                    return this._cmdSettings.getField(cmd, guild, field);
+                },
+                remove: (guild, field, mod_name=undefined) => {
+                    var cmd= (Boolean(mod_name))? mod_name : cmd_name;
+                    this._cmdSettings.removeField(cmd, guild, field);
+                },
+            },
+            getMemberClearanceLevel: this._getMemberClearanceLevel.bind(this),
+            getBotClient: () => { return this._worker._bot;},
+            cache_message_management:{
+                keepTrackOf: (msg) => {if(!this._trackedMessages.find(m => {return m.id===msg.id})) this._trackedMessages.push(msg);},
+                untrack: (msg) => {this._trackedMessages= this._trackedMessages.filter(m => {return m.id!==msg.id;});},
+                isTracked: (msg) => {return Boolean(this._trackedMessages.find(m => {return m.id===msg.id}));},
+                fetch: async (msgID) => {
+                    var msg= undefined;
+                    if(Boolean(msg=(this._trackedMessages.find(m => {return m.id===msgID})))){
+                        return msg.channel.fetch(msgID);
+                    }
+                    else return undefined;
+                }
+            },
+            getMasterID: () => { return this._worker._bot.masterID; }
+        };
     }
 
     _loadCommands(){
@@ -279,46 +311,14 @@ class Commander{
             var m= null, h= null, e=null, i= null, c= null;
 
             var cmd_name= my_utils.commandNameFromFilePath(file);
-
-            var utils= {
-                settings: {
-                    set: (guild, field, value, mod_name=undefined) => {
-                        var cmd= (Boolean(mod_name))? mod_name : cmd_name;
-                        return this._cmdSettings.setField(cmd, guild, field, value);
-                    },
-                    get: (guild, field, mod_name=undefined) => {
-                        var cmd= (Boolean(mod_name))? mod_name : cmd_name;
-                        return this._cmdSettings.getField(cmd, guild, field);
-                    },
-                    remove: (guild, field, mod_name=undefined) => {
-                        var cmd= (Boolean(mod_name))? mod_name : cmd_name;
-                        this._cmdSettings.removeField(cmd, guild, field);
-                    },
-                },
-                getMemberClearanceLevel: this._getMemberClearanceLevel.bind(this),
-                getBotClient: () => { return this._worker._bot;},
-                cache_message_management:{
-                    keepTrackOf: (msg) => {if(!this._trackedMessages.find(m => {return m.id===msg.id})) this._trackedMessages.push(msg);},
-                    untrack: (msg) => {this._trackedMessages= this._trackedMessages.filter(m => {return m.id!==msg.id;});},
-                    isTracked: (msg) => {return Boolean(this._trackedMessages.find(m => {return m.id===msg.id}));},
-                    fetch: async (msgID) => {
-                        var msg= undefined;
-                        if(Boolean(msg=(this._trackedMessages.find(m => {return m.id===msgID})))){
-                            return msg.channel.fetch(msgID);
-                        }
-                        else return undefined;
-                    }
-                },
-                getMasterID: () => { return this._worker._bot.masterID; }
-            };
             
             var tmp_l_cmd= undefined;
             t.loaded_commands.push( tmp_l_cmd={
                 name: rcf.name,
-                init_per_guild: ((Boolean(rcf.command) && Boolean(i=rcf.init_per_guild))? (g =>{i(utils,g)}):null),
-                func: ((Boolean(rcf.command) && Boolean(m=rcf.command.main))? (cmdO, clrlv) => {return m(cmdO, clrlv, utils)}:null),
+                init_per_guild: ((Boolean(rcf.command) && Boolean(i=rcf.command.init_per_guild))? (g =>{i(this._utils,g)}):null),
+                func: ((Boolean(rcf.command) && Boolean(m=rcf.command.main))? (cmdO, clrlv) => {return m(cmdO, clrlv, this._utils)}:null),
                 help: ((Boolean(rcf.command) && Boolean(h=rcf.command.help))? h:null),
-                event: ((Boolean(rcf.command) && Boolean(e=rcf.command.event))? ((name, ...args) => {return e(name, utils, ...args);}):null),
+                event: ((Boolean(rcf.command) && Boolean(e=rcf.command.event))? ((name, ...args) => {return e(name, this._utils, ...args);}):null),
                 clear_guild: ((Boolean(rcf.command) && Boolean(c=rcf.clear_guild))? c:null),
                 _wait_init: true,
             }); 
@@ -327,13 +327,13 @@ class Commander{
             if(Boolean(rcf.command)){
                 if(Boolean(rcf.command.init)){
                     hereLog(`init for command '${rcf.name}'…`);
-                    rcf.command.init(utils);
+                    rcf.command.init(this._utils);
                 }
                 if(Boolean(rcf.command.init_per_guild)){
                     tmp_l_cmd._wait_init= true;
                     this._worker.bot.guilds.forEach(async g => {
                         t._cmdSettings.addGuild(cmd_name, g.id)
-                        await rcf.command.init_per_guild(utils,g);
+                        await rcf.command.init_per_guild(this._utils,g);
                     });
                     tmp_l_cmd._wait_init= false;
                 }
@@ -346,9 +346,14 @@ class Commander{
             this._cmdSettings.addGuild(cmd, guild.id);
         });
         this.loaded_commands.forEach(async l_cmd => {
-            l_cmd._wait_init= true;
-            await l_cmd.init_per_guild(guild);
-            l_cmd._wait_init= false;
+            if(Boolean(l_cmd) && Boolean(l_cmd.init_per_guild)){
+                l_cmd._wait_init= true;
+                await l_cmd.init_per_guild(this._utils, guild);
+                l_cmd._wait_init= false;
+            }
+            else{
+                hereLog(`No init_per_guild: ${l_cmd.name}`)
+            }
         });
     }
 

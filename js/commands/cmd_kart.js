@@ -533,7 +533,7 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
     let sub_cmd= cmdObj.args[0]
     let args= cmdObj.args.slice(1);
 
-    if(["get","dl","download","check"].includes(args[0])){
+    if(args.length===0 || ["get","dl","download","check"].includes(args[0])){
         var str= undefined
         try{
             var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.get_config))?cmd:"false";
