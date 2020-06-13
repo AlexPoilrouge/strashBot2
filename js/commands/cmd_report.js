@@ -580,7 +580,9 @@ function cmd_init(utils){
 
 
 async function cmd_init_per_guild(utils, guild){
-    l_guilds.push(guild)
+    if(!l_guilds.includes(guild)){
+        l_guilds.push(guild)
+    }
 }
 
 async function cmd_main(cmdObj, clearanceLvl, utils){

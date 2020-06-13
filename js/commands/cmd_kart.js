@@ -8,6 +8,9 @@ const path= require( 'path' );
 const request = require('request');
 const urlExistSync = require("url-exist-sync");
 
+const os = require('os');
+const ifaces = os.networkInterfaces();
+
 
 
 let hereLog= (...args) => {console.log("[cmd_kart]", ...args);};
@@ -801,6 +804,13 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 }
                 else{
                     str+=`\n⚠ Le serveur SRB2Kart n'a pas d'admin désigné… 😢`;
+                }
+
+                var net= undefined;
+                if(Boolean(ifaces) && Boolean(ifaces['eth0']) && ifaces['etho'].length>0 &&
+                    ( net= ifaces['eth0'].find(nif => {return Boolean(nif['address'].match(/^([0-9]{1,3}\.){3}[0-9]{1,3}$/))}) )
+                ){
+                    str+=`\n\n\tL'adresse ip du serveur est \`${net}\``;
                 }
             }
             else{
