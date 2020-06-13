@@ -807,7 +807,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 }
 
                 var net= undefined;
-                if(Boolean(ifaces) && Boolean(ifaces['eth0']) && ifaces['etho'].length>0 &&
+                if(Boolean(ifaces) && Boolean(ifaces['eth0']) && ifaces['eth0'].length>0 &&
                     ( net= ifaces['eth0'].find(nif => {return Boolean(nif['address'].match(/^([0-9]{1,3}\.){3}[0-9]{1,3}$/))}) )
                 ){
                     str+=`\n\n\tL'adresse ip du serveur est \`${net}\``;
