@@ -257,7 +257,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             return false;
         }
 
-        chanChar[chan.id]= {character: args[1], role: undefined};
+        chanChar[chan.id]= {character: charName, role: undefined};
         utils.settings.set(message.guild, 'channelCharacter', chanChar);
 
         return true;
