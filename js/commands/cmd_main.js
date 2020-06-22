@@ -231,10 +231,11 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
     let message= cmdObj.msg_obj
     if(args[0]==="add" && (clearanceLvl>CLEARANCE_LEVEL.NONE)){
         hereLog("'add' subcommand");
-        if( args.length<3 || !Boolean(args[1].match(/[A-Za-z0-9\ \-\.]+/))
-            || !Boolean(args[2].match(/<#[0-9]+>/))
+        var charName=""
+        if( args.length<3 || !Boolean((charName=args.slice(2).join(' ')).match(/[A-Za-z0-9\ \-\.]+/))
+            || !Boolean(args[1].match(/<#[0-9]+>/))
         ){
-            message.author.send("Format:\n\t`!main add [character-name] [#channel]`")
+            message.author.send("Format:\n\t`!main add [#channel] [character-name]`")
             return false;
         }
 
@@ -491,7 +492,7 @@ function cmd_help(cmdObj, clearanceLvl){
         `\tList available characters with their associated channels.`+
         ((clearanceLvl>CLEARANCE_LEVEL.NONE)?
             `\n\n**Admin Roles and/or Control Channels only:**\n`+
-            `\t\`!main add [character-name] [#channel]\`\n\n`+
+            `\t\`!main add [#channel] [character-name]\`\n\n`+
             `\tAdd a character to the collection.\n`+
             `\t⚠️ *The channel must already exist!*\n\n`+
             `\t\`!main unstall\`\n\n`+

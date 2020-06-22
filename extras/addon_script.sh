@@ -5,6 +5,8 @@ echoerr() { echo "$@" 1>&2; }
 SCRIPT_DIR="$( dirname "$( realpath "$0" )" )"
 EXTENSIONS=(pk3 wad lua kart pk7)
 
+PYTHON_LMP_ATTACK_SCRIPT="record_lmp_read.py"
+
 ls_restricted() {
     for i in ${EXTENSIONS[@]}; do
         if [ "$2" != "" ]; then
@@ -172,6 +174,190 @@ case "$CMD" in
     else
         exit 8
     fi
+;;
+"RECORD_MAPS")
+    if ! [ -f "${PYTHON_LMP_ATTACK_SCRIPT}" ]; then
+        echo "ERROR - internal error (no lmp eval func)"
+        exit 9
+    fi
+
+    PATTERN=""
+    LISTING=true
+    if [ "$#" -gt 1 ]; then
+        MAP_DIR="$( echo "$2" | sed 's/ /_/g')"
+        NB_MATCH="$( ls -d1 maps/*/ | grep -i "$( echo ${MAP_DIR} | tr '[:upper:]' '[:lower:]' )" | wc -l )"
+        if ! [ -d "maps/$2" ] && [  "${NB_MATCH}" -gt 1 ]; then
+            PATTERN="$2"
+        elif [ "${NB_MATCH}" -eq 1 ]; then
+            LISTING=false
+        else
+            echo "ERROR - No matching match found for records…"
+            exit 10
+        fi    
+    fi
+
+    if ${LISTING}; then
+        if ! [ -d "maps" ]; then
+            mkdir -p maps
+        fi 
+        
+        ( ( if [ "$PATTERN" != "" ]; then ls -d1 maps/*/ | grep -i "${PATTERN}"; else ls -d1 maps/*/; fi ) \
+                | sed -e 's/^maps\///g' | sed 's/\///g'
+           ) | while read -r L; do
+            RECORD="\`no record\`"
+            if [ -f "maps/${L}/record.txt" ]; then
+                RECORD="$( sed '2q;d' "maps/${L}/record.txt" )"
+                if [ "$RECORD" == "" ]; then
+                    RECORD="\`no record\`"
+                fi
+            fi
+            echo "${L} - **record:** ${RECORD} - $( (ls -1 "maps/${L}/"*.lmp 2>/dev/null ) | wc -l ) times"
+        done
+
+        exit 0
+    else
+        echo "=== ${MAP_DIR} ==="
+        ( python "${PYTHON_LMP_ATTACK_SCRIPT}" "maps/${MAP_DIR}" | tr '\0' ' ' ) |  while read -r REC; do
+            REC="${REC// /_}"
+            REC_TAB=(${REC//::::/ })
+
+            if [ "${REC_TAB[0]}" == "" ]; then
+                echo "ERROR"
+            else
+                echo "${REC_TAB[0]} - ${REC_TAB[1]//_/ }"
+                if [ "${REC_TAB[0]}" == "SUCCESS" ]; then
+                    #echo "${REC_TAB[2]//_/ }"
+                    echo "${REC_TAB[7]}"
+                    echo "${REC_TAB[8]}"
+                    _CHARACTER="${REC_TAB[9]}"
+                    echo -n "$( echo ${_CHARACTER:0:1} | tr '[:lower:]' '[:upper:]' )$( echo ${_CHARACTER:1} )"
+                    echo " ($( echo "${REC_TAB[10]}" | tr '[:upper:]' '[:lower:]' ))"
+                    echo "${REC_TAB[11]} ${REC_TAB[12]}"
+                    echo "SRB2Kart ${REC_TAB[3]}"
+                    _NB_ADDONS="${REC_TAB[4]}"
+                    echo -n "[ ${_NB_ADDONS} ]"
+                    if [ "${_NB_ADDONS}" -gt 0 ]; then
+                        echo "${REC_TAB[5]}" | tr ';' ' '
+                    else
+                        echo ""
+                    fi
+                fi
+            fi
+            echo "---"
+        done
+        exit 0
+    fi
+;;
+"ADD_RECORD")
+    if [ "$#" -lt 2 ]; then
+        echo "ERROR - File map not provided"
+        exit 11
+    elif ! [ -f "$2" ]; then
+        echo "ERROR - Non existing file map"
+        exit 12
+    elif [ "$#" -lt 3 ]; then
+        echo "ERROR - Need to provided a tag for file renaming"
+        exit 13
+    fi
+
+    REC= "$( python "${PYTHON_LMP_ATTACK_SCRIPT}" "$2" )"
+    REC_TAB=(${REC//::::/ })
+
+    if [ "${REC_TAB[0]}" != "SUCCESS" ]; then
+        echo "${REC_TAB[0]} - ${REC_TAB[1]}"
+        exit 14
+    elif [ "${REC_TAB[7]}" == "unfinished" ]; then
+        echo "ERROR - Will only add completed track runs…"
+        exit 15
+    fi
+
+    MAP_DIR="${REC_TAB[2]// /_}"
+    mkdir -p "maps/${MAP_DIR}"
+
+    if ! cp "${2}" "maps/${MAP_DIR}/$3.lmp"; then
+        echo "ERROR - Can't add .lmp file"
+        exit 16
+    fi
+
+    _RECORD_FILE="maps/${MAP_DIR}/record.txt"
+
+    if [ -f "${_RECORD_FILE}" ] && [ "$( sed '1q;d' "${_RECORD_FILE}" )" -gt "${REC_TAB[6]}" ]; then
+        echo "${REC_TAB[6]}" > "${_RECORD_FILE}"
+        echo "${REC_TAB[7]} by ${REC_TAB[8]} from $3" >> "${_RECORD_FILE}"
+
+        echo "ADDED - New record! ${REC_TAB[7]}"
+    else
+        echo "ADDED - Record held: $( sed '1q;d' "${_RECORD_FILE}" )"
+    fi
+
+    exit 0
+;;
+"RECORD_GET")
+    if [ "$#" -lt 3 ]; then
+        echo "ERROR - Need player tagname and mapname"
+        exit 17
+    fi
+
+    TAGNAME="$1"
+    MAPNAME="$( _I=0; for _E in $#; do if [ "$_I" -gt 0 ];then echo -n " " ;fi; if [ "$_I" -gt 2 ] then echo -n "$_E"; fi ((_I++)); done )"
+    MAP_DIR="${MAPNAME// /_}"
+
+    if ! [ -f "maps/${MAP_DIR}/${TAGNAME}.lmp" ]; then
+        echo "ERROR - Can't find requested record…"
+        exit 18
+    fi
+
+    echo "FOUND - $( realpath "maps/${MAP_DIR}/${TAGNAME}.lmp" )"
+    exit 0
+;;
+"RECORD_RM")
+    if [ "$#" -lt 3 ]; then
+        echo "ERROR - Need player tagname and mapname"
+        exit 19
+    fi
+
+    TAGNAME="$1"
+    MAPNAME="$( _I=0; for _E in $#; do if [ "$_I" -gt 0 ];then echo -n " " ;fi; if [ "$_I" -gt 2 ] then echo -n "$_E"; fi ((_I++)); done )"
+    MAP_DIR="${MAPNAME// /_}"
+
+    if ! [ -f "maps/${MAP_DIR}/${TAGNAME}.lmp" ]; then
+        echo "ERROR - Can't find requested record…"
+        exit 20
+    fi
+
+    if ! rm -f "maps/${MAP_DIR}/${TAGNAME}.lmp"; then
+        echo "ERROR - Can't remove record…"
+        exit 21
+    fi
+
+    if [ "$( (ls -1  "maps/${MAP_DIR}/"*.lmp 2>/dev/null) | wc -l )" -le 0 ]; then
+        rm -rf "maps/${MAP_DIR}"
+    else
+        _C=0
+        ( ls -1  "maps/${MAP_DIR}/"*.lmp 2>/dev/null ) |  while read -r F; do
+            _PF="$( realpath "${F}" )"
+            REC=$( python "${PYTHON_LMP_ATTACK_SCRIPT}" "${_PF}" | tr '\0' ' ' )
+            REC="${REC// /_}"
+            REC_TAB=(${REC//::::/ })
+            T_REC=4294967295
+
+            if [ "${REC_TAB[0]}" == "SUCESS" ]; then
+                if [ "${REC_TAB[6]}" -lt "${T_REC}" ]; then
+                    T_REC="${REC_TAB[6]}"
+                    echo "${T_REC}" > "${_RECORD_FILE}"
+                    _BF="$( basename "${F}" )"
+                    echo "${REC_TAB[7]} by ${REC_TAB[8]} from ${_BF//.lmp/}" >> "maps/${MAP_DIR}/record.txt"
+                fi
+                ((_C++))
+            fi
+        done
+        if [ "${_C}" -lt 0 ]; then
+            rm -rf "maps/${MAP_DIR}"
+        fi
+    fi
+
+    echo "RECORD_REMOVED - done"
+    exit 0
 ;;
 "UPDATE")
     _update
