@@ -21,6 +21,11 @@
             "get_config":"sh /home/strashbot_user/.srb2kart/addon_script.sh GET_CONFIG",
             "change_config":"sh /home/strashbot_user/.srb2kart/addon_script.sh CHANGE_CONFIG",
             "cfg_blacklist":"sh /home/strashbot_user/.srb2kart/addon_script.sh CFG_BLACKLIST",
-            "get_log":"sh /home/strashbot_user/.srb2kart/addon_script.sh GET_LOG"
+            "get_log":"sh /home/strashbot_user/.srb2kart/addon_script.sh GET_LOG",
+            "map_times":"sh /home/strashbot_user/.srb2kart/addon_script.sh RECORD_MAPS",
+            "add_times":"sh /home/strashbot_user/.srb2kart/addon_script.sh ADD_RECORD",
+            "get_times":"sh /home/strashbot_user/.srb2kart/addon_script.sh RECORD_GET",
+            "time_info":"python /home/strashbot_user/.srb2kart/record_lmp_read.py",
+            "remove_times":"sh /home/strashbot_user/.srb2kart/addon_script.sh RECORD_RM"
     }
 }

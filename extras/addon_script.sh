@@ -28,12 +28,14 @@ DL_FILE="dl_load.cfg"
 _update(){
     echo "wait" > "${TMP_FILE}"
     ( ls_restricted tmp ) | while read -r L; do
+            chmod 704 "${L}"
             echo "addfile \"${L}\"" >> "${TMP_FILE}"
             echo "wait" >> "${TMP_FILE}"
         done
 
     echo "wait" > "${DL_FILE}"
     ( ls_restricted dl ) | while read -r L; do
+            chmod 704 "${L}"
             echo "addfile \"${L}\"" >> "${DL_FILE}"
             echo "wait" >> "${DL_FILE}"
         done
@@ -184,7 +186,9 @@ case "$CMD" in
     PATTERN=""
     LISTING=true
     if [ "$#" -gt 1 ]; then
-        MAP_DIR="$( echo "$2" | sed 's/ /_/g')"
+        MAPNAME="$( _I=0; for _E in $@; do if [ "$_I" -gt 1 ]; then echo -n " "; fi ; if [ "$_I" -gt 0 ]; then echo -n "$_E"; fi; ((_I++)); done )"
+        MAP_DIR="${MAPNAME// /_}"
+        #MAP_DIR="$( echo "$2" | sed 's/ /_/g')"
         NB_MATCH="$( ls -d1 maps/*/ | grep -i "$( echo ${MAP_DIR} | tr '[:upper:]' '[:lower:]' )" | wc -l )"
         if ! [ -d "maps/$2" ] && [  "${NB_MATCH}" -gt 1 ]; then
             PATTERN="$2"
@@ -227,6 +231,7 @@ case "$CMD" in
                 echo "${REC_TAB[0]} - ${REC_TAB[1]//_/ }"
                 if [ "${REC_TAB[0]}" == "SUCCESS" ]; then
                     #echo "${REC_TAB[2]//_/ }"
+                    echo "${REC_TAB[13]}"
                     echo "${REC_TAB[7]}"
                     echo "${REC_TAB[8]}"
                     _CHARACTER="${REC_TAB[9]}"
@@ -260,7 +265,7 @@ case "$CMD" in
         exit 13
     fi
 
-    REC= "$( python "${PYTHON_LMP_ATTACK_SCRIPT}" "$2" )"
+    REC="$( python "${PYTHON_LMP_ATTACK_SCRIPT}" "$2" )"
     REC_TAB=(${REC//::::/ })
 
     if [ "${REC_TAB[0]}" != "SUCCESS" ]; then
@@ -280,14 +285,14 @@ case "$CMD" in
     fi
 
     _RECORD_FILE="maps/${MAP_DIR}/record.txt"
+    if ! [ -f "${_RECORD_FILE}" ] || [ "$( sed '1q;d' "${_RECORD_FILE}" )" -gt "${REC_TAB[6]}" ]; then
+            echoerr "### ${_RECORD_FILE}"
+            echo "${REC_TAB[6]}" > "${_RECORD_FILE}"
+            echo "${REC_TAB[7]} by ${REC_TAB[8]} from $3" >> "${_RECORD_FILE}"
 
-    if [ -f "${_RECORD_FILE}" ] && [ "$( sed '1q;d' "${_RECORD_FILE}" )" -gt "${REC_TAB[6]}" ]; then
-        echo "${REC_TAB[6]}" > "${_RECORD_FILE}"
-        echo "${REC_TAB[7]} by ${REC_TAB[8]} from $3" >> "${_RECORD_FILE}"
-
-        echo "ADDED - New record! ${REC_TAB[7]}"
+            echo "ADDED - New record! ${REC_TAB[7]}"
     else
-        echo "ADDED - Record held: $( sed '1q;d' "${_RECORD_FILE}" )"
+        echo "ADDED - Record held: $( sed '2q;d' "${_RECORD_FILE}" )"
     fi
 
     exit 0
@@ -298,8 +303,8 @@ case "$CMD" in
         exit 17
     fi
 
-    TAGNAME="$1"
-    MAPNAME="$( _I=0; for _E in $#; do if [ "$_I" -gt 0 ];then echo -n " " ;fi; if [ "$_I" -gt 2 ] then echo -n "$_E"; fi ((_I++)); done )"
+    TAGNAME="$2"
+    MAPNAME="$( _I=0; for _E in $@; do if [ "$_I" -gt 2 ]; then echo -n " "; fi ; if [ "$_I" -gt 1 ]; then echo -n "$_E"; fi; ((_I++)); done )"
     MAP_DIR="${MAPNAME// /_}"
 
     if ! [ -f "maps/${MAP_DIR}/${TAGNAME}.lmp" ]; then
@@ -316,10 +321,11 @@ case "$CMD" in
         exit 19
     fi
 
-    TAGNAME="$1"
-    MAPNAME="$( _I=0; for _E in $#; do if [ "$_I" -gt 0 ];then echo -n " " ;fi; if [ "$_I" -gt 2 ] then echo -n "$_E"; fi ((_I++)); done )"
+    TAGNAME="$2"
+    MAPNAME="$( _I=0; for _E in $@; do if [ "$_I" -gt 2 ]; then echo -n " "; fi ; if [ "$_I" -gt 1 ]; then echo -n "$_E"; fi; ((_I++)); done )"
     MAP_DIR="${MAPNAME// /_}"
 
+    echoerr "lf maps/${MAP_DIR}/${TAGNAME}.lmp"
     if ! [ -f "maps/${MAP_DIR}/${TAGNAME}.lmp" ]; then
         echo "ERROR - Can't find requested record…"
         exit 20
@@ -332,7 +338,9 @@ case "$CMD" in
 
     if [ "$( (ls -1  "maps/${MAP_DIR}/"*.lmp 2>/dev/null) | wc -l )" -le 0 ]; then
         rm -rf "maps/${MAP_DIR}"
+        echoerr "rm here"
     else
+        echoerr "rm there"
         _C=0
         ( ls -1  "maps/${MAP_DIR}/"*.lmp 2>/dev/null ) |  while read -r F; do
             _PF="$( realpath "${F}" )"
@@ -341,12 +349,13 @@ case "$CMD" in
             REC_TAB=(${REC//::::/ })
             T_REC=4294967295
 
-            if [ "${REC_TAB[0]}" == "SUCESS" ]; then
+            if [ "${REC_TAB[0]}" == "SUCCESS" ]; then
                 if [ "${REC_TAB[6]}" -lt "${T_REC}" ]; then
+                    _RECORD_FILE="maps/${MAP_DIR}/record.txt"
                     T_REC="${REC_TAB[6]}"
                     echo "${T_REC}" > "${_RECORD_FILE}"
                     _BF="$( basename "${F}" )"
-                    echo "${REC_TAB[7]} by ${REC_TAB[8]} from ${_BF//.lmp/}" >> "maps/${MAP_DIR}/record.txt"
+                    echo "${REC_TAB[7]} by ${REC_TAB[8]} from ${_BF%.lmp}" >> "maps/${MAP_DIR}/record.txt"
                 fi
                 ((_C++))
             fi

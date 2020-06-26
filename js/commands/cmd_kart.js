@@ -603,6 +603,358 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
     return false;
 }
 
+async function ___stringFromID(guild, id){
+    var member= await guild.fetchMember(id)
+
+    if(Boolean(user)){
+        if(Boolean(member.nickname)){
+            return member.nickname;
+        }
+        else{
+            return member.username;
+        }
+    }
+    else return undefined;
+}
+
+async function __replaceIDinString(guild, string){
+    var ret= string
+    var match= undefined;
+    var id= undefined;
+    var name= "unknown";
+    if( Boolean(match=(str.match("from ([0-9]{18}) \-"))) && match.length>1
+            && Boolean(id=match[1]) && Boolean(name=(await ___stringFromID(id))) )
+    {
+        ret.split(id).join(name);
+    }
+
+    return ret;
+}
+
+async function __uploading_lmp(channel,url,id){
+    if(!Boolean(kart_settings) || !Boolean(kart_settings.dirs.add_times)){
+        return
+    }
+
+    if (!urlExistSync(url)){
+        channel.send(`❌ L'url \`${url}\` ne semble pas exister…`);
+        return
+    }
+
+    let filename= `${id}.lmp`
+    let filepath= kart_settings.dirs.main_folder+`/${filename}`;
+
+    var pct= 0;
+    var dl_msg= await channel.send(
+        `Downloading \`${filename}\` on server …\t[${pct} %]`
+    );
+
+    let _error= (msg='') => {
+        if (Boolean(dl_msg)){
+            dl_msg.edit(`Downloading \`${filename}\` on server …\t[ERROR!]`+
+                ((Boolean(msg))?`\n\t(${msg})`:'')
+            );
+
+            dl_msg.react('❌');
+        }
+    }
+
+    if(Boolean(dl_msg)){
+        const file = fs.createWriteStream(filepath);
+        var receivedBytes = 0;
+        var totalBytes= 0;
+
+        var t= Date.now();
+
+        request.get(url)
+            .on('response', (response) => {
+                if (response.statusCode !== 200) {
+                    _error('Response status was ' + response.statusCode);
+                }
+
+                totalBytes= response.headers['content-length'];
+            })
+            .on('data', (chunk) => {
+                receivedBytes += chunk.length;
+
+                if (Boolean(dl_msg) && (Date.now()-t>=2000)){
+                    dl_msg.edit(`Downloading \`${filename}\` on server …\t[${(receivedBytes/totalBytes)*100} %]`);
+                    t= Date.now();
+                }
+            })
+            .pipe(file)
+            .on('error', (err) => {
+                fs.unlink(filepath, err => {
+                    hereLog(`[file dl error] ${err}`)
+                });
+                _error();
+            });
+
+            file.on('finish', () => {
+                file.close();
+
+                if (Boolean(dl_msg)){
+                    dl_msg.edit(`Downloading \`${filename}\` on server …\t[Done!]`);
+
+                    dl_msg.react('✅');
+                }
+
+                var str= undefined
+                try{
+                    var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.add_times))?cmd:"false";
+                    str= child_process.execSync(cmd+` ${filepath} ${id}`, {timeout: 4000});
+                }
+                catch(err){
+                    hereLog("Error while adding time: "+err);
+                    str= undefined
+                }
+
+                if(Boolean(str) && str.startsWith("ADDED")){
+                    channel.send(str);
+                }
+                else{
+                    channel.send(`❌ internal error while trying to add recorded time [${str}]`);
+                }
+            });
+        
+            file.on('error', (err) => {
+                fs.unlink(filepath, err => {
+                    hereLog(`[file dl error] ${err}`)
+                });
+                _error(err.message);
+            });
+    }
+}
+
+async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
+    let message= cmdObj.msg_obj;
+    let sub_cmd= cmdObj.args[0]
+    let args= cmdObj.args.slice(1);
+
+    const _base_cmd= async (mapName=undefined)=>{
+        var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.map_times))?cmd:"false";
+
+        if(!Boolean(mapName)){
+            var str= undefined
+            try{
+                str= child_process.execSync(cmd, {timeout: 4000});
+            }
+            catch(err){
+                hereLog("Error while fetchin map times: "+err);
+                str= undefined
+            }
+
+            if(!Boolean(str)){
+                message.channel.send(`❌ no time data found…`);
+                return false;
+            }
+
+            var lines= str.split('\n');
+            var msg="";
+            for (var l in lines){
+                msg+= (await __replaceIDinString(message.guild, nl));
+            }
+
+            message.channel.send(msg);
+
+            return true;
+        }
+        else{
+            var str= undefined
+            try{
+                str= child_process.execSync(cmd+` ${mapName}`, {timeout: 4000});
+            }
+            catch(err){
+                hereLog("Error while fetchin map times: "+err);
+                str= undefined
+            }
+
+            if(!Boolean(str)){
+                message.channel.send(`❌ no time data found…`);
+                return false;
+            }
+
+            var msg= `On **${mapName}**:\n`;
+            var lines= str.split('\n');
+            
+            const readMapTimes= async (lines) =>{
+                var name="unknown"
+                var time="59'59'99"
+                var by= "unknown"
+                var wth= "character"
+                var stats= "unknown stats"
+                var files= '0 files'
+
+                var ret=""
+                for(var i=0; i<lines.length; ++i){
+                    switch (i%9){
+                    case 0:
+                    {
+                        name="unknown"
+                        time="59'59'99"
+                        by= "unknown"
+                        wth= "character"
+                        stats= "unknown stats"
+                        files= '0 files'
+                    }
+                    case 3:
+                    {
+                        name= await __replaceIDinString(message.guild, lines[i]);
+                    }
+                    break;
+                    case 4:
+                    {
+                        time= lines[i]
+                    }
+                    break;
+                    case 5:
+                    {
+                        by= lines[i]
+                    }
+                    break;
+                    case 6:
+                    {
+                        wth= lines[i]
+                    }
+                    break;
+                    case 7:
+                    {
+                        var s_w= lines[i].split(' ');
+                        stats=`speed: ${s_w[0]}; weight: ${s_w[1]}`
+                    }
+                    break;
+                    case 9:
+                    {
+                        files= `${lines[i][2]} files: ${lines[i].substring(5,200)+((lines[i].length>=100)?"…":"")}`
+
+                        ret+= `${time} by ${by} (from **${name}**) with ${wth} (${stats})\n`
+                        ret+= `\t\t${files}`
+                    }
+                    }
+                }
+
+                ret=(ret.lenght>1900)?(ret.substring(0,1900)+"\n[…]"):ret;
+
+                return ret;
+            }
+
+            msg+= (await readMapTimes(lines));
+
+            return msg;
+        }
+
+        return false;
+    }
+
+    if(args.length===0){
+        return (await _base_cmd())
+    }
+    else if(["add","a","upload","ul","new","n","record","r"].includes(args[0])){
+        if(Boolean(message.attachments) && message.attachments.size>=1){
+            var url= message.attachments.first().url;
+            
+            if(url.endsWith('.lmp')){
+                await __uploading_lmp(message.channel,url,message.author.id);
+
+                return true;
+            }
+            else{
+                message.channel.send("❌ only .lmp files…");
+                return false;
+            }
+        }
+        
+    }
+    else if(["get","download","dl","challenge"].includes(args[0])){
+        if(args.length<=2){
+            return false;
+        }
+
+        var tag= args.slice(-1)
+        if( Boolean(tag) && Boolean(match) ){
+            tag= match[1];
+        }
+        if(Boolean(tag) &&
+            (Boolean(match=tag.match(/^<@!?(\d+)>$/)) || Boolean(match=tag.match(/^(\d{12,21})$/)))
+        ){
+            tag= match[1];
+        }
+        else{
+            message.channel.send( "❌ invalid player id…"
+                                +((Boolean(str))?` (${str})`:'') );
+
+            return false;
+        }
+
+        var mapname= args.slice(2,-1).join(' ');
+        var str= undefined
+        try{
+            var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.get_times))?cmd:"false";
+            str= child_process.execSync(cmd+` ${tag} ${mapname}`, {timeout: 4000});
+        }
+        catch(err){
+            hereLog("Error while adding time: "+err);
+            str= undefined
+        }
+
+        if(!Boolean(str)){
+            message.channel.send( "❌ couldn't find or access requested time record…"
+                                +((Boolean(str))?` (${str})`:'') );
+
+            return false;
+        }
+
+        match= str.match(/FOUND - (\/((.+)\/)*.+)/)
+        var path= undefined;
+        if(Boolean(match) && Boolean(path=match[1]) && fs.existsSync(path)){
+            str= undefined
+            try{
+                var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.record_info))?cmd:"false";
+                str= child_process.execSync(cmd+` ${path}`, {timeout: 4000});
+            }
+            catch(err){
+                hereLog("Error processing time file: "+err);
+                str= undefined
+            }
+
+            if( !Boolean(str) || !Boolean(str.match(/(.*\:{4}){13}(.*)/)) ){
+                message.channel.send("❌ couldn't find valid time record…");
+
+                return false;
+            }
+
+            var timeInfo= str.split('::::');
+
+            message.channel.send(`"**${mapname}**\n`+
+                `\`${timeInfo[7]}\` by *${timeInfo[8]}* with ${timeInfo[9]} (s: ${timeInfo[11]} - w: ${timeInfo[12]})\n`+
+                `from ${ await __replaceIDinString(timeInfo[13]) }`,
+                {
+                    files: [{
+                        attachment: `${path}`,
+                        name: `${mapname.join('_')}-${timeInfo[8]}-guest.lmp`
+                    }]
+                }
+            );
+
+            return true;
+        }
+        else{
+            message.channel.send("❌ couldn't find or access requested time record…");
+
+            return false;
+        }
+
+    }
+    else if(["remove","rm","delete","d"].includes(args[0])){
+
+    }
+    else{
+        return (await _base_cmd(args.slice(1).join(' ')));
+    }
+
+    return false;
+}
+
 async function cmd_main(cmdObj, clearanceLvl, utils){
     let message= cmdObj.msg_obj;
     let args= cmdObj.args;
@@ -852,6 +1204,9 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 message.channel.send("❌ server internal error");
                 return false;
             }            
+        }
+        else if(['timetrial','timeattack','time','tt', 'ta'].includes(args[0])){
+            return _cmd_timetrial(cmdObj, clearanceLvl, utils);
         }
         else if (args[0]==="help"){
             return cmd_help(cmdObj, clearanceLvl)
