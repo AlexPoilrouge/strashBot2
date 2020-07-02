@@ -1,3 +1,0 @@
-strashbot_user ALL=(ALL) NOPASSWD: /bin/systemctl start srb2kart_serv
-strashbot_user ALL=(ALL) NOPASSWD: /bin/systemctl stop srb2kart_serv
-strashbot_user ALL=(ALL) NOPASSWD: /bin/systemctl restart srb2kart_serv

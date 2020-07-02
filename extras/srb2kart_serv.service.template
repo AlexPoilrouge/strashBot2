@@ -1,0 +1,10 @@
+[Unit]
+Description=SRB2 Kart Server
+After=local-fs.target network.target
+
+[Service]
+Type=simple
+User=${STRASHBOT_USER}
+WorkingDirectory=/home/${STRASHBOT_USER}
+ExecStart=sh ${SRB2KART_DIR}/server_script.sh
+ExecStop=sh ${SRB2KART_DIR}/addon_script.sh CLEAN

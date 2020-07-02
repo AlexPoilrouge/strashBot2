@@ -37,6 +37,7 @@ def lmp_extract(filepath):
     res['start']=0
     res['kartspeed']=0
     res['kartweight']=0
+    res['mapID']=0
 
 
     try:
@@ -73,6 +74,10 @@ def lmp_extract(filepath):
                 res["status"]= f"File does not seem to be a record attack file…"
 
                 return res
+
+            bt= f.read(2)
+            res['mapID']= int.from_bytes(bt, byteorder='little')
+
 
 
             f.seek(120)
@@ -147,6 +152,19 @@ def lmp_extract(filepath):
 
     return res
 
+def mapTxtIdFromInt(mapId):
+    mapIdTxt= "MAP"
+    if (mapId<100) :
+        mapIdTxt+= f"{mapId:02d}"
+    else :
+        mapIdTxt+= f"{chr(ord('A')+int((mapId-100)/36))}"
+        if ((mapId-100)%36 < 10) :
+            mapIdTxt+=f"{chr(ord('0')+(mapId-100)%36)}"
+        else :
+            mapIdTxt+=f"{chr(ord('A')+(mapId-100)%36-10)}"
+    return mapIdTxt
+
+
 def print_record_data(rec):
     pr_rec=f"{'SUCCESS' if rec['success'] else 'FAIL'}::::"+ \
     f"{rec['status']}::::"+ \
@@ -162,7 +180,9 @@ def print_record_data(rec):
     f"{rec['kartspeed']}::::{rec['kartweight']}::::"
     f_name= path.basename(rec['file'])
     f_name= f_name[:-4] if f_name.endswith('.lmp') else f_name
-    pr_rec+= f"{f_name}"
+    pr_rec+= f"{f_name}::::"
+    pr_rec+= f"{mapTxtIdFromInt(rec['mapID'])}"
+
     print(pr_rec)
 
 

@@ -60,6 +60,8 @@ case "$CMD" in
     mkdir -p tmp
     mkdir -p dl
 
+    mkdir -p maps
+
     _update
 ;;
 "CLEAN")
@@ -187,9 +189,8 @@ case "$CMD" in
     LISTING=true
     if [ "$#" -gt 1 ]; then
         MAPNAME="$( _I=0; for _E in $@; do if [ "$_I" -gt 1 ]; then echo -n " "; fi ; if [ "$_I" -gt 0 ]; then echo -n "$_E"; fi; ((_I++)); done )"
-        MAP_DIR="${MAPNAME// /_}"
-        #MAP_DIR="$( echo "$2" | sed 's/ /_/g')"
-        NB_MATCH="$( ls -d1 maps/*/ | grep -i "$( echo ${MAP_DIR} | tr '[:upper:]' '[:lower:]' )" | wc -l )"
+        MAP_DIR="$( echo ${MAPNAME// /_} | tr '[:lower:]' '[:upper:]' )"
+        NB_MATCH="$( ls -d1 maps/*/ 2>/dev/null | grep -i "${MAP_DIR}" | wc -l )"
         if ! [ -d "maps/$2" ] && [  "${NB_MATCH}" -gt 1 ]; then
             PATTERN="$2"
         elif [ "${NB_MATCH}" -eq 1 ]; then
@@ -205,7 +206,7 @@ case "$CMD" in
             mkdir -p maps
         fi 
         
-        ( ( if [ "$PATTERN" != "" ]; then ls -d1 maps/*/ | grep -i "${PATTERN}"; else ls -d1 maps/*/; fi ) \
+        ( ( if [ "$PATTERN" != "" ]; then ls -d1 maps/*/ 2>/dev/null | grep -i "${PATTERN}"; else ls -d1 maps/*/ 2>/dev/null; fi ) \
                 | sed -e 's/^maps\///g' | sed 's/\///g'
            ) | while read -r L; do
             RECORD="\`no record\`"
@@ -298,21 +299,51 @@ case "$CMD" in
     exit 0
 ;;
 "RECORD_GET")
-    if [ "$#" -lt 3 ]; then
-        echo "ERROR - Need player tagname and mapname"
+    if [ "$#" -lt 2 ]; then
+        echo "ERROR - Need  mapname"
         exit 17
     fi
 
-    TAGNAME="$2"
-    MAPNAME="$( _I=0; for _E in $@; do if [ "$_I" -gt 2 ]; then echo -n " "; fi ; if [ "$_I" -gt 1 ]; then echo -n "$_E"; fi; ((_I++)); done )"
-    MAP_DIR="${MAPNAME// /_}"
+    MAPNAME="$( _I=0; for _E in $@; do if [ "$_I" -gt 1 ]; then echo -n " "; fi ; if [ "$_I" -gt 0 ]; then echo -n "$_E"; fi; ((_I++)); done )"
+    MAP_DIR="$( echo ${MAPNAME// /_} | tr '[:lower:]' '[:upper:]' )"
 
-    if ! [ -f "maps/${MAP_DIR}/${TAGNAME}.lmp" ]; then
+    if ! [ -d "maps/${MAP_DIR}" ] || [ "$( ls -1  "maps/${MAP_DIR}/"*.lmp 2>/dev/null | wc -l )" -lt 1 ]; then
         echo "ERROR - Can't find requested record…"
         exit 18
     fi
 
-    echo "FOUND - $( realpath "maps/${MAP_DIR}/${TAGNAME}.lmp" )"
+    _TMP="$( ls "maps/${MAP_DIR}/"*.lmp 2>/dev/null | grep -m1 .lmp )"
+    _TMP="$( python "${PYTHON_LMP_ATTACK_SCRIPT}" "${_TMP}")"
+    _TMP=(${_TMP//::::/ })
+    _TMP="${_TMP[14]}"
+    echo "To challenge a ghost from this archives, copy the .lmp file into the subfolder /replay/kart of your srb2kart folder,\
+and rename the file '${_TMP}-guest.lmp'."        > README.txt
+    _ZIP="${MAP_DIR}_record.zip"
+    rm -rf "${_ZIP}" 2>/dev/null
+    zip "${_ZIP}" README.txt >/dev/null 2>&1
+
+    _C=0
+    ( ls -1  "maps/${MAP_DIR}/"*.lmp 2>/dev/null ) |  while read -r F; do
+        _PF="$( realpath "${F}" )"
+        REC="$( python "${PYTHON_LMP_ATTACK_SCRIPT}" "${_PF}" | tr '\0' ' ' )"
+        REC="${REC// /_}"
+        REC_TAB=(${REC//::::/ })
+
+        _RECORD_FILE="maps/${MAP_DIR}/record.txt"
+        NEW_NAME="${REC_TAB[14]}-guest-${REC_TAB[8]}"
+        if [ -f "${_RECORD_FILE}" ] && [ "${REC_TAB[6]}" -eq "$( sed '1q;d' "${_RECORD_FILE}" )" ]; then
+            NEW_NAME="${NEW_NAME}-BEST"
+        fi
+        NEW_NAME="${NEW_NAME}.lmp"
+
+        cp "${_PF}" "${NEW_NAME}"
+        zip -ur "${_ZIP}" "${NEW_NAME}" >/dev/null 2>&1
+        rm -f "${NEW_NAME}"
+
+        ((_C++))
+    done
+
+    echo "ZIPPED - $( realpath "${_ZIP}" )"
     exit 0
 ;;
 "RECORD_RM")
@@ -323,9 +354,8 @@ case "$CMD" in
 
     TAGNAME="$2"
     MAPNAME="$( _I=0; for _E in $@; do if [ "$_I" -gt 2 ]; then echo -n " "; fi ; if [ "$_I" -gt 1 ]; then echo -n "$_E"; fi; ((_I++)); done )"
-    MAP_DIR="${MAPNAME// /_}"
+    MAP_DIR="$( echo ${MAPNAME// /_} | tr '[:lower:]' '[:upper:]' )"
 
-    echoerr "lf maps/${MAP_DIR}/${TAGNAME}.lmp"
     if ! [ -f "maps/${MAP_DIR}/${TAGNAME}.lmp" ]; then
         echo "ERROR - Can't find requested record…"
         exit 20
@@ -338,9 +368,7 @@ case "$CMD" in
 
     if [ "$( (ls -1  "maps/${MAP_DIR}/"*.lmp 2>/dev/null) | wc -l )" -le 0 ]; then
         rm -rf "maps/${MAP_DIR}"
-        echoerr "rm here"
     else
-        echoerr "rm there"
         _C=0
         ( ls -1  "maps/${MAP_DIR}/"*.lmp 2>/dev/null ) |  while read -r F; do
             _PF="$( realpath "${F}" )"
@@ -370,6 +398,10 @@ case "$CMD" in
 ;;
 "UPDATE")
     _update
+;;
+*)
+        echo "ERROR - Invalid $0 command…"
+        exit 999
 ;;
 esac
 
