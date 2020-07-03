@@ -26,11 +26,20 @@ DL_FILE="dl_load.cfg"
 
 
 _update(){
+    DL_ZIP="dl/strashbot_addons.zip"
+    rm -f "${DL_ZIP}" 2>/dev/null 2>&1
+    echo "These addons are to be copied in the 'DOWNLOAD' folder of your SRB2Kart folder…"    > dl/README.txt
+    zip "${DL_ZIP}" -j dl/README.txt >/dev/null 2>&1
+    rm -f dl/README.txt 2>/dev/null 2>&1
+
+
     echo "wait" > "${TMP_FILE}"
     ( ls_restricted tmp ) | while read -r L; do
             chmod 704 "${L}"
             echo "addfile \"${L}\"" >> "${TMP_FILE}"
             echo "wait" >> "${TMP_FILE}"
+
+            zip -jur "${DL_ZIP}" "${L}" >/dev/null 2>&1
         done
 
     echo "wait" > "${DL_FILE}"
@@ -38,6 +47,14 @@ _update(){
             chmod 704 "${L}"
             echo "addfile \"${L}\"" >> "${DL_FILE}"
             echo "wait" >> "${DL_FILE}"
+
+            zip -jur "${DL_ZIP}" "${L}" >/dev/null 2>&1
+        done
+
+
+    ( ls_restricted Packs ) | while read -r L; do
+            chmod 704 "${L}"
+            zip -jur "${DL_ZIP}" "${L}" >/dev/null 2>&1
         done
 }
 

@@ -11,6 +11,9 @@
                     "permanent":"dl"
             }
     },
+    "links":{
+            "dl_addons":"${SRB2K_HTTP_SERV_URL}/.srb2kart/strashbot_addons.zip"
+    },
     "config_commands":{
             "init":"sh /home/${STRASHBOT_USER}/.srb2kart/addon_script.sh INIT",
             "update":"sh /home/${STRASHBOT_USER}/.srb2kart/addon_script.sh UPDATE",

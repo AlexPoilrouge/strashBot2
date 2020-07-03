@@ -11,6 +11,8 @@ const urlExistSync = require("url-exist-sync");
 const os = require('os');
 const ifaces = os.networkInterfaces();
 
+const {Attachment} = require('discord.js');
+
 
 
 let hereLog= (...args) => {console.log("[cmd_kart]", ...args);};
@@ -399,6 +401,10 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
     else if(["list","ls","all","what","which"].includes(args[0]) || !Boolean(args[0])){
         var list= _listAddonsConfig((Boolean(args[1]))?args[1]:"");
         if(Boolean(list)){
+            if(!Boolean(args[1]) && Boolean(kart_settings) && Boolean(kart_settings.links.dl_addons)){
+                list+=`\n\nStrashbobt addons download: ${kart_settings.links.dl_addons}`
+            }
+
             var resp= "Addons list for srb2kart server:\n"+list;
             var _many_resp= splitString(resp);
             if (_many_resp.length>1){
@@ -604,7 +610,6 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
 }
 
 async function ___stringFromID(guild, id){
-    hereLog("[___stringFromID] "+id)
     var member= await guild.fetchMember(id)
 
     if(Boolean(member)){
@@ -612,7 +617,7 @@ async function ___stringFromID(guild, id){
             return member.nickname;
         }
         else{
-            return member.username;
+            return member.user.username;
         }
     }
     else return undefined;
@@ -755,12 +760,23 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
             }
 
             var lines= str.split('\n');
+            var sendings= [];
             var msg="";
             for (var i=0; i< lines.length; ++i){
-                msg+= (await __replaceIDinString(message.guild, lines[i]));
+                var l= (await __replaceIDinString(message.guild, lines[i]))+'\n';
+                if ((msg.length+l.length)>1995){
+                    sendings.push(msg)
+                    msg=l;
+                }
+                else{
+                    msg+=l;
+                }
             }
 
-            message.channel.send(msg);
+            for(var i=0; i<sendings.length; ++i){
+                message.channel.send(sendings[i]);
+            }
+            if(msg.length>0) message.channel.send(msg);
 
             return true;
         }
@@ -792,6 +808,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
 
                 var ret=""
                 for(var i=0; i<lines.length; ++i){
+                    hereLog(`\t[base_cmd]i= ${i}`)
                     switch (i%9){
                     case 0:
                     {
@@ -835,7 +852,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
                         files= `${lines[i][2]} files: ${lines[i].substring(5,200)+((lines[i].length>=100)?"…":"")}`
 
                         ret+= `\`${time}\` by ${by} (from ${name}) with ${wth} (${stats})\n`
-                        ret+= `\t\t${files}`
+                        ret+= `\t\t${files}\n`
                     }
                     }
                 }
@@ -1252,7 +1269,7 @@ function cmd_help(cmdObj, clearanceLvl){
         "\tDisplay this help (PM)\n\n"
     );
     cmdObj.msg_obj.author.send(
-        "*SRB2Kart server's addons management:*\n\n"+
+        "---\n*SRB2Kart server's addons management:*\n\n"+
         "\t`!kart addons ls [pattern]`\n\n"+
         "\tList all availabe addons under three categories:\n"+
         "\t\t*[Temporary]*: addons that will removed once the current session (or next one if no server is running) is over\n"+
@@ -1275,7 +1292,7 @@ function cmd_help(cmdObj, clearanceLvl){
         "\t⚠ this only works for addons under the *[downloaded]* section!"
     );
     cmdObj.msg_obj.author.send(
-        "*SRB2Kart server's startup config management:*\n\n"+
+        "----\n*SRB2Kart server's startup config management:*\n\n"+
         "\t`!kart config get`\n\n"+
         "\tAllows to download the current `startup.cfg` config script executed when server starts\n\n"+
         "\t`!kart config set`\n\n"+
@@ -1285,6 +1302,18 @@ function cmd_help(cmdObj, clearanceLvl){
         "\t\tYou can obtain a list of said forbidden srb2kart configuration commands with the command below.\n\n"+
         "\t`!kart config filter`\n\n"+
         "\tGives a list of all forbidden srb2kart configuration commands that are filtered out of the `startup.cfg` config startup script.\n\n"
+    );
+    cmdObj.msg_obj.author.send(
+        "----\n*SRB2Kart server's time record management:*\n\n"+
+        "\t`!kart time ls`\n\n"+
+        "\tLists all the maps that have a time record submitted.\n\n"+
+        "\t`!kart time ls [map name]`\n\n"+
+        "\tLists all the time that were submitter for a given map.\n\n"+
+        "\t`!kart time add [map name]`\n\n"+
+        "\tAdds a new time record on the server given the .lmp file was provided as a message attachment. (One per person per map)\n\n"+
+        "\t⚠ The new time record must be provided as a file attachment to the same message as the command, and must have `.lmp` extension.\n"+
+        "\t`!kart time rm [map name]`\n\n"+
+        "\tRemoves a time record you have submitted for a given map.\n\n"
     );
     return true;
 }
