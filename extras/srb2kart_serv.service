@@ -4,7 +4,7 @@ After=local-fs.target network.target
 
 [Service]
 Type=simple
-User=strashbot_user
-WorkingDirectory=/home/strashbot_user
+User=strashbot
+WorkingDirectory=/home/strashbot
 ExecStart=sh .srb2kart/server_script.sh
 ExecStop=sh .srb2kart/addon_script.sh CLEAN

@@ -1,3 +1,4 @@
+STRASHBOT_DISCORD_VER:0.2.6
 STRASHBOT_USER:strashbot
 STRASHBOT_DIR:/var/app/strashBot
 SERVICE_INSTALL_PATH:/etc/systemd/system

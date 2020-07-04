@@ -1,31 +1,34 @@
 {
     "server_commands":{
-            "start":"sudo systemctl start srb2kart_serv",
-            "stop":"sudo systemctl stop srb2kart_serv",
-            "is_active":"systemctl is-active srb2kart_serv"
+            "start":"sudo /bin/systemctl start srb2kart_serv",
+            "stop":"sudo /bin/systemctl stop srb2kart_serv",
+            "is_active":"/bin/systemctl is-active srb2kart_serv"
     },
     "dirs":{
-            "main_folder":"/home/strashbot_user/.srb2kart",
+            "main_folder":"/home/strashbot/.srb2kart",
             "dl_dirs":{
                     "temporary":"tmp",
                     "permanent":"dl"
             }
     },
+    "links":{
+            "dl_addons":"http://51.83.129.27/.srb2kart/.srb2kart/strashbot_addons.zip"
+    },
     "config_commands":{
-            "init":"sh /home/strashbot_user/.srb2kart/addon_script.sh INIT",
-            "update":"sh /home/strashbot_user/.srb2kart/addon_script.sh UPDATE",
-            "list":"sh /home/strashbot_user/.srb2kart/addon_script.sh LIST",
-            "clean":"sh /home/strashbot_user/.srb2kart/addon_script.sh CLEAN",
-            "remove":"sh /home/strashbot_user/.srb2kart/addon_script.sh REMOVE",
-            "keep":"sh /home/strashbot_user/.srb2kart/addon_script.sh KEEP",
-            "get_config":"sh /home/strashbot_user/.srb2kart/addon_script.sh GET_CONFIG",
-            "change_config":"sh /home/strashbot_user/.srb2kart/addon_script.sh CHANGE_CONFIG",
-            "cfg_blacklist":"sh /home/strashbot_user/.srb2kart/addon_script.sh CFG_BLACKLIST",
-            "get_log":"sh /home/strashbot_user/.srb2kart/addon_script.sh GET_LOG",
-            "map_times":"sh /home/strashbot_user/.srb2kart/addon_script.sh RECORD_MAPS",
-            "add_times":"sh /home/strashbot_user/.srb2kart/addon_script.sh ADD_RECORD",
-            "get_times":"sh /home/strashbot_user/.srb2kart/addon_script.sh RECORD_GET",
-            "time_info":"python /home/strashbot_user/.srb2kart/record_lmp_read.py",
-            "remove_times":"sh /home/strashbot_user/.srb2kart/addon_script.sh RECORD_RM"
+            "init":"sh /home/strashbot/.srb2kart/addon_script.sh INIT",
+            "update":"sh /home/strashbot/.srb2kart/addon_script.sh UPDATE",
+            "list":"sh /home/strashbot/.srb2kart/addon_script.sh LIST",
+            "clean":"sh /home/strashbot/.srb2kart/addon_script.sh CLEAN",
+            "remove":"sh /home/strashbot/.srb2kart/addon_script.sh REMOVE",
+            "keep":"sh /home/strashbot/.srb2kart/addon_script.sh KEEP",
+            "get_config":"sh /home/strashbot/.srb2kart/addon_script.sh GET_CONFIG",
+            "change_config":"sh /home/strashbot/.srb2kart/addon_script.sh CHANGE_CONFIG",
+            "cfg_blacklist":"sh /home/strashbot/.srb2kart/addon_script.sh CFG_BLACKLIST",
+            "get_log":"sh /home/strashbot/.srb2kart/addon_script.sh GET_LOG",
+            "map_times":"sh /home/strashbot/.srb2kart/addon_script.sh RECORD_MAPS",
+            "add_times":"sh /home/strashbot/.srb2kart/addon_script.sh ADD_RECORD",
+            "get_times":"sh /home/strashbot/.srb2kart/addon_script.sh RECORD_GET",
+            "time_info":"python /home/strashbot/.srb2kart/record_lmp_read.py",
+            "remove_times":"sh /home/strashbot/.srb2kart/addon_script.sh RECORD_RM"
     }
 }

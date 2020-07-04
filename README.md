@@ -31,6 +31,7 @@ Where `YOUR_CLIENT_ID` can be found on the [discord application page](https://di
 
 
 ##### Configure bot
+###### (deprecated, see next section)
 
 Configure the bot by filling appropriately the `config/default.json` file.
 The `token` field is your bot's previously obtained token.
@@ -49,9 +50,34 @@ export STRASHBOT_BUILD="custom-build"
 ```
 
 
+##### Install script
+
+First, copy the file `extras/values.txt` at the root of the repository,
+
+`cp ./extras/values.txt .`
+
+then fill in the blank values using any text editor.
+
+To install the bot you'll need admin privileges.
+
+You then need to call the install script (from the root of the repository):
+
+`sudo ./install.sh`
+
+
+
+
 ##### Launch bot
 
+###### (deprecated)
+
 `node bot.js`
+
+###### systemd
+
+The bot is now managed  as a systemd service. Using you admin privileges:
+
+`sudo systemctl start strashbot.service`
 
 
 #### Misc.

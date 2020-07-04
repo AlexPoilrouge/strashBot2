@@ -1,10 +1,8 @@
 #!/bin/bash
 
 
-STRASHBOT_VER="$( cat version.txt )"
-export STRASHBOT_VER
-STRASHBOT_BUILD="$( git branch --show-current )"
-export STRASHBOT_BUILD
+STRASHBOT_VER="${STRASHBOT_DISCORD_VER}"
+export STRASHBOT_BUILD="${STRASHBOT_DISCORD_BUILD}"
 
 export STRASHBOT_TOKEN="${STRASHBOT_DISCORD_TOKEN}"
 

@@ -41,13 +41,6 @@ depend_check "envsubst"
 
 VALUES_FILE="values.txt"
 
-VARIABLES=(STRASHBOT_USER STRASHBOT_DIR SERVICE_INSTALL_PATH SRB2KART_DIR STRASHBOT_DISCORD_TOKEN STRASBHOT_MASTER_DIRCORD_ID SUDOERS_DIR)
-
-
-extract_value(){
-    _VAL="$1"
-    grep "${_VAL}" "${VALUES_FILE}" | cut -d: -f2-
-}
 
 check_val(){
     if [ "${!1}" = "" ]; then
@@ -56,22 +49,33 @@ check_val(){
     fi
 }
 
-for VAR in ${VARIABLES[@]}; do
-    if eval [ -x '${'"${VAR}"'+x}' ]; then
-        eval export "${VAR}"="$( extract_value ${VAR} )"
-    else
-        eval export "${VAR}"
-    fi
-    check_val "${VAR}"
-done
 
+while read -r VAR_LINE; do
+    if [[ "${VAR_LINE}" =~ ^[0-9a-zA-Z_]+\:.*$ ]]; then
+        VAR="$( echo "${VAR_LINE}" | cut -d: -f1 )"
+        VAL="$( echo "${VAR_LINE}" | cut -d: -f2- )"
+    	
+        if eval [ -x '${'"${VAR}"'+x}' ]; then
+            echoerr "export \"${VAR}\"=\"${VAL}\""
+            eval "export \"${VAR}\"=\"${VAL}\""
+        else
+            echoerr "[WARNING] Variable '${VAR}' was already set; ignoring value in '${VALUES_FILE}'"
+            eval export "${VAR}"
+    	fi
+    else
+    	echoerr "[CRITICAL WARNING] In '${VALUES_FILE}', line '${VAR_LINE}' is invalid."
+    fi
+done < "${VALUES_FILE}"
+
+STRASHBOT_DISCORD_BUILD="$( git branch --show-current  2>/dev/null )"
+if [ "${STRASHBOT_DISCORD_BUILD}" == "" ]; then
+    STRASHBOT_DISCORD_BUILD="custom"
+fi
+export STRASHBOT_DISCORD_BUILD
 
 
 
 ##### Obtaining and formating files #####
-
-TARGET_FILES=("extras/kart.json" "extras/srb2kart_serv.service" "extras/strashbot.service" "extras/10-strashbot-kartserv-systemd" "extras/launch.sh" \
-"docker_build/srb2k_serv")
 
 check_template(){
     if ! [ -f "${1}.template" ]; then
@@ -80,10 +84,6 @@ check_template(){
     fi
 }
 
-# for FILES in ${TARGET_FILES[@]}; do
-#     check_template "${FILES}"
-#     envsubst < "${FILES}.template" > "${FILES}"
-# done
 
 convert_template(){
     echo -n "-- formatting '$1'"
@@ -116,8 +116,8 @@ mkdir -p "${INSTALL_DIR}/${STRASHBOT_DIR}/config"
 find ./config -type f -exec install {} "${INSTALL_DIR}/${STRASHBOT_DIR}/config" \;
 mkdir -p "${INSTALL_DIR}/${STRASHBOT_DIR}/extras"
 find ./extras -type f -exec install {} "${INSTALL_DIR}/${STRASHBOT_DIR}/extras" \;
-mkdir -p "${INSTALL_DIR}/${STRASHBOT_DIR}/js"
-find ./js -type f -exec install {} "${INSTALL_DIR}/${STRASHBOT_DIR}/js" \;
+mkdir -p "${INSTALL_DIR}/${STRASHBOT_DIR}/js/commands"
+find ./js -type f -exec install {} "${INSTALL_DIR}/${STRASHBOT_DIR}/{}" \;
 install ./bot_main.js ./README.md ./package.json ./version.txt "${INSTALL_DIR}/${STRASHBOT_DIR}"
 
 mkdir -p "${INSTALL_DIR}/${STRASHBOT_DIR}/js/commands/data"
@@ -134,6 +134,13 @@ if "${SYSTEMD_INSTALL}"; then
 fi
 
 install extras/launch.sh "${INSTALL_DIR}/${STRASHBOT_DIR}"
+
+GUILD_CONFIG_FILE="${INSTALL_DIR}/${STRASHBOT_DIR}/data/guildConfigs.json"
+echoerr "gcf= ${GUILD_CONFIG_FILE}"
+if ! [ -f "${GUILD_CONFIG_FILE}" ] || [ "$( cat "${GUILD_CONFIG_FILE}" )" == "" ]; then
+    echo "{}" > "${GUILD_CONFIG_FILE}"
+    echoerr "echo \"{}\" > \"${GUILD_CONFIG_FILE}\""
+fi
 
 chown -R "${STRASHBOT_USER}:${STRASHBOT_USER}" "${INSTALL_DIR}/${STRASHBOT_DIR}"
 
