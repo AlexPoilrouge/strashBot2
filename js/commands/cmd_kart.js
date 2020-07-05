@@ -1315,11 +1315,11 @@ function cmd_help(cmdObj, clearanceLvl){
     );
     cmdObj.msg_obj.author.send(
         "----\n*SRB2Kart server's time record management:*\n\n"+
-        "\t`!kart time ls`\n\n"+
+        "\t`!kart time`\n\n"+
         "\tLists all the maps that have a time record submitted.\n\n"+
-        "\t`!kart time ls [map name]`\n\n"+
+        "\t`!kart time[map name]`\n\n"+
         "\tLists all the time that were submitter for a given map.\n\n"+
-        "\t`!kart time add [map name]`\n\n"+
+        "\t`!kart time add`\n\n"+
         "\tAdds a new time record on the server given the .lmp file was provided as a message attachment. (One per person per map)\n\n"+
         "\t⚠ The new time record must be provided as a file attachment to the same message as the command, and must have `.lmp` extension.\n"+
         "\t`!kart time rm [map name]`\n\n"+
