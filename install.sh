@@ -144,6 +144,8 @@ if ! [ -f "${GUILD_CONFIG_FILE}" ] || [ "$( cat "${GUILD_CONFIG_FILE}" )" == "" 
     echoerr "echo \"{}\" > \"${GUILD_CONFIG_FILE}\""
 fi
 
+install extras/{record_lmp_read.py,server_script.sh,addon_script.sh} "${ROOT_DIR}/home/${STRASHBOT_USER}/${SRB2KART_DIR}"
+
 chown -R "${STRASHBOT_USER}:${STRASHBOT_USER}" "${ROOT_DIR}/${STRASHBOT_DIR}"
 
 cd "${ROOT_DIR}/${STRASHBOT_DIR}"
