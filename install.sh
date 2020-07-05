@@ -12,12 +12,12 @@ SCRIPT_DIR="$( realpath "$( dirname "$0" )" )"
 
 cd "$SCRIPT_DIR"
 
-INSTALL_DIR="/"
+ROOT_DIR="/"
 if [ "$#" -gt 0 ] && [ -d "$1" ]; then
-    INSTALL_DIR="$1"
+    ROOT_DIR="$1"
 fi
 
-echo "Install dir is ${INSTALL_DIR}"
+echo "Root dir is set to ${ROOT_DIR}"
 
 
 
@@ -67,7 +67,9 @@ while read -r VAR_LINE; do
     fi
 done < "${VALUES_FILE}"
 
-STRASHBOT_DISCORD_BUILD="$( git branch --show-current  2>/dev/null )"
+if [ -z "${STRASHBOT_DISCORD_BUILD}" ]; then
+    STRASHBOT_DISCORD_BUILD="$( git branch --show-current  2>/dev/null )"
+fi
 if [ "${STRASHBOT_DISCORD_BUILD}" == "" ]; then
     STRASHBOT_DISCORD_BUILD="custom"
 fi
@@ -111,39 +113,39 @@ if [ "$(grep -c "^${STRASHBOT_USER}:" /etc/passwd)" -eq 0 ]; then
     useradd -m -s /usr/bin/nologin "${STRASHBOT_USER}"
 fi
 
-mkdir -p "${INSTALL_DIR}/${STRASHBOT_DIR}"
-mkdir -p "${INSTALL_DIR}/${STRASHBOT_DIR}/config"
-find ./config -type f -exec install {} "${INSTALL_DIR}/${STRASHBOT_DIR}/config" \;
-mkdir -p "${INSTALL_DIR}/${STRASHBOT_DIR}/extras"
-find ./extras -type f -exec install {} "${INSTALL_DIR}/${STRASHBOT_DIR}/extras" \;
-mkdir -p "${INSTALL_DIR}/${STRASHBOT_DIR}/js/commands"
-find ./js -type f -exec install {} "${INSTALL_DIR}/${STRASHBOT_DIR}/{}" \;
-install ./bot_main.js ./README.md ./package.json ./version.txt "${INSTALL_DIR}/${STRASHBOT_DIR}"
+mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}"
+mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}/config"
+find ./config -type f -exec install {} "${ROOT_DIR}/${STRASHBOT_DIR}/config" \;
+mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}/extras"
+find ./extras -type f -exec install {} "${ROOT_DIR}/${STRASHBOT_DIR}/extras" \;
+mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}/js/commands"
+find ./js -type f -exec install {} "${ROOT_DIR}/${STRASHBOT_DIR}/{}" \;
+install ./bot_main.js ./README.md ./package.json ./version.txt "${ROOT_DIR}/${STRASHBOT_DIR}"
 
-mkdir -p "${INSTALL_DIR}/${STRASHBOT_DIR}/js/commands/data"
-install extras/kart.json "${INSTALL_DIR}/${STRASHBOT_DIR}/js/commands/data"
+mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}/js/commands/data"
+install extras/kart.json "${ROOT_DIR}/${STRASHBOT_DIR}/js/commands/data"
 
 if "${SYSTEMD_INSTALL}"; then
-    mkdir -p "${INSTALL_DIR}/${SERVICE_INSTALL_PATH}"
-    install extras/strashbot.service "${INSTALL_DIR}/${SERVICE_INSTALL_PATH}" -m 644
+    mkdir -p "${ROOT_DIR}/${SERVICE_INSTALL_PATH}"
+    install extras/strashbot.service "${ROOT_DIR}/${SERVICE_INSTALL_PATH}" -m 644
 
-    install extras/srb2kart_serv.service "${INSTALL_DIR}/${SERVICE_INSTALL_PATH}" -m 644
+    install extras/srb2kart_serv.service "${ROOT_DIR}/${SERVICE_INSTALL_PATH}" -m 644
 
-    mkdir -p "${INSTALL_DIR}/${SUDOERS_DIR}"
-    install extras/10-strashbot-kartserv-systemd "${INSTALL_DIR}/${SUDOERS_DIR}" -m 644
+    mkdir -p "${ROOT_DIR}/${SUDOERS_DIR}"
+    install extras/10-strashbot-kartserv-systemd "${ROOT_DIR}/${SUDOERS_DIR}" -m 644
 fi
 
-install extras/launch.sh "${INSTALL_DIR}/${STRASHBOT_DIR}"
+install extras/launch.sh "${ROOT_DIR}/${STRASHBOT_DIR}"
 
-GUILD_CONFIG_FILE="${INSTALL_DIR}/${STRASHBOT_DIR}/data/guildConfigs.json"
+GUILD_CONFIG_FILE="${ROOT_DIR}/${STRASHBOT_DIR}/data/guildConfigs.json"
 echoerr "gcf= ${GUILD_CONFIG_FILE}"
 if ! [ -f "${GUILD_CONFIG_FILE}" ] || [ "$( cat "${GUILD_CONFIG_FILE}" )" == "" ]; then
     echo "{}" > "${GUILD_CONFIG_FILE}"
     echoerr "echo \"{}\" > \"${GUILD_CONFIG_FILE}\""
 fi
 
-chown -R "${STRASHBOT_USER}:${STRASHBOT_USER}" "${INSTALL_DIR}/${STRASHBOT_DIR}"
+chown -R "${STRASHBOT_USER}:${STRASHBOT_USER}" "${ROOT_DIR}/${STRASHBOT_DIR}"
 
-cd "${INSTALL_DIR}/${STRASHBOT_DIR}"
+cd "${ROOT_DIR}/${STRASHBOT_DIR}"
 
 npm install

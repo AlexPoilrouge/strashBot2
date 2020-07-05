@@ -6,7 +6,7 @@ let hereLog= (...args) => {console.log("[cmd_punish_role]", ...args);};
 
 var l_guilds= [];
 
-let l_cmd= ["prison","silence","free","convicts"];
+let l_cmd= ["prison","silence","tg","ftg","chut","free","convicts"];
 
 
 function __get_stored_role(guild, name, utils){
@@ -338,7 +338,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
     if(command==="prison"){
         return await _cmd_prison(cmdObj, clearanceLvl, utils);
     }
-    else if(command==="silence"){
+    else if(["silence","tg","ftg","chut"].includes(command)){
         return await _cmd_silence(cmdObj, clearanceLvl, utils);
     }
     else if(command==="free"){

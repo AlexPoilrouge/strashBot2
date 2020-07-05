@@ -323,7 +323,7 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
         var url_rgx= /^(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+$/;
         var url= undefined;
         if(Boolean(args[1])){
-            if(["keep","dl","perma","fixed","final","dl"].includes(args[1])){
+            if(["keep","dl","perma","fixed","final"].includes(args[1])){
                 perma= true;
                 args= args.slice(1);
             }
@@ -353,7 +353,7 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
             return false
         }
     }
-    else if(["keep","perma","fixed","final","dl"].includes(args[0])){
+    else if(["keep","perma","fixed","final"].includes(args[0])){
         if(Boolean(args[1])){
             var str= undefined
             var b=false;
@@ -418,6 +418,16 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
             return true;
         }
         else{
+            return false;
+        }
+    }
+    else if(["dl","links","link","zip","archive"]){
+        if(!Boolean(args[1]) && Boolean(kart_settings) && Boolean(kart_settings.links.dl_addons)){
+            message.channel.send(`You can try downloading the SRB2Kart server's addons at: ${kart_settings.links.dl_addons}`);
+            return true;
+        }
+        else{
+            message.channel.send(`Addons direct download link unavailable, sorry… 😩`);
             return false;
         }
     }
