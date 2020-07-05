@@ -61,37 +61,43 @@ class StrashBot extends Discord.Client{
         });
         
         this.on('messageReactionAdd', (reaction, user) => {
-            if(user.id!==this.user.id)
+            if(user.id!==this.user.id && Boolean(this.worker))
                 this.worker.event('messageReactionAdd', reaction, user);
         });
         
         this.on('messageReactionRemove', (reaction, user) => {
-            if(user.id!==this.user.id)
+            if(user.id!==this.user.id  && Boolean(this.worker))
                 this.worker.event('messageReactionRemove', reaction, user);
         });
         
         this.on('messageReactionRemoveAll', (message) => {
-            this.worker.event('messageReactionRemoveAll', message);
+            if(Boolean(this.worker))
+                this.worker.event('messageReactionRemoveAll', message);
         });
         
         this.on('guildMemberAdd', (member) => {
-            this.worker.event('guildMemberAdd', member);
+            if(Boolean(this.worker))
+                this.worker.event('guildMemberAdd', member);
         });
         
         this.on('guildMemberRemove', (member) => {
-            this.worker.event('guildMemberRemove', member);
+            if(Boolean(this.worker))
+                this.worker.event('guildMemberRemove', member);
         });
         
         this.on('guildMemberUpdate', (oldMember, newMember) => {
-            this.worker.event('guildMemberUpdate', oldMember, newMember);
+            if(Boolean(this.worker))
+                this.worker.event('guildMemberUpdate', oldMember, newMember);
         });
         
         this.on('emojiUpdate', (oldEmoji, newEmoji) => {
-            this.worker.event('emojiUpdate', oldEmoji, newEmoji);
+            if(Boolean(this.worker))
+                this.worker.event('emojiUpdate', oldEmoji, newEmoji);
         });
         
         this.on('emojiDelete', (emoji) => {
-            this.worker.event('guildMemberUpdate', emoji);
+            if(Boolean(this.worker))
+                this.worker.event('guildMemberUpdate', emoji);
         });
 
         this.on('error', (error)=>{
@@ -114,34 +120,42 @@ class StrashBot extends Discord.Client{
         });
         
         this.on('disconnect', (event)=>{
-            this.worker.destroy();
+            if(Boolean(this.worker))
+                this.worker.destroy();
             hereLog("SmashBot disconnected.");
             hereLog(event);
             process.exit(0);
         });
 
         this.on('channelDelete', channel =>{
-            this.worker.event('channelDelete', channel);
+            if(Boolean(this.worker))
+                this.worker.event('channelDelete', channel);
         })
         this.on('messageDelete', channel =>{
-            this.worker.event('messageDelete', channel);
+            if(Boolean(this.worker))
+                this.worker.event('messageDelete', channel);
         })
         this.on('roleDelete', role =>{
-            this.worker.event('roleDelete', role);
+            if(Boolean(this.worker))
+                this.worker.event('roleDelete', role);
         })
         this.on('roleUpdate', (oldRole, newRole) =>{
-            this.worker.event('roleUpdate', oldRole, newRole);
+            if(Boolean(this.worker))
+                this.worker.event('roleUpdate', oldRole, newRole);
         })
         this.on("guildCreate", guild  =>{
             hereLog(`new guild ${guild}!`)
-            this.worker.newGuild(guild);
+            if(Boolean(this.worker))
+                this.worker.newGuild(guild);
         })
         this.on("guildDelete", guild  =>{
             hereLog(`bye ${guild}…`)
-            this.worker.byeGuild(guild);
+            if(Boolean(this.worker))
+                this.worker.byeGuild(guild);
         })
         this.on('close', () => {
-            this.removeAllListeners();
+            if(Boolean(this.worker))
+                this.removeAllListeners();
         });
     }
 
