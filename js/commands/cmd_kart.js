@@ -99,7 +99,7 @@ function _updateAddonsConfig(){
     b= false;
     try{
         var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.update))?cmd:"false";
-        child_process.execSync(cmd, {timeout: 4000});
+        child_process.execSync(cmd, {timeout: 20000});
         b= true;
     }
     catch(err){
