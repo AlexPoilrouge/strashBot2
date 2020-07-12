@@ -7,6 +7,8 @@ EXTENSIONS=(pk3 wad lua kart pk7)
 
 PYTHON_LMP_ATTACK_SCRIPT="record_lmp_read.py"
 
+SERV_SERVICE="srb2kart_serv.service"
+
 ls_restricted() {
     for i in ${EXTENSIONS[@]}; do
         if [ "$2" != "" ]; then
@@ -24,6 +26,13 @@ cd "${SCRIPT_DIR}"
 TMP_FILE="tmp_load.cfg"
 DL_FILE="dl_load.cfg"
 
+ADDONS_DIR="addons"
+PENDING_ADDONS_DIR="${ADDONS_DIR}/tmp"
+INSTALLED_ADDONS_DIR="${ADDONS_DIR}/dl"
+BASE_ADDONS_DIR="${ADDONS_DIR}/Packs"
+
+TIME_MAPS_DIR="maps"
+
 
 _update(){
     DL_ZIP="dl/strashbot_addons.zip"
@@ -34,16 +43,13 @@ _update(){
 
 
     echo "wait" > "${TMP_FILE}"
-    ( ls_restricted tmp ) | while read -r L; do
+    ( ls_restricted "${PENDING_ADDONS_DIR}" ) | while read -r L; do
             chmod 704 "${L}"
-            echo "addfile \"${L}\"" >> "${TMP_FILE}"
-            echo "wait" >> "${TMP_FILE}"
-
-            zip -jur "${DL_ZIP}" "${L}" >/dev/null 2>&1
+            mv "${L}" "${INSTALLED_ADDONS_DIR}"
         done
 
     echo "wait" > "${DL_FILE}"
-    ( ls_restricted dl ) | while read -r L; do
+    ( ls_restricted "${INSTALLED_ADDONS_DIR}" ) | while read -r L; do
             chmod 704 "${L}"
             echo "addfile \"${L}\"" >> "${DL_FILE}"
             echo "wait" >> "${DL_FILE}"
@@ -52,7 +58,7 @@ _update(){
         done
 
 
-    ( ls_restricted Packs ) | while read -r L; do
+    ( ls_restricted "${BASE_ADDONS_DIR}" ) | while read -r L; do
             chmod 704 "${L}"
             zip -jur "${DL_ZIP}" "${L}" >/dev/null 2>&1
         done
@@ -74,10 +80,11 @@ fi
 
 case "$CMD" in
 "INIT")
-    mkdir -p tmp
-    mkdir -p dl
+    mkdir -p "${PENDING_ADDONS_DIR}"
+    mkdir -p "${INSTALLED_ADDONS_DIR}"
+    mkdir -p "${BASE_ADDONS_DIR}"
 
-    mkdir -p maps
+    mkdir -p "${TIME_MAPS_DIR}"
 
     _update
 ;;
@@ -86,37 +93,86 @@ case "$CMD" in
         rm -rvf tmp/*.${i} 2>/dev/null
     done
 ;;
+"START_SERV")
+    sudo systemctl start "${SERV_SERVICE}"
+;;
+"STOP_SERV")
+    sudo systemctl stop "${SERV_SERVICE}"
+
+    _update
+;;
+"RESTART_SERV")
+    _update
+
+    systemctl restart "${SERV_SERVICE}"
+;;
+"IS_ACTIVE_SERV")
+    if systemctl is-active "${SERV_SERVICE}" >/dev/null 2>&1; then
+        echo "active"
+        exit 0
+    else
+        echo "inactive"
+        exit 1
+    fi
+;;
 "LIST")
     _TEST=false
-    echo "**[Temporary]**"
+    echo "**[Pending]**"
     _S=""
-    _TMP="$( ( ls_restricted tmp "$2" ) | while read -r L; do echo -n "${_S}${L}"; _S=" ";_TEST=true; done )"
+    _TMP="$( ( ls_restricted "${PENDING_ADDONS_DIR}" "$2" ) | while read -r L; do echo -n "${_S}$( basename "${L}" )"; _S=" ";_TEST=true; done )"
     if [ "${_TMP}" != "" ]; then _TEST=true; fi
     echo "${_TMP}"
     echo "**[Downloaded]**"
     _S=""
-    _TMP="$( ( ls_restricted dl "$2" ) | while read -r L; do echo -n "${_S}${L}"; _S=" ";_TEST=true; done )"
+    _TMP="$( ( ls_restricted ${INSTALLED_ADDONS_DIR} "$2" ) | while read -r L; do echo -n "${_S}$( basename "${L}" )"; _S=" ";_TEST=true; done )"
     if [ "${_TMP}" != "" ]; then _TEST=true; fi
     echo "${_TMP}"
     echo "**[Base]**"
     _S=""
-    _TMP="$( ( ls_restricted Packs "$2" ) | while read -r L; do echo -n "${_S}${L}"; _S=" ";_TEST=true; done )"
+    _TMP="$( ( ls_restricted ${BASE_ADDONS_DIR} "$2" ) | while read -r L; do echo -n "${_S}$( basename "${L}" )"; _S=" ";_TEST=true; done )"
     if [ "${_TMP}" != "" ]; then _TEST=true; fi
     echo "${_TMP}"
     
     if ! "${_TEST}"; then exit 3; fi
 ;;
+"ADD_URL")
+    if [ $# -lt 2 ]; then
+        echo "Needs url…"
+        exit 24
+    fi
+
+    DEST_DIR="${INSTALLED_ADDONS_DIR}"
+    if systemctl is-active "${SERV_SERVICE}" >/dev/null 2>&1; then
+        DEST_DIR="${PENDING_ADDONS_DIR}"
+    fi
+
+    _TEST=false
+    for ext in ${EXTENSIONS[@]}; do
+        if [[ "$2" =~ ^https?\:\/\/(w{0,3}\.)?[a-zA-Z0-9\.\/\@\_\-]*\."${ext}"$ ]]; then export _TEST=true; fi
+    done
+
+    if ${_TEST}; then
+        wget -O "${DEST_DIR}/${2##*/}" --progress=dot "$2" 2>&1 | grep --line-buffered "%" | \
+            sed -u -e "s,\.,,g" | awk '{printf("%4s\n", $2)}'
+        echo "DONE"
+    else
+        echo "ERROR - bad format"
+        exit 23
+    fi
+;;
 "REMOVE")
     if [ $# -ge 2 ]; then
-        _DIR="$( dirname "$2" )"
-        if [ "${_DIR}" = "dl" ] || [ "${_DIR}" = "tmp" ]; then
+        _DIR="$( realpath "$( dirname "$2" )" )"
+        if [ "${_DIR}" = "${INSTALLED_ADDONS_DIR}" ] || [ "${_DIR}" = "${PENDING_ADDONS_DIR}" ]; then
             if _RES="$( rm -v $2 2>/dev/null )"; then
                 echo "$_RES"
             else
                 echo "Unable to delete such file: \`$2\`…"
                 exit 2
             fi
-        elif _RES="$( ( rm -v dl/"$2" || rm -v tmp/"$2" ) 2>/dev/null )"; then
+        elif _RES="$( ( rm -v "${PENDING_ADDONS_DIR}/$2" || rm -v "${INSTALLED_ADDONS_DIR}/$2" ) 2>/dev/null )"; then
+            echo "$_RES"
+        elif _RES="$( [ "$( realpath "$( dirname "${ADDONS_DIR}/$2" )" )" != "${BASE_ADDONS_DIR}" ] && ( rm -v "${ADDONS_DIR}/$2" 2>/dev/null ) )"; then
             echo "$_RES"
         else
             echo "Unable to delete such file: \`$2\`…"
@@ -150,9 +206,25 @@ case "$CMD" in
 "GET_CONFIG")
     _CFG_FILE="startup.cfg"
     if [ -f "$_CFG_FILE" ]; then
-        echo -n "$( realpath "$_CFG_FILE" )"
+        echo -n "$_CFG_FILE"
     else
         exit 6
+    fi
+;;
+"ADD_CONFIG_URL")
+    if [ $# -lt 2 ]; then
+        echo "Needs url…"
+        exit 25
+    fi
+
+    DL_FILE="new_startup.cfg"
+    if [[ "$2" =~ ^https?\:\/\/(w{0,3}\.)?[a-zA-Z0-9\.\/\@\_\-]*\.cfg$ ]]; then
+        wget -O "${DL_FILE}" --progress=dot $2 2>&1 | grep --line-buffered "%" | \
+            sed -u -e "s,\.,,g" | awk '{printf("%4s\n", $2)}'
+        echo "DONE - ${DL_FILE}"
+    else
+        echo "ERROR - bad format"
+        exit 22
     fi
 ;;
 "CHANGE_CONFIG")
@@ -191,7 +263,7 @@ case "$CMD" in
 "GET_LOG")
     _LOG_FILE="log.txt"
     if [ -f "${_LOG_FILE}" ]; then
-        echo -n "$( realpath "${_LOG_FILE}" )"
+        echo -n "${_LOG_FILE}"
     else
         exit 8
     fi
@@ -207,8 +279,8 @@ case "$CMD" in
     if [ "$#" -gt 1 ]; then
         MAPNAME="$( _I=0; for _E in $@; do if [ "$_I" -gt 1 ]; then echo -n " "; fi ; if [ "$_I" -gt 0 ]; then echo -n "$_E"; fi; ((_I++)); done )"
         MAP_DIR="$( echo ${MAPNAME// /_} | tr '[:lower:]' '[:upper:]' )"
-        NB_MATCH="$( ls -d1 maps/*/ 2>/dev/null | grep -i "${MAP_DIR}" | wc -l )"
-        if ! [ -d "maps/$2" ] && [  "${NB_MATCH}" -gt 1 ]; then
+        NB_MATCH="$( ls -d1 "${TIME_MAPS_DIR}"/*/ 2>/dev/null | grep -i "${MAP_DIR}" | wc -l )"
+        if ! [ -d "${TIME_MAPS_DIR}/$2" ] && [  "${NB_MATCH}" -gt 1 ]; then
             PATTERN="$2"
         elif [ "${NB_MATCH}" -eq 1 ]; then
             LISTING=false
@@ -219,27 +291,27 @@ case "$CMD" in
     fi
 
     if ${LISTING}; then
-        if ! [ -d "maps" ]; then
-            mkdir -p maps
+        if ! [ -d "${TIME_MAPS_DIR}" ]; then
+            mkdir -p "${TIME_MAPS_DIR}"
         fi 
         
-        ( ( if [ "$PATTERN" != "" ]; then ls -d1 maps/*/ 2>/dev/null | grep -i "${PATTERN}"; else ls -d1 maps/*/ 2>/dev/null; fi ) \
-                | sed -e 's/^maps\///g' | sed 's/\///g'
+        ( ( if [ "$PATTERN" != "" ]; then ls -d1 "${TIME_MAPS_DIR}"/*/ 2>/dev/null | grep -i "${PATTERN}"; else ls -d1 "${TIME_MAPS_DIR}"/*/ 2>/dev/null; fi ) \
+                | eval "sed \"s/^${TIME_MAPS_DIR/\//\\\/}//\"" | sed 's/\///g'
            ) | while read -r L; do
             RECORD="\`no record\`"
-            if [ -f "maps/${L}/record.txt" ]; then
-                RECORD="$( sed '2q;d' "maps/${L}/record.txt" )"
+            if [ -f "${TIME_MAPS_DIR}/${L}/record.txt" ]; then
+                RECORD="$( sed '2q;d' "${TIME_MAPS_DIR}/${L}/record.txt" )"
                 if [ "$RECORD" == "" ]; then
                     RECORD="\`no record\`"
                 fi
             fi
-            echo "${L} - **record:** ${RECORD} - $( (ls -1 "maps/${L}/"*.lmp 2>/dev/null ) | wc -l ) times"
+            echo "${L} - **record:** ${RECORD} - $( (ls -1 "${TIME_MAPS_DIR}/${L}/"*.lmp 2>/dev/null ) | wc -l ) times"
         done
 
         exit 0
     else
         echo "=== ${MAP_DIR} ==="
-        ( python "${PYTHON_LMP_ATTACK_SCRIPT}" "maps/${MAP_DIR}" | tr '\0' ' ' ) |  while read -r REC; do
+        ( python "${PYTHON_LMP_ATTACK_SCRIPT}" "${TIME_MAPS_DIR}/${MAP_DIR}" | tr '\0' ' ' ) |  while read -r REC; do
             REC="${REC// /_}"
             REC_TAB=(${REC//::::/ })
 
@@ -271,6 +343,21 @@ case "$CMD" in
         exit 0
     fi
 ;;
+"ADD_RECORD_URL")
+    if [ $# -lt 3 ]; then
+        echo "Needs url and id…"
+        exit 26
+    fi
+
+    if [[ "$2" =~ ^https?\:\/\/(w{0,3}\.)?[a-zA-Z0-9\.\/\@\_\-]*\.lmp$ ]]; then
+        wget -O "${3%.lmp}.lmp" --progress=dot "$2" 2>&1 | grep --line-buffered "%" | \
+            sed -u -e "s,\.,,g" | awk '{printf("%4s\n", $2)}'
+        echo "DONE - ${DL_FILE}"
+    else
+        echo "ERROR - bad format"
+        exit 24
+    fi
+;;
 "ADD_RECORD")
     if [ "$#" -lt 2 ]; then
         echo "ERROR - File map not provided"
@@ -295,14 +382,14 @@ case "$CMD" in
     fi
 
     MAP_DIR="${REC_TAB[2]// /_}"
-    mkdir -p "maps/${MAP_DIR}"
+    mkdir -p "${TIME_MAPS_DIR}/${MAP_DIR}"
 
-    if ! cp "${2}" "maps/${MAP_DIR}/$3.lmp"; then
+    if ! mv "${2}" "${TIME_MAPS_DIR}/${MAP_DIR}/$3.lmp"; then
         echo "ERROR - Can't add .lmp file"
         exit 16
     fi
 
-    _RECORD_FILE="maps/${MAP_DIR}/record.txt"
+    _RECORD_FILE="${TIME_MAPS_DIR}/${MAP_DIR}/record.txt"
     if ! [ -f "${_RECORD_FILE}" ] || [ "$( sed '1q;d' "${_RECORD_FILE}" )" -gt "${REC_TAB[6]}" ]; then
             echoerr "### ${_RECORD_FILE}"
             echo "${REC_TAB[6]}" > "${_RECORD_FILE}"
@@ -324,12 +411,12 @@ case "$CMD" in
     MAPNAME="$( _I=0; for _E in $@; do if [ "$_I" -gt 1 ]; then echo -n " "; fi ; if [ "$_I" -gt 0 ]; then echo -n "$_E"; fi; ((_I++)); done )"
     MAP_DIR="$( echo ${MAPNAME// /_} | tr '[:lower:]' '[:upper:]' )"
 
-    if ! [ -d "maps/${MAP_DIR}" ] || [ "$( ls -1  "maps/${MAP_DIR}/"*.lmp 2>/dev/null | wc -l )" -lt 1 ]; then
+    if ! [ -d "${TIME_MAPS_DIR}/${MAP_DIR}" ] || [ "$( ls -1  "${TIME_MAPS_DIR}/${MAP_DIR}/"*.lmp 2>/dev/null | wc -l )" -lt 1 ]; then
         echo "ERROR - Can't find requested record…"
         exit 18
     fi
 
-    _TMP="$( ls "maps/${MAP_DIR}/"*.lmp 2>/dev/null | grep -m1 .lmp )"
+    _TMP="$( ls "${TIME_MAPS_DIR}/${MAP_DIR}/"*.lmp 2>/dev/null | grep -m1 .lmp )"
     _TMP="$( python "${PYTHON_LMP_ATTACK_SCRIPT}" "${_TMP}")"
     _TMP=(${_TMP//::::/ })
     _TMP="${_TMP[14]}"
@@ -340,13 +427,13 @@ and rename the file '${_TMP}-guest.lmp'."        > README.txt
     zip "${_ZIP}" README.txt >/dev/null 2>&1
 
     _C=0
-    ( ls -1  "maps/${MAP_DIR}/"*.lmp 2>/dev/null ) |  while read -r F; do
+    ( ls -1  "${TIME_MAPS_DIR}/${MAP_DIR}/"*.lmp 2>/dev/null ) |  while read -r F; do
         _PF="$( realpath "${F}" )"
         REC="$( python "${PYTHON_LMP_ATTACK_SCRIPT}" "${_PF}" | tr '\0' ' ' )"
         REC="${REC// /_}"
         REC_TAB=(${REC//::::/ })
 
-        _RECORD_FILE="maps/${MAP_DIR}/record.txt"
+        _RECORD_FILE="${TIME_MAPS_DIR}/${MAP_DIR}/record.txt"
         NEW_NAME="${REC_TAB[14]}-guest-${REC_TAB[8]}"
         if [ -f "${_RECORD_FILE}" ] && [ "${REC_TAB[6]}" -eq "$( sed '1q;d' "${_RECORD_FILE}" )" ]; then
             NEW_NAME="${NEW_NAME}-BEST"
@@ -360,7 +447,7 @@ and rename the file '${_TMP}-guest.lmp'."        > README.txt
         ((_C++))
     done
 
-    echo "ZIPPED - $( realpath "${_ZIP}" )"
+    echo "ZIPPED - ${_ZIP}"
     exit 0
 ;;
 "RECORD_RM")
@@ -373,21 +460,21 @@ and rename the file '${_TMP}-guest.lmp'."        > README.txt
     MAPNAME="$( _I=0; for _E in $@; do if [ "$_I" -gt 2 ]; then echo -n " "; fi ; if [ "$_I" -gt 1 ]; then echo -n "$_E"; fi; ((_I++)); done )"
     MAP_DIR="$( echo ${MAPNAME// /_} | tr '[:lower:]' '[:upper:]' )"
 
-    if ! [ -f "maps/${MAP_DIR}/${TAGNAME}.lmp" ]; then
+    if ! [ -f "${TIME_MAPS_DIR}/${MAP_DIR}/${TAGNAME}.lmp" ]; then
         echo "ERROR - Can't find requested record…"
         exit 20
     fi
 
-    if ! rm -f "maps/${MAP_DIR}/${TAGNAME}.lmp"; then
+    if ! rm -f "${TIME_MAPS_DIR}/${MAP_DIR}/${TAGNAME}.lmp"; then
         echo "ERROR - Can't remove record…"
         exit 21
     fi
 
-    if [ "$( (ls -1  "maps/${MAP_DIR}/"*.lmp 2>/dev/null) | wc -l )" -le 0 ]; then
-        rm -rf "maps/${MAP_DIR}"
+    if [ "$( (ls -1  "${TIME_MAPS_DIR}/${MAP_DIR}/"*.lmp 2>/dev/null) | wc -l )" -le 0 ]; then
+        rm -rf "${TIME_MAPS_DIR}/${MAP_DIR}"
     else
         _C=0
-        ( ls -1  "maps/${MAP_DIR}/"*.lmp 2>/dev/null ) |  while read -r F; do
+        ( ls -1  "${TIME_MAPS_DIR}/${MAP_DIR}/"*.lmp 2>/dev/null ) |  while read -r F; do
             _PF="$( realpath "${F}" )"
             REC=$( python "${PYTHON_LMP_ATTACK_SCRIPT}" "${_PF}" | tr '\0' ' ' )
             REC="${REC// /_}"
@@ -396,17 +483,17 @@ and rename the file '${_TMP}-guest.lmp'."        > README.txt
 
             if [ "${REC_TAB[0]}" == "SUCCESS" ]; then
                 if [ "${REC_TAB[6]}" -lt "${T_REC}" ]; then
-                    _RECORD_FILE="maps/${MAP_DIR}/record.txt"
+                    _RECORD_FILE="${TIME_MAPS_DIR}/${MAP_DIR}/record.txt"
                     T_REC="${REC_TAB[6]}"
                     echo "${T_REC}" > "${_RECORD_FILE}"
                     _BF="$( basename "${F}" )"
-                    echo "${REC_TAB[7]} by ${REC_TAB[8]} from ${_BF%.lmp}" >> "maps/${MAP_DIR}/record.txt"
+                    echo "${REC_TAB[7]} by ${REC_TAB[8]} from ${_BF%.lmp}" >> "${TIME_MAPS_DIR}/${MAP_DIR}/record.txt"
                 fi
                 ((_C++))
             fi
         done
         if [ "${_C}" -lt 0 ]; then
-            rm -rf "maps/${MAP_DIR}"
+            rm -rf "${TIME_MAPS_DIR}/${MAP_DIR}"
         fi
     fi
 

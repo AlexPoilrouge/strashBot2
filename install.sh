@@ -110,7 +110,7 @@ find . -regex '.*\.template$' -exec bash -c 'convert_template {}' \;
 ##### install #####
 
 if [ "$(grep -c "^${STRASHBOT_USER}:" /etc/passwd)" -eq 0 ]; then
-    useradd -m -s /usr/bin/nologin "${STRASHBOT_USER}"
+    useradd -m "${STRASHBOT_USER}"
 fi
 
 mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}"

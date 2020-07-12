@@ -160,12 +160,25 @@ function _getPassword(){
     return stdout;
 };
 
-
 function cmd_init(utils){
     if(!Boolean(kart_settings=__loadingJSONObj("data/kart.json"))){
         hereLog("Not able to load 'kart.json' setting…");
     }
     _initAddonsConfig();
+}
+
+function __kartCmd(command){
+    var ks= undefined, srv_cmd= undefined;
+    return (Boolean(ks=kart_settings) && Boolean(command))?
+                (Boolean(srv_cmd=ks.server_commands) && srv_cmd.through_ssh)?
+                    Boolean(srv_cmd.server_addr) && Boolean(srv_cmd.distant_user)?
+                        (`ssh ${srv_cmd.distant_user}@${srv_cmd.server_addr}`+
+                            ((srv_cmd.server_port)?` -p ${srv_cmd.server_port}`:'')
+                            + ` ${command}`
+                        )
+                    :       "false"
+                :   command
+            :   "false";
 }
 
 
@@ -190,21 +203,14 @@ async function cmd_init_per_guild(utils, guild){
     }
 }
 
-async function __downloading(channel, url, utils, permanent=false){
-    var filename= url.split('/').splice(-1)[0];
-
-    var _ls="";
-    if ((_ls=_listAddonsConfig(filename))!=="No result found…"){
-        channel.send(`The following addons already exist on server:\n${_ls}`);
-
-        return;
-    }
+async function __downloading(channel, url, destDir, utils, fileName=undefined){
+    var filename= (!Boolean(fileName))? url.split('/').splice(-1)[0] : fileName;
 
     let _serv_run= _isServerRunning();
-    if (_serv_run && !permanent){
-        channel.send(`❌ Il est futil d'ajouter un addon *temporaire* alors qu'une session est déjà en cours…`);
-        return;
-    }
+    // if (_serv_run && !permanent){
+    //     channel.send(`❌ Il est futil d'ajouter un addon *temporaire* alors qu'une session est déjà en cours…`);
+    //     return;
+    // }
 
     if (!urlExistSync(url)){
         channel.send(`❌ L'url \`${url}\` ne semble pas exister…`);
@@ -226,19 +232,20 @@ async function __downloading(channel, url, utils, permanent=false){
         }
     }
 
-    if(!Boolean(kart_settings) || !Boolean(kart_settings.dirs.main_folder) ||
-        (permanent && !Boolean(kart_settings.dirs.dl_dirs.permanent)) ||
-        (!permanent && !Boolean(kart_settings.dirs.dl_dirs.temporary))
-    ){
-        _error();
+    // if(!Boolean(kart_settings) || !Boolean(kart_settings.dirs.main_folder) ||
+    //     (permanent && !Boolean(kart_settings.dirs.dl_dirs.permanent)) ||
+    //     (!permanent && !Boolean(kart_settings.dirs.dl_dirs.temporary))
+    // ){
+    //     _error();
 
-        return;
-    }
+    //     return;
+    // }
 
     if(Boolean(dl_msg)){
-        let filepath= kart_settings.dirs.main_folder+'/'+
-            ((permanent)?kart_settings.dirs.dl_dirs.permanent:kart_settings.dirs.dl_dirs.temporary)
-            +'/'+filename;
+        // let filepath= kart_settings.dirs.main_folder+'/'+
+        //     ((permanent)?kart_settings.dirs.dl_dirs.permanent:kart_settings.dirs.dl_dirs.temporary)
+        //     +'/'+filename;
+        let filepath= destDir+'/'+filename;
         const file = fs.createWriteStream(filepath);
         var receivedBytes = 0;
         var totalBytes= 0;
@@ -286,17 +293,6 @@ async function __downloading(channel, url, utils, permanent=false){
                     var owner= undefined;
                     var str= `\`${filename}\` a bien été ajouté au serveur.\n`+
                         `Cependant, il ne peut être utilisé pour une session déjà en cours`;
-                    /*var str= `\`${filename}\` a bien été ajouté à la session en cours.\n`+
-                        `Cependant l'admin désigné du serveur srb2kart devra charger l'addon manuellement`;
-
-                    if(!Boolean(servOwner) || !Boolean(owner=(await utils.getBotClient().fetchUser(servOwner)))){
-                        owner.send(`L'addon \`${filename}\` a été ajouté au serveur. Utilisez la commande ingame `+
-                            `\`addfile "${(permanent)?kart_settings.dirs.dl_dirs.permanent:kart_settings.dirs.dl_dirs.temporary}/${filename}"\``+
-                            ` pour l'ajouter à la session en cours.`)
-                    } 
-                    else{
-                        str+= (!permanent)?"":` via la commande \`addfile "${kart_settings.dirs.dl_dirs.temporary}/${filename}"\``;
-                    }*/
                     channel.send(str+'.')         
                 }
                 else{
@@ -313,12 +309,110 @@ async function __downloading(channel, url, utils, permanent=false){
     }
 }
 
+async function __ssh_download_cmd(cmd, channel, url, utils, fileName=undefined){
+    var filename= (!Boolean(fileName))? url.split('/').splice(-1)[0] : fileName;
+
+    
+    if (!urlExistSync(url)){
+        channel.send(`❌ L'url \`${url}\` ne semble pas exister…`);
+        return
+    }
+    var addr=undefined, dUser=undefined;
+    if(!Boolean(addr=kart_settings.server_commands.server_addr) || !Boolean(dUser=kart_settings.server_commands.distant_user)){
+        hereLog("[ssh dl] missing distant user or addr info…")
+        channel.send(`❌ Internal error…`);
+        return
+    }
+
+    var pct= '\t0';
+    var dl_msg= await channel.send(
+        `Downloading \`${filename}\` on server …\t[${pct} %]`
+    );
+
+    let _error= (msg='') => {
+        if (Boolean(dl_msg)){
+            dl_msg.edit(`Downloading \`${filename}\` on server …\t[ERROR!]`+
+                ((Boolean(msg))?`\n\t(${msg})`:'')
+            );
+
+            dl_msg.react('❌');
+        }
+    }
+
+    if(Boolean(dl_msg)){
+        let ssh_cmd= `ssh ${dUser}@${dUser}`+
+            ( (Boolean(kart_settings.server_commands.server_port))?
+                ` -p ${kart_settings.server_commands.server_port}`
+                : ``
+            ) +
+            ` ${cmd} ${url} ${Boolean(fileName)?fileName:''}`;
+        var cmd_process= child_process.exec(ssh_cmd, {timeout:120000});
+
+        var t= Date.now();
+
+        cmd_process.stdout.on('data', function (data) {
+            var lines= data.split('\n');
+            var res=""
+            if(lines.length>0){
+                res= lines[lines.length-1];
+            }
+            if(Boolean(res)){
+                pct=res
+
+                if (Boolean(dl_msg) && (Date.now()-t>=1000)){
+                    dl_msg.edit(`Downloading \`${filename}\` on server …\t[${pct}]`);
+                    t= Date.now();
+                }
+            }
+        });
+
+        cmd_process.stderr.on('data', function (data) {
+            hereLog(`[file dl error] ${err}`)
+        });
+
+        cmd_process.on('error', function (err){
+            hereLog(`[file dl process error] ${err}`);
+
+            _error();
+        });
+
+        cmd_process.on('close', function (code) {
+            if(code!==0){
+                hereLog(`[ssh dl] returned ${code}`);
+                _error();
+            }
+            else{
+                if (Boolean(dl_msg)){
+                    dl_msg.edit(`Downloading \`${filename}\` on server …\t[Done!]`);
+
+                    dl_msg.react('✅');
+                }
+
+                if(!_updateAddonsConfig()){
+                    channel.send(`❌ An error as occured, can't properly add \`${filename}\` to the server addons…`);
+                }
+                else if(_serv_run){
+                    var servOwner= utils.settings.get(channel.guild, "serv_owner");
+                    var owner= undefined;
+                    var str= `\`${filename}\` a bien été ajouté au serveur.\n`+
+                        `Cependant, il ne peut être utilisé pour une session déjà en cours`;
+                    channel.send(str+'.')         
+                }
+                else{
+                    channel.send(`\`${filename}\` a bien été ajouté et sera disponible prêt à l'emploi lors de la prochaine session.`);
+                }   
+            }
+        });
+    }
+}
+
 async function _cmd_addons(cmdObj, clearanceLvl, utils){
     let message= cmdObj.msg_obj;
     let sub_cmd= cmdObj.args[0]
     let args= cmdObj.args.slice(1);
 
     if(["try","add","get","new"].includes(args[0])){
+        let _serv_run= _isServerRunning();
         var perma= false;
         var url_rgx= /^(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+$/;
         var url= undefined;
@@ -342,15 +436,43 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
         }
 
         let ext= [".pk3",".wad",".lua",".kart",".pk7"];
-        if(Boolean(url) && ext.some(e => {return url.endsWith(e)})){
-            __downloading(message.channel, url, utils, perma)
+        var _ls="";
+        if((_ls=_listAddonsConfig(url.split('/').splice(-1)[0]))!=="No result found…"){
+            channel.send(`The following addons already exist on server:\n${_ls}`);
 
-            return true;
+            return false;
         }
-        else{
+        else if(!Boolean(url) || !ext.some(e => {return url.endsWith(e)})){
             message.channel.send(`Seuls les fichiers addons d'extension \`${ext}\` sont acceptés…`)
 
-            return false
+            return false;
+        }
+        else if (!Boolean(kart_settings) || !Boolean(kart_settings.dirs.main_folder) ||
+            (!_serv_run && !Boolean(kart_settings.dirs.dl_dirs.permanent)) ||
+            !Boolean(kart_settings.dirs.dl_dirs.temporary)
+        ){
+            hereLog("[addons add] no dest directory for addon dl");
+            message.channel.send(`❌ server internal error`);
+
+            return false;
+        }
+        else{
+            // __downloading(message.channel, url, utils, perma)
+            var destDir= (_serv_run)?
+                kart_settings.dirs.dl_dirs.temporary :
+                kart_settings.dirs.dl_dirs.permanent;
+            
+            if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
+                __ssh_download_cmd(
+                    kart_settings.config_commands.addon_url,
+                    message.channel, url, utils
+                );
+            }
+            else{
+                __downloading(message.channel, url, destDir, utils);
+            }
+
+            return true;
         }
     }
     else if(["keep","perma","fixed","final"].includes(args[0])){
@@ -358,7 +480,7 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
             var str= undefined
             var b=false;
             try{
-                var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.keep))?cmd:"false";
+                var cmd= __kartCmd(kart_settings.config_commands.keep);
                 str= child_process.execSync(cmd+` ${args[1]}`, {timeout: 4000}).toString();
                 b=true;
             }
@@ -435,117 +557,117 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
     return false;
 }
 
-async function __uploading_cfg(channel, url){
-    if(!Boolean(kart_settings) || !Boolean(kart_settings.dirs.main_folder)){
-        return
-    }
+// async function __uploading_cfg(channel, url){
+//     if(!Boolean(kart_settings) || !Boolean(kart_settings.dirs.main_folder)){
+//         return
+//     }
 
-    if (!urlExistSync(url)){
-        channel.send(`❌ L'url \`${url}\` ne semble pas exister…`);
-        return
-    }
+//     if (!urlExistSync(url)){
+//         channel.send(`❌ L'url \`${url}\` ne semble pas exister…`);
+//         return
+//     }
 
-    let filename= "new_startup.cfg"
-    let filepath= kart_settings.dirs.main_folder+`/${filename}`;
+//     let filename= "new_startup.cfg"
+//     let filepath= kart_settings.dirs.main_folder+`/${filename}`;
 
-    var pct= 0;
-    var dl_msg= await channel.send(
-        `Downloading \`${filename}\` on server …\t[${pct} %]`
-    );
+//     var pct= 0;
+//     var dl_msg= await channel.send(
+//         `Downloading \`${filename}\` on server …\t[${pct} %]`
+//     );
 
-    let _error= (msg='') => {
-        if (Boolean(dl_msg)){
-            dl_msg.edit(`Downloading \`${filename}\` on server …\t[ERROR!]`+
-                ((Boolean(msg))?`\n\t(${msg})`:'')
-            );
+//     let _error= (msg='') => {
+//         if (Boolean(dl_msg)){
+//             dl_msg.edit(`Downloading \`${filename}\` on server …\t[ERROR!]`+
+//                 ((Boolean(msg))?`\n\t(${msg})`:'')
+//             );
 
-            dl_msg.react('❌');
-        }
-    }
+//             dl_msg.react('❌');
+//         }
+//     }
 
-    if(Boolean(dl_msg)){
-        const file = fs.createWriteStream(filepath);
-        var receivedBytes = 0;
-        var totalBytes= 0;
+//     if(Boolean(dl_msg)){
+//         const file = fs.createWriteStream(filepath);
+//         var receivedBytes = 0;
+//         var totalBytes= 0;
 
-        var t= Date.now();
+//         var t= Date.now();
 
-        request.get(url)
-            .on('response', (response) => {
-                if (response.statusCode !== 200) {
-                    _error('Response status was ' + response.statusCode);
-                }
+//         request.get(url)
+//             .on('response', (response) => {
+//                 if (response.statusCode !== 200) {
+//                     _error('Response status was ' + response.statusCode);
+//                 }
 
-                totalBytes= response.headers['content-length'];
-            })
-            .on('data', (chunk) => {
-                receivedBytes += chunk.length;
+//                 totalBytes= response.headers['content-length'];
+//             })
+//             .on('data', (chunk) => {
+//                 receivedBytes += chunk.length;
 
-                if (Boolean(dl_msg) && (Date.now()-t>=2000)){
-                    dl_msg.edit(`Downloading \`${filename}\` on server …\t[${(receivedBytes/totalBytes)*100} %]`);
-                    t= Date.now();
-                }
-            })
-            .pipe(file)
-            .on('error', (err) => {
-                fs.unlink(filepath, err => {
-                    hereLog(`[file dl error] ${err}`)
-                });
-                _error();
-            });
+//                 if (Boolean(dl_msg) && (Date.now()-t>=2000)){
+//                     dl_msg.edit(`Downloading \`${filename}\` on server …\t[${(receivedBytes/totalBytes)*100} %]`);
+//                     t= Date.now();
+//                 }
+//             })
+//             .pipe(file)
+//             .on('error', (err) => {
+//                 fs.unlink(filepath, err => {
+//                     hereLog(`[file dl error] ${err}`)
+//                 });
+//                 _error();
+//             });
 
-            file.on('finish', () => {
-                file.close();
+//             file.on('finish', () => {
+//                 file.close();
 
-                if (Boolean(dl_msg)){
-                    dl_msg.edit(`Downloading \`${filename}\` on server …\t[Done!]`);
+//                 if (Boolean(dl_msg)){
+//                     dl_msg.edit(`Downloading \`${filename}\` on server …\t[Done!]`);
 
-                    dl_msg.react('✅');
-                }
+//                     dl_msg.react('✅');
+//                 }
 
-                var str= undefined
-                try{
-                    var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.change_config))?cmd:"false";
-                    str= child_process.execSync(cmd+` ${filepath}`, {timeout: 4000}).toString();
-                }
-                catch(err){
-                    hereLog("Error while keeping addons: "+err);
-                    str= undefined
-                }
+//                 var str= undefined
+//                 try{
+//                     var cmd= __kartCmd(kart_settings.config_commands.change_config);
+//                     str= child_process.execSync(cmd+` ${filepath}`, {timeout: 4000}).toString();
+//                 }
+//                 catch(err){
+//                     hereLog("Error while keeping addons: "+err);
+//                     str= undefined
+//                 }
 
-                if(Boolean(str)){
-                    let options= (str==="updated")? {} :
-                        {
-                            files: [{
-                                attachment: `${str}`,
-                                name: `startup.cfg.diff`
-                            }]
-                        }
-                    if(_isServerRunning()){
-                        channel.send(`\`startup.cfg\` a bien été mis à jour.\n`+
-                            `Cependant, celan n'aura aucun effet pour la session déjà en cours`,
-                            options
-                        );
-                    }
-                    else{
-                        channel.send(`\`startup.cfg\` a bien été mis à jour et sera effectif lors de la prochaine session.`,
-                                options
-                        );
-                    }
-                }
-                else{
-                    channel.send(`❌ internal error while trying to update *startup.cfg*…`);
-                }
-            });
+//                 if(Boolean(str)){
+//                     let options= (str==="updated")? {} :
+//                         {
+//                             files: [{
+//                                 attachment: `${str}`,
+//                                 name: `startup.cfg.diff`
+//                             }]
+//                         }
+//                     if(_isServerRunning()){
+//                         channel.send(`\`startup.cfg\` a bien été mis à jour.\n`+
+//                             `Cependant, celan n'aura aucun effet pour la session déjà en cours`,
+//                             options
+//                         );
+//                     }
+//                     else{
+//                         channel.send(`\`startup.cfg\` a bien été mis à jour et sera effectif lors de la prochaine session.`,
+//                                 options
+//                         );
+//                     }
+//                 }
+//                 else{
+//                     channel.send(`❌ internal error while trying to update *startup.cfg*…`);
+//                 }
+//             });
         
-            file.on('error', (err) => {
-                fs.unlink(filepath, err => {
-                    hereLog(`[file dl error] ${err}`)
-                });
-                _error(err.message);
-            });
-    }
-}
+//             file.on('error', (err) => {
+//                 fs.unlink(filepath, err => {
+//                     hereLog(`[file dl error] ${err}`)
+//                 });
+//                 _error(err.message);
+//             });
+//     }
+// }
 
 async function _cmd_config(cmdObj, clearanceLvl, utils){
     let message= cmdObj.msg_obj;
@@ -555,7 +677,7 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
     if(args.length===0 || ["get","dl","download","check"].includes(args[0])){
         var str= undefined
         try{
-            var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.get_config))?cmd:"false";
+            var cmd= __kartCmd(kart_settings.config_commands.get_config);
             str= child_process.execSync(cmd, {timeout: 4000}).toString();
         }
         catch(err){
@@ -584,8 +706,24 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
         if(Boolean(message.attachments) && message.attachments.size>=1){
             var url= message.attachments.first().url;
             
-            if(url.endsWith('.cfg')){
-                await __uploading_cfg(message.channel,url);
+            if ( !Boolean(kart_settings) || !Boolean(kart_settings.dirs.main_folder) ){
+                hereLog("[cfg upload] no dest directory for cfg dl");
+                message.channel.send(`❌ server internal error`);
+            }
+            else if(url.endsWith('.cfg')){
+                // await __uploading_cfg(message.channel,url);
+
+                if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
+                    __ssh_download_cmd(
+                        kart_settings.config_commands.add_config_url,
+                        message.channel, url, utils
+                    );
+                }
+                else{
+                    __downloading(message.channel, url,
+                        kart_settings.dirs.main_folder, utils, "new_startup.cfg"
+                    );
+                }
 
                 return true;
             }
@@ -598,7 +736,7 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
     else if(["filter","forbidden","out","off","nope","bad","cfg","blacklist","cmd","deny","denies","denied"].includes(args[0])){
         var str= undefined
         try{
-            var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.cfg_blacklist))?cmd:"false";
+            var cmd= __kartCmd(kart_settings.config_commands.cfg_blacklist);
             str= child_process.execSync(cmd, {timeout: 4000}).toString();
         }
         catch(err){
@@ -647,104 +785,104 @@ async function __replaceIDinString(guild, string){
     return ret;
 }
 
-async function __uploading_lmp(channel,url,id){
-    if(!Boolean(kart_settings) || !Boolean(kart_settings.config_commands.add_times)){
-        channel.send(`❌ Internal error while trying to add lmp record…`);
+// async function __uploading_lmp(channel,url,id){
+//     if(!Boolean(kart_settings) || !Boolean(kart_settings.config_commands.add_times)){
+//         channel.send(`❌ Internal error while trying to add lmp record…`);
 
-        return false
-    }
+//         return false
+//     }
 
-    if (!urlExistSync(url)){
-        channel.send(`❌ L'url \`${url}\` ne semble pas exister…`);
+//     if (!urlExistSync(url)){
+//         channel.send(`❌ L'url \`${url}\` ne semble pas exister…`);
 
-        return false
-    }
+//         return false
+//     }
 
-    let filename= `${id}.lmp`
-    let filepath= kart_settings.dirs.main_folder+`/${filename}`;
+//     let filename= `${id}.lmp`
+//     let filepath= kart_settings.dirs.main_folder+`/${filename}`;
 
-    var pct= 0;
-    var dl_msg= await channel.send(
-        `Downloading \`${filename}\` on server …\t[${pct} %]`
-    );
+//     var pct= 0;
+//     var dl_msg= await channel.send(
+//         `Downloading \`${filename}\` on server …\t[${pct} %]`
+//     );
 
-    let _error= (msg='') => {
-        if (Boolean(dl_msg)){
-            dl_msg.edit(`Downloading \`${filename}\` on server …\t[ERROR!]`+
-                ((Boolean(msg))?`\n\t(${msg})`:'')
-            );
+//     let _error= (msg='') => {
+//         if (Boolean(dl_msg)){
+//             dl_msg.edit(`Downloading \`${filename}\` on server …\t[ERROR!]`+
+//                 ((Boolean(msg))?`\n\t(${msg})`:'')
+//             );
 
-            dl_msg.react('❌');
-        }
-    }
+//             dl_msg.react('❌');
+//         }
+//     }
 
-    if(Boolean(dl_msg)){
-        const file = fs.createWriteStream(filepath);
-        var receivedBytes = 0;
-        var totalBytes= 0;
+//     if(Boolean(dl_msg)){
+//         const file = fs.createWriteStream(filepath);
+//         var receivedBytes = 0;
+//         var totalBytes= 0;
 
-        var t= Date.now();
+//         var t= Date.now();
 
-        request.get(url)
-            .on('response', (response) => {
-                if (response.statusCode !== 200) {
-                    _error('Response status was ' + response.statusCode);
-                }
+//         request.get(url)
+//             .on('response', (response) => {
+//                 if (response.statusCode !== 200) {
+//                     _error('Response status was ' + response.statusCode);
+//                 }
 
-                totalBytes= response.headers['content-length'];
-            })
-            .on('data', (chunk) => {
-                receivedBytes += chunk.length;
+//                 totalBytes= response.headers['content-length'];
+//             })
+//             .on('data', (chunk) => {
+//                 receivedBytes += chunk.length;
 
-                if (Boolean(dl_msg) && (Date.now()-t>=2000)){
-                    dl_msg.edit(`Downloading \`${filename}\` on server …\t[${(receivedBytes/totalBytes)*100} %]`);
-                    t= Date.now();
-                }
-            })
-            .pipe(file)
-            .on('error', (err) => {
-                fs.unlink(filepath, err => {
-                    hereLog(`[file dl error] ${err}`)
-                });
-                _error();
-            });
+//                 if (Boolean(dl_msg) && (Date.now()-t>=2000)){
+//                     dl_msg.edit(`Downloading \`${filename}\` on server …\t[${(receivedBytes/totalBytes)*100} %]`);
+//                     t= Date.now();
+//                 }
+//             })
+//             .pipe(file)
+//             .on('error', (err) => {
+//                 fs.unlink(filepath, err => {
+//                     hereLog(`[file dl error] ${err}`)
+//                 });
+//                 _error();
+//             });
 
-            file.on('finish', () => {
-                file.close();
+//             file.on('finish', () => {
+//                 file.close();
 
-                if (Boolean(dl_msg)){
-                    dl_msg.edit(`Downloading \`${filename}\` on server …\t[Done!]`);
+//                 if (Boolean(dl_msg)){
+//                     dl_msg.edit(`Downloading \`${filename}\` on server …\t[Done!]`);
 
-                    dl_msg.react('✅');
-                }
+//                     dl_msg.react('✅');
+//                 }
 
-                var str= undefined
-                try{
-                    var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.add_times))?cmd:"false";
-                    str= child_process.execSync(cmd+` ${filepath} ${id}`, {timeout: 4000}).toString();
-                }
-                catch(err){
-                    hereLog("Error while adding time: "+err);
-                    str= undefined
-                }
+//                 var str= undefined
+//                 try{
+//                     var cmd= __kartCmd(kart_settings.config_commands.add_times);
+//                     str= child_process.execSync(cmd+` ${filepath} ${id}`, {timeout: 4000}).toString();
+//                 }
+//                 catch(err){
+//                     hereLog("Error while adding time: "+err);
+//                     str= undefined
+//                 }
 
-                var _f_str= str
-                if(Boolean(str) && ( ( (typeof(str)==='string') && str.startsWith("ADDED")) || (str=str.toString()).startsWith("ADDED") ) ){
-                    channel.send( _f_str );
-                }
-                else{
-                    channel.send(`❌ internal error while trying to add recorded time [${str}]`);
-                }
-            });
+//                 var _f_str= str
+//                 if(Boolean(str) && ( ( (typeof(str)==='string') && str.startsWith("ADDED")) || (str=str.toString()).startsWith("ADDED") ) ){
+//                     channel.send( _f_str );
+//                 }
+//                 else{
+//                     channel.send(`❌ internal error while trying to add recorded time [${str}]`);
+//                 }
+//             });
         
-            file.on('error', (err) => {
-                fs.unlink(filepath, err => {
-                    hereLog(`[file dl error] ${err}`)
-                });
-                _error(err.message);
-            });
-    }
-}
+//             file.on('error', (err) => {
+//                 fs.unlink(filepath, err => {
+//                     hereLog(`[file dl error] ${err}`)
+//                 });
+//                 _error(err.message);
+//             });
+//     }
+// }
 
 async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
     let message= cmdObj.msg_obj;
@@ -752,7 +890,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
     let args= cmdObj.args.slice(1);
 
     const _base_cmd= async (mapName=undefined)=>{
-        var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.map_times))?cmd:"false";
+        var cmd= __kartCmd(kart_settings.config_commands.map_times);
 
         if(!Boolean(mapName)){
             var str= undefined
@@ -891,8 +1029,25 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
         if(Boolean(message.attachments) && message.attachments.size>=1){
             var url= message.attachments.first().url;
             
-            if(url.endsWith('.lmp')){
-                await __uploading_lmp(message.channel,url,message.author.id);
+            if ( !Boolean(kart_settings) || !Boolean(kart_settings.dirs.main_folder) ){
+                hereLog("[lmp upload] no dest directory for lmp dl");
+                message.channel.send(`❌ server internal error`);
+            }
+            else if(url.endsWith('.lmp')){
+                // await __uploading_lmp(message.channel,url,message.author.id);
+                if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
+                    __ssh_download_cmd(
+                        kart_settings.config_commands.add_times_url,
+                        message.channel, url, utils, message.author.id
+                    );
+                }
+                else{
+                    __downloading(message.channel, url,
+                        kart_settings.dirs.main_folder, utils,
+                        `${message.author.id}.lmp`
+                    );
+                }
+
 
                 return true;
             }
@@ -911,7 +1066,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
         var mapname= args.slice(1).join(' ');
         var str= undefined
         try{
-            var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.get_times))?cmd:"false";
+            var cmd= __kartCmd(kart_settings.config_commands.get_times);
             str= child_process.execSync(cmd+` ${mapname}`, {timeout: 4000}).toString();
         }
         catch(err){
@@ -954,7 +1109,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
         var mapname= args.slice(1).join(' ');
         var str= undefined
         try{
-            var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.remove_times))?cmd:"false";
+            var cmd= __kartCmd(kart_settings.config_commands.remove_times);
             str= child_process.execSync(cmd+` ${message.author.id} ${mapname}`, {timeout: 4000}).toString();
         }
         catch(err){
@@ -1210,7 +1365,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         else if (["log","logs","log.txt"].includes(args[0])){
             var str= undefined
             try{
-                var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.get_log))?cmd:"false";
+                var cmd= __kartCmd(kart_settings.config_commands.get_log);
                 str= child_process.execSync(cmd, {timeout: 4000}).toString();
             }
             catch(err){
