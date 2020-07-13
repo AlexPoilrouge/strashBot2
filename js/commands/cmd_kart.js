@@ -38,10 +38,25 @@ function __loadingJSONObj(fileName){
     }
 }
 
+function __kartCmd(command){
+    var ks= undefined, srv_cmd= undefined;
+    return (Boolean(ks=kart_settings) && Boolean(command))?
+                (Boolean(srv_cmd=ks.server_commands) && srv_cmd.through_ssh)?
+                    Boolean(srv_cmd.server_addr) && Boolean(srv_cmd.distant_user)?
+                        (`ssh ${srv_cmd.distant_user}@${srv_cmd.server_addr}`+
+                            ((srv_cmd.server_port)?` -p ${srv_cmd.server_port}`:'')
+                            + ` ${command}`
+                        )
+                    :       "false"
+                :   command
+            :   "false";
+}
+
 function _stopServer(){
     b= false;
     try{
-        var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.server_commands.stop))?cmd:"false";
+        // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.server_commands.stop))?cmd:"false";
+        var cmd= __kartCmd(kart_settings.server_commands.stop)
         child_process.execSync(cmd, {timeout: 4000});
         b= true;
     }
@@ -55,7 +70,8 @@ function _stopServer(){
 function _startServer(){
     b= false;
     try{
-        var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.server_commands.start))?cmd:"false";
+        // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.server_commands.start))?cmd:"false";
+        var cmd= __kartCmd(kart_settings.server_commands.start)
         child_process.execSync(cmd, {timeout: 4000});
         b= true;
     }
@@ -69,7 +85,8 @@ function _startServer(){
 function _isServerRunning(){
     b= false;
     try{
-        var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.server_commands.is_active))?cmd:"false";
+        // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.server_commands.is_active))?cmd:"false";
+        var cmd= __kartCmd(kart_settings.server_commands.is_active)
         child_process.execSync(cmd, {timeout: 4000});
         b= true;
     }
@@ -84,7 +101,8 @@ function _isServerRunning(){
 function _initAddonsConfig(){
     b= false;
     try{
-        var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.init))?cmd:"false";
+        // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.init))?cmd:"false";
+        var cmd= __kartCmd(kart_settings.config_commands.init)
         child_process.execSync(cmd, {timeout: 4000});
         b= true;
     }
@@ -98,7 +116,8 @@ function _initAddonsConfig(){
 function _updateAddonsConfig(){
     b= false;
     try{
-        var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.update))?cmd:"false";
+        // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.update))?cmd:"false";
+        var cmd= __kartCmd(kart_settings.config_commands.update)
         child_process.execSync(cmd, {timeout: 4000});
         b= true;
     }
@@ -112,7 +131,8 @@ function _updateAddonsConfig(){
 function _listAddonsConfig(arg=""){
     var str= undefined;
     try{
-        var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.list))?cmd:"false";
+        // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.list))?cmd:"false";
+        var cmd= __kartCmd(kart_settings.config_commands.list)
         str= child_process.execSync(cmd+((Boolean(arg))?` ${arg}`:""), {timeout: 4000}).toString();
     }
     catch(err){
@@ -131,7 +151,8 @@ function _removeAddonsConfig(arg){
     var str= undefined;
     var r=false;
     try{
-        var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.remove))?cmd:"false";
+        // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.remove))?cmd:"false";
+        var cmd= __kartCmd(kart_settings.config_commands.remove)
         str= child_process.execSync(cmd+` ${arg}`, {timeout: 4000}).toString();
         r=true;
     }
@@ -145,7 +166,9 @@ function _getPassword(){
     b= false;
     stdout= undefined;
     try{
-        stdout=child_process.execSync("cat ${HOME}/.TMP_PASS", {timeout: 4000}).toString().replace('\n','');
+        // stdout=child_process.execSync("cat ${HOME}/.TMP_PASS", {timeout: 4000}).toString().replace('\n','');
+        var cmd= __kartCmd("cat ${HOME}/.TMP_PASS");
+        stdout=child_process.execSync(cmd,{timeout: 4000}).toString().replace('\n','');
         b= true;
     }
     catch(err){
@@ -165,20 +188,6 @@ function cmd_init(utils){
         hereLog("Not able to load 'kart.json' setting…");
     }
     _initAddonsConfig();
-}
-
-function __kartCmd(command){
-    var ks= undefined, srv_cmd= undefined;
-    return (Boolean(ks=kart_settings) && Boolean(command))?
-                (Boolean(srv_cmd=ks.server_commands) && srv_cmd.through_ssh)?
-                    Boolean(srv_cmd.server_addr) && Boolean(srv_cmd.distant_user)?
-                        (`ssh ${srv_cmd.distant_user}@${srv_cmd.server_addr}`+
-                            ((srv_cmd.server_port)?` -p ${srv_cmd.server_port}`:'')
-                            + ` ${command}`
-                        )
-                    :       "false"
-                :   command
-            :   "false";
 }
 
 
