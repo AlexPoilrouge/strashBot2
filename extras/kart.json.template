@@ -1,7 +1,7 @@
 {
     "server_commands":{
-            "start":"sudo ${SRB2K_SERVICE_START_CMD}",
-            "stop":"sudo ${SRB2K_SERVICE_STOP_CMD}",
+            "start":"${SRB2K_SERVICE_START_CMD}",
+            "stop":"${SRB2K_SERVICE_STOP_CMD}",
             "is_active":"${SRB2K_SERVICE_ISACTIVE_CMD}",
             "through_ssh":${SRB2K_SSH},
             "server_addr":"${SRB2K_ADDR}",
