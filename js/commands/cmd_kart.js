@@ -319,6 +319,7 @@ async function __downloading(channel, url, destDir, utils, fileName=undefined){
 }
 
 async function __ssh_download_cmd(cmd, channel, url, utils, fileName=undefined){
+    hereLog(`[ssh dl] cmd: ${cmd} - url: ${url}`)
     var filename= (!Boolean(fileName))? url.split('/').splice(-1)[0] : fileName;
 
     
@@ -349,7 +350,7 @@ async function __ssh_download_cmd(cmd, channel, url, utils, fileName=undefined){
     }
 
     if(Boolean(dl_msg)){
-        let ssh_cmd= `ssh ${dUser}@${dUser}`+
+        let ssh_cmd= `ssh ${dUser}@${addr}`+
             ( (Boolean(kart_settings.server_commands.server_port))?
                 ` -p ${kart_settings.server_commands.server_port}`
                 : ``
@@ -376,7 +377,7 @@ async function __ssh_download_cmd(cmd, channel, url, utils, fileName=undefined){
         });
 
         cmd_process.stderr.on('data', function (data) {
-            hereLog(`[file dl error] ${err}`)
+            hereLog(`[file dl error] ${data}`)
         });
 
         cmd_process.on('error', function (err){
@@ -400,7 +401,7 @@ async function __ssh_download_cmd(cmd, channel, url, utils, fileName=undefined){
                 if(!_updateAddonsConfig()){
                     channel.send(`❌ An error as occured, can't properly add \`${filename}\` to the server addons…`);
                 }
-                else if(_serv_run){
+                else if(_isServerRunning()){
                     var servOwner= utils.settings.get(channel.guild, "serv_owner");
                     var owner= undefined;
                     var str= `\`${filename}\` a bien été ajouté au serveur.\n`+
@@ -447,7 +448,7 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
         let ext= [".pk3",".wad",".lua",".kart",".pk7"];
         var _ls="";
         if((_ls=_listAddonsConfig(url.split('/').splice(-1)[0]))!=="No result found…"){
-            channel.send(`The following addons already exist on server:\n${_ls}`);
+            message.channel.send(`The following addons already exist on server:\n${_ls}`);
 
             return false;
         }
@@ -532,8 +533,8 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
     else if(["list","ls","all","what","which"].includes(args[0]) || !Boolean(args[0])){
         var list= _listAddonsConfig((Boolean(args[1]))?args[1]:"");
         if(Boolean(list)){
-            if(!Boolean(args[1]) && Boolean(kart_settings) && Boolean(kart_settings.links.dl_addons)){
-                list+=`\n\nStrashbobt addons download: ${kart_settings.links.dl_addons}`
+            if(!Boolean(args[1]) && Boolean(kart_settings) && Boolean(kart_settings.http_url)){
+                list+=`\n\nStrashbobt addons download: ${kart_settings.http_url}/strashbot_addons.zip`
             }
 
             var resp= "Addons list for srb2kart server:\n"+list;
@@ -553,8 +554,8 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
         }
     }
     else if(["dl","links","link","zip","archive"]){
-        if(!Boolean(args[1]) && Boolean(kart_settings) && Boolean(kart_settings.links.dl_addons)){
-            message.channel.send(`You can try downloading the SRB2Kart server's addons at: ${kart_settings.links.dl_addons}`);
+        if(!Boolean(args[1]) && Boolean(kart_settings) && Boolean(kart_settings.http_url)){
+            message.channel.send(`You can try downloading the SRB2Kart server's addons at: ${kart_settings.http_url}/strashbot_addons.zip`);
             return true;
         }
         else{
@@ -694,20 +695,36 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
             str= undefined
         }
 
-        if(Boolean(str) && fs.existsSync(str)){
-            message.channel.send("Srb2kart server's startup user config file:",
-                {
-                    files: [{
-                        attachment: `${str}`,
-                        name: `startup.cfg`
-                    }]
+        if(Boolean(str)){
+            if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
+                if(Boolean(kart_settings.http_url)){
+                    message.channel.send(`Srb2kart server's startup user config file: ${kart_settings.http_url}/${str}`);
+                    return true;
                 }
-            );
+                else{
+                    message.channel.send("❌ Can't access srb2kart server's config file…")
+                    return false;
+                }
+            }
+            else if(fs.existsSync(str)){
+                message.channel.send("Srb2kart server's startup user config file:",
+                    {
+                        files: [{
+                            attachment: `${str}`,
+                            name: `startup.cfg`
+                        }]
+                    }
+                );
 
-            return true;
+                return true;
+            }
+            else{
+                message.channel.send("❌ Can't access server's config file…")
+                return false;
+            }
         }
         else{
-            message.channel.send("❌ Can't access server's config file…")
+            message.channel.send("❌ Server internal error…")
             return false;
         }
     }
@@ -732,6 +749,40 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
                     __downloading(message.channel, url,
                         kart_settings.dirs.main_folder, utils, "new_startup.cfg"
                     );
+                }
+
+                var str= undefined
+                try{
+                    var cmd= __kartCmd(kart_settings.config_commands.change_config);
+                    str= child_process.execSync(cmd+" new_startup.cfg", {timeout: 4000}).toString();
+                }
+                catch(err){
+                    hereLog("Error while keeping addons: "+err);
+                    str= undefined
+                }
+
+                if(Boolean(str)){
+                    let options= (str==="updated")? {} :
+                        {
+                            files: [{
+                                attachment: `${str}`,
+                                name: `startup.cfg.diff`
+                            }]
+                        }
+                    if(_isServerRunning()){
+                        channel.send(`\`startup.cfg\` a bien été mis à jour.\n`+
+                            `Cependant, celan n'aura aucun effet pour la session déjà en cours`,
+                            options
+                        );
+                    }
+                    else{
+                        channel.send(`\`startup.cfg\` a bien été mis à jour et sera effectif lors de la prochaine session.`,
+                                options
+                        );
+                    }
+                }
+                else{
+                    channel.send(`❌ internal error while trying to update *startup.cfg*…`);
                 }
 
                 return true;
@@ -1047,7 +1098,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
                 if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
                     __ssh_download_cmd(
                         kart_settings.config_commands.add_times_url,
-                        message.channel, url, utils, message.author.id
+                        message.channel, url, utils, `${message.author.id}.lmp`
                     );
                 }
                 else{
@@ -1057,6 +1108,24 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
                     );
                 }
 
+                let filepath= kart_settings.dirs.main_folder+`/${message.author.id}.lmp`;
+                var str= undefined
+                try{
+                    var cmd= __kartCmd(kart_settings.config_commands.add_times);
+                    str= child_process.execSync(cmd+` ${filepath} ${id}`, {timeout: 4000}).toString();
+                }
+                catch(err){
+                    hereLog("Error while adding time: "+err);
+                    str= undefined
+                }
+
+                var _f_str= str
+                if(Boolean(str) && ( ( (typeof(str)==='string') && str.startsWith("ADDED")) || (str=str.toString()).startsWith("ADDED") ) ){
+                    channel.send( _f_str );
+                }
+                else{
+                    channel.send(`❌ internal error while trying to add recorded time [${str}]`);
+                }
 
                 return true;
             }
@@ -1093,15 +1162,34 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
         match= str.match(/ZIPPED - (\/((.+)\/)*.+)/)
         var path= undefined;
         if(Boolean(match) && Boolean(path=match[1]) && fs.existsSync(path)){
-            message.channel.send(`"Submitted time for **${mapname}**:`,
-                {
-                    files: [{
-                        attachment: `${path}`
-                    }]
+            if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
+                if(Boolean(kart_settings.http_url) ){
+                    message.channel.send(`"Submitted time for **${mapname}**: ${http_url}/${path}`)
+                    
+                    return true;
                 }
-            );
+                else{
+                    message.channel.send("❌ couldn't find or access requested time record on srb2kart server…");
 
-            return true;
+                    return false;
+                }
+            }
+            else if(Boolean(path=match[1]) && fs.existsSync(path)){
+                message.channel.send(`"Submitted time for **${mapname}**:`,
+                    {
+                        files: [{
+                            attachment: `${path}`
+                        }]
+                    }
+                );
+
+                return true;
+            }
+            else{
+                message.channel.send("❌ couldn't find or access requested time record…");
+    
+                return false;
+            }
         }
         else{
             message.channel.send("❌ couldn't find or access requested time record…");
@@ -1382,19 +1470,32 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 str= undefined
             }
     
+            
             if(Boolean(str)){
-                message.channel.send(`Server's last recorded logs:`,
-                    {files: [{
-                        attachment: `${str}`,
-                        name: `log.txt`
-                    }]}
-                );
-                return true;
+                if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
+                    if(Boolean(kart_settings.http_url) ){
+                        message.channel.send(`Server's last recorded logs: ${kart_settings.http_url}/${str}`)
+                        return true;
+                    }
+                    else{
+                        message.channel.send("❌ server internal error");
+                        return false;
+                    }
+                }
+                else{
+                    message.channel.send(`Server's last recorded logs:`,
+                        {files: [{
+                            attachment: `${str}`,
+                            name: `log.txt`
+                        }]}
+                    );
+                    return true;
+                }
             }
             else{
                 message.channel.send("❌ server internal error");
                 return false;
-            }            
+            }
         }
         else if(['timetrial','timeattack','time','tt', 'ta'].includes(args[0])){
             return _cmd_timetrial(cmdObj, clearanceLvl, utils);
