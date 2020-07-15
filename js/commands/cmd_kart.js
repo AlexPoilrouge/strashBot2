@@ -805,17 +805,17 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
                         message.channel.send(`\`startup.cfg\` a bien été mis à jour.\n`+
                             `Cependant, celan n'aura aucun effet pour la session déjà en cours\n` +
                             ( (kart_settings.server_commands.through_ssh)?
-                                `\ndiff: ${kart_settings.http_url}/startup.cfg.diff`
-                                : "" ),
+                                `\nDiff: ${kart_settings.http_url}/startup.cfg.diff`
+                                : "Diff generated file" ),
                             options
                         );
                     }
                     else{
-                        message.channel.send(`\`startup.cfg\` a bien été mis à jour et sera effectif lors de la prochaine session.` +
-                        ( (kart_settings.server_commands.through_ssh)?
-                            `\ndiff: ${kart_settings.http_url}/startup.cfg.diff`
-                            : "" ),
-                                options
+                        message.channel.send(
+                            ( (kart_settings.server_commands.through_ssh)?
+                                `\nDiff: ${kart_settings.http_url}/startup.cfg.diff`
+                                : "Diff generated file" ),
+                            options
                         );
                     }
                 }
@@ -1133,17 +1133,25 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
             }
             else if(url.endsWith('.lmp')){
                 // await __uploading_lmp(message.channel,url,message.author.id);
+                var _b= false;
                 if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
-                    await __ssh_download_cmd(
+                    _b= await __ssh_download_cmd(
                         kart_settings.config_commands.add_times_url,
                         message.channel, url, utils, `${message.author.id}.lmp`
                     );
                 }
                 else{
-                    await __downloading(message.channel, url,
+                    _b= await __downloading(message.channel, url,
                         kart_settings.dirs.main_folder, utils,
                         `${message.author.id}.lmp`
                     );
+                }
+
+                if(!_b){
+                    hereLog("[uploading lmp] command fail");
+                    message.channel.send(`❌ internal error preventing .lmp upload…`);
+                    
+                    return false;
                 }
 
                 let filepath= kart_settings.dirs.main_folder+`/${message.author.id}.lmp`;
@@ -1325,7 +1333,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 var servOwner= utils.settings.get(message.guild, "serv_owner");
                 var owner= undefined;
                 if(!Boolean(servOwner) || !Boolean(owner= await utils.getBotClient().fetchUser(servOwner))){
-                    str+=`\n\t⚠ **ERROR:** no SRB2Kart server owner found!!!`;
+                    str+=`\n\t⚠ No SRB2Kart server owner set. (use \`!kart claim\` to take admin privileges)`;
                 }
                 else{
                     str+=`\n\t*Server owner is ${owner}*`;
@@ -1333,8 +1341,6 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 message.channel.send(str);
             }
             else{
-                _startServer();
-
                 var success= _startServer();
 
                 if(!success){
@@ -1344,10 +1350,17 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                     return false;
                 }
 
-                pwd= _getPassword();
-                utils.settings.set(message.guild, "serv_owner", message.member.id);
-                message.member.send(`Server admin password: \`${pwd}\`\n\tUne fois connecté au serveur SRB2Kart, ingame utilise la commande \`login ${pwd}\` pour accéder à l'interface d'admin!`);
-                message.channel.send("Strashbot srb2kart server started…");
+                if( args.length>1 && ["lone","void","stand","alone","free","standalone"].includes(args[1])){
+                    pwd= _getPassword();
+                    utils.settings.set(message.guild, "serv_owner", message.member.id);
+                    message.member.send(`Server admin password: \`${pwd}\`\n\tUne fois connecté au serveur SRB2Kart, ingame utilise la commande \`login ${pwd}\` pour accéder à l'interface d'admin!`);
+                    message.channel.send("Strashbot srb2kart server started…");
+                }
+                else{
+                    message.channel.send("Strashbot srb2kart server started…\n"+
+                        "\t⚠ No SRB2Kart server owner set. (use \`!kart claim\` to take admin privileges)"
+                    );
+                }
 
                 return true;
             }
@@ -1561,8 +1574,9 @@ function cmd_help(cmdObj, clearanceLvl){
             "**All users commands:**\n"
         )) +
         "**Following commands are only usable in the designated \"srb2kart channel\"!**\n\n"+
-        "\t`!kart start`\n\n"+
-        "\tTry to start the SRB2Kart server.\n\tIf success, the server password is send via private message, the reciever is considered as the *designated admin* of the server.\n\n"+
+        "\t`!kart start ['stand']`\n\n"+
+        "\tTry to start the SRB2Kart server.\n\tIf success, the server password is send via private message, the reciever is considered as the *designated admin* of the server.\n"+
+        "\t  If the optional argument `stand` is given, the server will have *__no__ designated admin*…\n\n"+
         "\t`!kart stop`\n\n"+
         "\tIf active, attempt to stop the SRB2Kart server.\n\n"+
         "\t`!kart password`\n\n"+
@@ -1590,19 +1604,24 @@ function cmd_help(cmdObj, clearanceLvl){
         "\t\t*[Base]*: addons that are loaded by default\n"+
         "\tIf `[pattern]` is given, this command will search for matching pattern amongs availabe addons.\n"+
         "\t\texample: `!kart addons ls rayman`\n\n"+
+        // "\t`!kart addons add [url]`\n\n"+
+        // "\tDownload an addon onto the server.\n\tIf `[url]` is used, the url must point directly at a file of valid extension (.pk3,.lua,.wad,.kart)"+
+        // " example: `https://url/bla/bla/addon.pk3`\n\tIf no url is given, the addon must be an attachment to the same message as the command, and still"+
+        // " have a valid addon extension (.pk3,.lua,.wad,.kart)\n"+
+        // "\t⚠ This addon will be added under the *[temporary]* section, meaning it will be removed after next sessions ends.\n\n"+
         "\t`!kart addons add [url]`\n\n"+
-        "\tDownload an addon onto the server.\n\tIf `[url]` is used, the url must point directly at a file of valid extension (.pk3,.lua,.wad,.kart)"+
-        " example: `https://url/bla/bla/addon.pk3`\n\tIf no url is given, the addon must be an attachment to the same message as the command, and still"+
-        " have a valid addon extension (.pk3,.lua,.wad,.kart)\n"+
-        "\t⚠ This addon will be added under the *[temporary]* section, meaning it will be removed after next sessions ends.\n\n"+
-        "\t`!kart addons add keep [url]`\n\n"+
-        "\tSame as the previous command, except that the addons will be added into the *[downloaded]* section. Meaning it wont be removed"+
-        " automatically after a session ends.\n\n"+
-        "\t`!kart addons keep <addon_filename>`\n\n"+
-        "\tMove an addon from the *[temporary]* section to the *[downloaded]* section.\n\n"+
+        "\tThe addon must be an attachment to the same message as the command, and have a valid addon extension (.pk3,.lua,.wad,.kart)\n\n"+
+        "\t⚠ If the kart server is running, this addon will be added under the *[temporary]* section until next session…\n\n"+
+        // "\t`!kart addons add keep [url]`\n\n"+
+        // "\tSame as the previous command, except that the addons will be added into the *[downloaded]* section. Meaning it wont be removed"+
+        // " automatically after a session ends.\n\n"+
+        // "\t`!kart addons keep <addon_filename>`\n\n"+
+        // "\tMove an addon from the *[temporary]* section to the *[downloaded]* section.\n\n"+
         "\t`!kart addons rm <addon_filename>`\n\n"+
         "\tRemove the addon designated by the given name from the server.\n"+
-        "\t⚠ this only works for addons under the *[downloaded]* section!"
+        "\t⚠ this only works for addons under the *[downloaded]* section!\n\n"+
+        "\t`!kart addons link`\n\n"+
+        "\tGet the link to DL a zip archives that contains all of the addons\n\n"
     );
     cmdObj.msg_obj.author.send(
         "----\n*SRB2Kart server's startup config management:*\n\n"+
