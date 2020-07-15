@@ -1488,11 +1488,21 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                     str+=`\n⚠ Le serveur SRB2Kart n'a pas d'admin désigné… 😢`;
                 }
 
-                var net= undefined;
-                if(Boolean(ifaces) && Boolean(ifaces['eth0']) && ifaces['eth0'].length>0 &&
-                    ( net= ifaces['eth0'].find(nif => {return Boolean(nif['address'].match(/^([0-9]{1,3}\.){3}[0-9]{1,3}$/))}) )
+                if (Boolean(kart_settings) && Boolean(kart_settings.server_commands)
+                    && Boolean(kart_settings.server_commands.through_ssh)
                 ){
-                    str+=`\n\n\tL'adresse ip du serveur est \`${net['address']}\``;
+                    var _addr= kart_settings.server_commands.server_addr
+                    if(Boolean(_addr) && Boolean(_addr.match(/^([0-9]{1,3}\.){3}[0-9]{1,3}$/))){
+                        str+=`\n\n\tL'adresse ip du serveur est \`${_addr}\``;
+                    }
+                }
+                else{
+                    var net= undefined;
+                    if(Boolean(ifaces) && Boolean(ifaces['eth0']) && ifaces['eth0'].length>0 &&
+                        ( net= ifaces['eth0'].find(nif => {return Boolean(nif['address'].match(/^([0-9]{1,3}\.){3}[0-9]{1,3}$/))}) )
+                    ){
+                        str+=`\n\n\tL'adresse ip du serveur est \`${net['address']}\``;
+                    }
                 }
             }
             else{
