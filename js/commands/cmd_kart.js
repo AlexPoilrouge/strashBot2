@@ -1351,15 +1351,15 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 }
 
                 if( args.length>1 && ["lone","void","stand","alone","free","standalone"].includes(args[1])){
+                    message.channel.send("Strashbot srb2kart server started…\n"+
+                        "\t⚠ No SRB2Kart server owner set. (use \`!kart claim\` to take admin privileges)"
+                    );
+                }
+                else{
                     pwd= _getPassword();
                     utils.settings.set(message.guild, "serv_owner", message.member.id);
                     message.member.send(`Server admin password: \`${pwd}\`\n\tUne fois connecté au serveur SRB2Kart, ingame utilise la commande \`login ${pwd}\` pour accéder à l'interface d'admin!`);
                     message.channel.send("Strashbot srb2kart server started…");
-                }
-                else{
-                    message.channel.send("Strashbot srb2kart server started…\n"+
-                        "\t⚠ No SRB2Kart server owner set. (use \`!kart claim\` to take admin privileges)"
-                    );
                 }
 
                 return true;
