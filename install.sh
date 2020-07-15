@@ -110,7 +110,7 @@ find . -regex '.*\.template$' -exec bash -c 'convert_template {}' \;
 ##### install #####
 
 if [ "$(grep -c "^${STRASHBOT_USER}:" /etc/passwd)" -eq 0 ]; then
-    useradd -m -s /usr/bin/nologin "${STRASHBOT_USER}"
+    useradd -m "${STRASHBOT_USER}"
 fi
 
 mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}"
@@ -133,6 +133,8 @@ if "${SYSTEMD_INSTALL}"; then
 
     mkdir -p "${ROOT_DIR}/${SUDOERS_DIR}"
     install extras/10-strashbot-kartserv-systemd "${ROOT_DIR}/${SUDOERS_DIR}" -m 644
+
+    systemctl deamon-reload
 fi
 
 install extras/launch.sh "${ROOT_DIR}/${STRASHBOT_DIR}"
@@ -151,3 +153,7 @@ chown -R "${STRASHBOT_USER}:${STRASHBOT_USER}" "${ROOT_DIR}/${STRASHBOT_DIR}"
 cd "${ROOT_DIR}/${STRASHBOT_DIR}"
 
 npm install
+
+if "${SYSTEMD_INSTALL}" && (systemctl is-active strashbot.service); then
+    systemctl restart strashbot.service
+fi

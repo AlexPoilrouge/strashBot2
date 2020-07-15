@@ -6,4 +6,4 @@ FILE="$( pwd )/.TMP_PASS"
 
 echo "${PASS}" > "$FILE"
 
-srb2kart -dedicated -password ${PASS} -room 33
+${SRB2KART_EXE} -dedicated -password ${PASS} -room 33
