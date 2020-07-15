@@ -261,29 +261,32 @@ async function __downloading(channel, url, destDir, utils, fileName=undefined){
 
         var t= Date.now();
 
-        request.get(url)
-            .on('response', (response) => {
-                if (response.statusCode !== 200) {
-                    _error('Response status was ' + response.statusCode);
-                }
+        let exe_p= ( async () => { return new Promise( (resolve,reject) =>{
+            request.get(url)
+                .on('response', (response) => {
+                    if (response.statusCode !== 200) {
+                        _error('Response status was ' + response.statusCode);
+                    }
 
-                totalBytes= response.headers['content-length'];
-            })
-            .on('data', (chunk) => {
-                receivedBytes += chunk.length;
+                    totalBytes= response.headers['content-length'];
+                })
+                .on('data', (chunk) => {
+                    receivedBytes += chunk.length;
 
-                if (Boolean(dl_msg) && (Date.now()-t>=2000)){
-                    dl_msg.edit(`Downloading \`${filename}\` on server …\t[${(receivedBytes/totalBytes)*100} %]`);
-                    t= Date.now();
-                }
-            })
-            .pipe(file)
-            .on('error', (err) => {
-                fs.unlink(filepath, err => {
-                    hereLog(`[file dl error] ${err}`)
+                    if (Boolean(dl_msg) && (Date.now()-t>=2000)){
+                        dl_msg.edit(`Downloading \`${filename}\` on server …\t[${(receivedBytes/totalBytes)*100} %]`);
+                        t= Date.now();
+                    }
+                })
+                .pipe(file)
+                .on('error', (err) => {
+                    fs.unlink(filepath, err => {
+                        hereLog(`[file dl error] ${err}`)
+                    });
+                    _error();
+
+                    reject(false);
                 });
-                _error();
-            });
 
             file.on('finish', () => {
                 file.close();
@@ -294,10 +297,7 @@ async function __downloading(channel, url, destDir, utils, fileName=undefined){
                     dl_msg.react('✅');
                 }
 
-                if(!_updateAddonsConfig()){
-                    channel.send(`❌ An error as occured, can't properly add \`${filename}\` to the server addons…`);
-                }
-                else if(_serv_run){
+                if(_serv_run){
                     var servOwner= utils.settings.get(channel.guild, "serv_owner");
                     var owner= undefined;
                     var str= `\`${filename}\` a bien été ajouté au serveur.\n`+
@@ -307,6 +307,8 @@ async function __downloading(channel, url, destDir, utils, fileName=undefined){
                 else{
                     channel.send(`\`${filename}\` a bien été ajouté et sera disponible prêt à l'emploi lors de la prochaine session.`);
                 }
+
+                resolve(true)
             });
         
             file.on('error', (err) => {
@@ -314,7 +316,9 @@ async function __downloading(channel, url, destDir, utils, fileName=undefined){
                     hereLog(`[file dl error] ${err}`)
                 });
                 _error(err.message);
+                reject(false);
             });
+        }); })
     }
 }
 
@@ -386,6 +390,8 @@ async function __ssh_download_cmd(cmd, channel, url, utils, fileName=undefined){
                 hereLog(`[file dl process error] ${err}`);
 
                 _error();
+
+                reject(false)
             });
 
             cmd_process.on('close', function (code) {
@@ -400,10 +406,7 @@ async function __ssh_download_cmd(cmd, channel, url, utils, fileName=undefined){
                         dl_msg.react('✅');
                     }
 
-                    if(!_updateAddonsConfig()){
-                        channel.send(`❌ An error as occured, can't properly add \`${filename}\` to the server addons…`);
-                    }
-                    else if(_isServerRunning()){
+                    if(_isServerRunning()){
                         var servOwner= utils.settings.get(channel.guild, "serv_owner");
                         var owner= undefined;
                         var str= `\`${filename}\` a bien été ajouté au serveur.\n`+
@@ -412,7 +415,9 @@ async function __ssh_download_cmd(cmd, channel, url, utils, fileName=undefined){
                     }
                     else{
                         channel.send(`\`${filename}\` a bien été ajouté et sera disponible prêt à l'emploi lors de la prochaine session.`);
-                    }   
+                    }
+
+                    resolve(true);
                 }
             });
         }) });
@@ -484,7 +489,13 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
                 );
             }
             else{
-                __downloading(message.channel, url, destDir, utils);
+                await __downloading(message.channel, url, destDir, utils);
+            }
+
+            if(!_updateAddonsConfig()){
+                channel.send(`❌ An error as occured, can't properly add \`${filename}\` to the server addons…`);
+
+                return false;
             }
 
             return true;
@@ -751,7 +762,7 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
                     );
                 }
                 else{
-                    __downloading(message.channel, url,
+                    await __downloading(message.channel, url,
                         kart_settings.dirs.main_folder, utils, "new_startup.cfg"
                     );
                 }
@@ -1107,7 +1118,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
                     );
                 }
                 else{
-                    __downloading(message.channel, url,
+                    await __downloading(message.channel, url,
                         kart_settings.dirs.main_folder, utils,
                         `${message.author.id}.lmp`
                     );
