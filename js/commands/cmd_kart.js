@@ -762,16 +762,24 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
             else if(url.endsWith('.cfg')){
                 // await __uploading_cfg(message.channel,url);
 
+                var _b= false;
                 if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
-                    await __ssh_download_cmd(
+                    _b= await __ssh_download_cmd(
                         kart_settings.config_commands.add_config_url,
                         message.channel, url, utils
                     );
                 }
                 else{
-                    await __downloading(message.channel, url,
+                    _b= await __downloading(message.channel, url,
                         kart_settings.dirs.main_folder, utils, "new_startup.cfg"
                     );
+                }
+
+                if(!_b){
+                    hereLog("[uploading cfg] command fail");
+                    message.channel.send(`❌ internal error preventing .cfg upload…`);
+                    
+                    return false;
                 }
 
                 var str= undefined
@@ -785,21 +793,28 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
                 }
 
                 if(Boolean(str)){
-                    let options= (str==="updated")? {} :
+                    hereLog(`[change cfg] ret: ${str}`)
+                    let options= (str==="updated" && !kart_settings.server_commands.through_ssh)?
                         {
                             files: [{
                                 attachment: `${str}`,
                                 name: `startup.cfg.diff`
                             }]
-                        }
+                        } : {}
                     if(_isServerRunning()){
                         message.channel.send(`\`startup.cfg\` a bien été mis à jour.\n`+
-                            `Cependant, celan n'aura aucun effet pour la session déjà en cours`,
+                            `Cependant, celan n'aura aucun effet pour la session déjà en cours\n` +
+                            ( (kart_settings.server_commands.through_ssh)?
+                                `\ndiff: ${kart_settings.http_url}/startup.cfg.diff`
+                                : "" ),
                             options
                         );
                     }
                     else{
-                        message.channel.send(`\`startup.cfg\` a bien été mis à jour et sera effectif lors de la prochaine session.`,
+                        message.channel.send(`\`startup.cfg\` a bien été mis à jour et sera effectif lors de la prochaine session.` +
+                        ( (kart_settings.server_commands.through_ssh)?
+                            `\ndiff: ${kart_settings.http_url}/startup.cfg.diff`
+                            : "" ),
                                 options
                         );
                     }
