@@ -57,7 +57,7 @@ function _stopServer(){
     try{
         // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.server_commands.stop))?cmd:"false";
         var cmd= __kartCmd(kart_settings.server_commands.stop)
-        child_process.execSync(cmd, {timeout: 4000});
+        child_process.execSync(cmd, {timeout: 16000});
         b= true;
     }
     catch(err){
@@ -72,7 +72,7 @@ function _startServer(){
     try{
         // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.server_commands.start))?cmd:"false";
         var cmd= __kartCmd(kart_settings.server_commands.start)
-        child_process.execSync(cmd, {timeout: 4000});
+        child_process.execSync(cmd, {timeout: 16000});
         b= true;
     }
     catch(err){
@@ -87,7 +87,7 @@ function _isServerRunning(){
     try{
         // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.server_commands.is_active))?cmd:"false";
         var cmd= __kartCmd(kart_settings.server_commands.is_active)
-        child_process.execSync(cmd, {timeout: 4000});
+        child_process.execSync(cmd, {timeout: 16000});
         b= true;
     }
     catch(err){
@@ -103,7 +103,7 @@ function _initAddonsConfig(){
     try{
         // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.init))?cmd:"false";
         var cmd= __kartCmd(kart_settings.config_commands.init)
-        child_process.execSync(cmd, {timeout: 4000});
+        child_process.execSync(cmd, {timeout: 16000});
         b= true;
     }
     catch(err){
@@ -118,7 +118,7 @@ function _updateAddonsConfig(){
     try{
         // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.update))?cmd:"false";
         var cmd= __kartCmd(kart_settings.config_commands.update)
-        child_process.execSync(cmd, {timeout: 4000});
+        child_process.execSync(cmd, {timeout: 16000});
         b= true;
     }
     catch(err){
@@ -133,7 +133,7 @@ function _listAddonsConfig(arg=""){
     try{
         // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.list))?cmd:"false";
         var cmd= __kartCmd(kart_settings.config_commands.list)
-        str= child_process.execSync(cmd+((Boolean(arg))?` ${arg}`:""), {timeout: 4000}).toString();
+        str= child_process.execSync(cmd+((Boolean(arg))?` ${arg}`:""), {timeout: 16000}).toString();
     }
     catch(err){
         if(Boolean(err.status) && err.status===3){
@@ -153,7 +153,7 @@ function _removeAddonsConfig(arg){
     try{
         // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.remove))?cmd:"false";
         var cmd= __kartCmd(kart_settings.config_commands.remove)
-        str= child_process.execSync(cmd+` ${arg}`, {timeout: 4000}).toString();
+        str= child_process.execSync(cmd+` ${arg}`, {timeout: 16000}).toString();
         r=true;
     }
     catch(err){
@@ -168,7 +168,7 @@ function _getPassword(){
     try{
         // stdout=child_process.execSync("cat ${HOME}/.TMP_PASS", {timeout: 4000}).toString().replace('\n','');
         var cmd= __kartCmd("cat ${HOME}/.TMP_PASS");
-        stdout=child_process.execSync(cmd,{timeout: 4000}).toString().replace('\n','');
+        stdout=child_process.execSync(cmd,{timeout: 16000}).toString().replace('\n','');
         b= true;
     }
     catch(err){
@@ -500,7 +500,7 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
             }
 
             if(!_b || !_updateAddonsConfig()){
-                channel.send(`❌ An error as occured, can't properly add \`${filename}\` to the server addons…`);
+                message.channel.send(`❌ An error as occured, can't properly add \`${filename}\` to the server addons…`);
 
                 return false;
             }
@@ -514,7 +514,7 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
             var b=false;
             try{
                 var cmd= __kartCmd(kart_settings.config_commands.keep);
-                str= child_process.execSync(cmd+` ${args[1]}`, {timeout: 4000}).toString();
+                str= child_process.execSync(cmd+` ${args[1]}`, {timeout: 16000}).toString();
                 b=true;
             }
             catch(err){
@@ -711,7 +711,7 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
         var str= undefined
         try{
             var cmd= __kartCmd(kart_settings.config_commands.get_config);
-            str= child_process.execSync(cmd, {timeout: 4000}).toString();
+            str= child_process.execSync(cmd, {timeout: 16000}).toString();
         }
         catch(err){
             hereLog("Error while keeping addons: "+err);
@@ -785,7 +785,7 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
                 var str= undefined
                 try{
                     var cmd= __kartCmd(kart_settings.config_commands.change_config);
-                    str= child_process.execSync(cmd+" new_startup.cfg", {timeout: 4000}).toString();
+                    str= child_process.execSync(cmd+" new_startup.cfg", {timeout: 16000}).toString();
                 }
                 catch(err){
                     hereLog("Error while changing config: "+err);
@@ -835,7 +835,7 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
         var str= undefined
         try{
             var cmd= __kartCmd(kart_settings.config_commands.cfg_blacklist);
-            str= child_process.execSync(cmd, {timeout: 4000}).toString();
+            str= child_process.execSync(cmd, {timeout: 16000}).toString();
         }
         catch(err){
             hereLog("Error while looking for cfg blacklist: "+err);
@@ -993,7 +993,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
         if(!Boolean(mapName)){
             var str= undefined
             try{
-                str= child_process.execSync(cmd, {timeout: 4000}).toString();
+                str= child_process.execSync(cmd, {timeout: 16000}).toString();
             }
             catch(err){
                 hereLog("Error while fetchin map times: "+err);
@@ -1029,7 +1029,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
         else{
             var str= undefined
             try{
-                str= child_process.execSync(cmd+` ${mapName}`, {timeout: 4000}).toString();
+                str= child_process.execSync(cmd+` ${mapName}`, {timeout: 16000}).toString();
             }
             catch(err){
                 hereLog("Error while fetchin map times: "+err);
@@ -1158,7 +1158,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
                 var str= undefined
                 try{
                     var cmd= __kartCmd(kart_settings.config_commands.add_times);
-                    str= child_process.execSync(cmd+` ${filepath} ${id}`, {timeout: 4000}).toString();
+                    str= child_process.execSync(cmd+` ${filepath} ${id}`, {timeout: 16000}).toString();
                 }
                 catch(err){
                     hereLog("Error while adding time: "+err);
@@ -1191,7 +1191,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
         var str= undefined
         try{
             var cmd= __kartCmd(kart_settings.config_commands.get_times);
-            str= child_process.execSync(cmd+` ${mapname}`, {timeout: 4000}).toString();
+            str= child_process.execSync(cmd+` ${mapname}`, {timeout: 16000}).toString();
         }
         catch(err){
             hereLog("Error while fetching time: "+err);
@@ -1253,7 +1253,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
         var str= undefined
         try{
             var cmd= __kartCmd(kart_settings.config_commands.remove_times);
-            str= child_process.execSync(cmd+` ${message.author.id} ${mapname}`, {timeout: 4000}).toString();
+            str= child_process.execSync(cmd+` ${message.author.id} ${mapname}`, {timeout: 16000}).toString();
         }
         catch(err){
             hereLog("Error while removing time: "+err);
@@ -1514,7 +1514,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             var str= undefined
             try{
                 var cmd= __kartCmd(kart_settings.config_commands.get_log);
-                str= child_process.execSync(cmd, {timeout: 4000}).toString();
+                str= child_process.execSync(cmd, {timeout: 16000}).toString();
             }
             catch(err){
                 hereLog("Error while looking for log.txt: "+err);
