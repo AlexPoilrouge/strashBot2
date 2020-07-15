@@ -349,70 +349,75 @@ async function __ssh_download_cmd(cmd, channel, url, utils, fileName=undefined){
         }
     }
 
+
     if(Boolean(dl_msg)){
-        let ssh_cmd= `ssh ${dUser}@${addr}`+
-            ( (Boolean(kart_settings.server_commands.server_port))?
-                ` -p ${kart_settings.server_commands.server_port}`
-                : ``
-            ) +
-            ` ${cmd} ${url} ${Boolean(fileName)?fileName:''}`;
-        var cmd_process= child_process.exec(ssh_cmd, {timeout:120000});
+        let exe_p= ( async () => { return new Promise( (resolve,reject) =>{
+            let ssh_cmd= `ssh ${dUser}@${addr}`+
+                ( (Boolean(kart_settings.server_commands.server_port))?
+                    ` -p ${kart_settings.server_commands.server_port}`
+                    : ``
+                ) +
+                ` ${cmd} ${url} ${Boolean(fileName)?fileName:''}`;
+            var cmd_process= child_process.exec(ssh_cmd, {timeout:120000});
 
-        var t= Date.now();
+            var t= Date.now();
 
-        cmd_process.stdout.on('data', function (data) {
-            var lines= data.split('\n');
-            var res=""
-            if(lines.length>0){
-                res= lines[lines.length-1];
-            }
-            if(Boolean(res)){
-                pct=res
-
-                if (Boolean(dl_msg) && (Date.now()-t>=1000)){
-                    dl_msg.edit(`Downloading \`${filename}\` on server …\t[${pct}]`);
-                    t= Date.now();
+            cmd_process.stdout.on('data', function (data) {
+                var lines= data.split('\n');
+                var res=""
+                if(lines.length>0){
+                    res= lines[lines.length-1];
                 }
-            }
-        });
+                if(Boolean(res)){
+                    pct=res
 
-        cmd_process.stderr.on('data', function (data) {
-            hereLog(`[file dl error] ${data}`)
-        });
+                    if (Boolean(dl_msg) && (Date.now()-t>=1000)){
+                        dl_msg.edit(`Downloading \`${filename}\` on server …\t[${pct}]`);
+                        t= Date.now();
+                    }
+                }
+            });
 
-        cmd_process.on('error', function (err){
-            hereLog(`[file dl process error] ${err}`);
+            cmd_process.stderr.on('data', function (data) {
+                hereLog(`[file dl error] ${data}`)
+            });
 
-            _error();
-        });
+            cmd_process.on('error', function (err){
+                hereLog(`[file dl process error] ${err}`);
 
-        cmd_process.on('close', function (code) {
-            if(code!==0){
-                hereLog(`[ssh dl] returned ${code}`);
                 _error();
-            }
-            else{
-                if (Boolean(dl_msg)){
-                    dl_msg.edit(`Downloading \`${filename}\` on server …\t[Done!]`);
+            });
 
-                    dl_msg.react('✅');
-                }
-
-                if(!_updateAddonsConfig()){
-                    channel.send(`❌ An error as occured, can't properly add \`${filename}\` to the server addons…`);
-                }
-                else if(_isServerRunning()){
-                    var servOwner= utils.settings.get(channel.guild, "serv_owner");
-                    var owner= undefined;
-                    var str= `\`${filename}\` a bien été ajouté au serveur.\n`+
-                        `Cependant, il ne peut être utilisé pour une session déjà en cours`;
-                    channel.send(str+'.')         
+            cmd_process.on('close', function (code) {
+                if(code!==0){
+                    hereLog(`[ssh dl] returned ${code}`);
+                    _error();
                 }
                 else{
-                    channel.send(`\`${filename}\` a bien été ajouté et sera disponible prêt à l'emploi lors de la prochaine session.`);
-                }   
-            }
-        });
+                    if (Boolean(dl_msg)){
+                        dl_msg.edit(`Downloading \`${filename}\` on server …\t[Done!]`);
+
+                        dl_msg.react('✅');
+                    }
+
+                    if(!_updateAddonsConfig()){
+                        channel.send(`❌ An error as occured, can't properly add \`${filename}\` to the server addons…`);
+                    }
+                    else if(_isServerRunning()){
+                        var servOwner= utils.settings.get(channel.guild, "serv_owner");
+                        var owner= undefined;
+                        var str= `\`${filename}\` a bien été ajouté au serveur.\n`+
+                            `Cependant, il ne peut être utilisé pour une session déjà en cours`;
+                        channel.send(str+'.')         
+                    }
+                    else{
+                        channel.send(`\`${filename}\` a bien été ajouté et sera disponible prêt à l'emploi lors de la prochaine session.`);
+                    }   
+                }
+            });
+        }) });
+
+        await exe_p();
     }
 }
 
@@ -473,7 +478,7 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
                 kart_settings.dirs.dl_dirs.permanent;
             
             if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
-                __ssh_download_cmd(
+                await __ssh_download_cmd(
                     kart_settings.config_commands.addon_url,
                     message.channel, url, utils
                 );
@@ -740,7 +745,7 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
                 // await __uploading_cfg(message.channel,url);
 
                 if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
-                    __ssh_download_cmd(
+                    await __ssh_download_cmd(
                         kart_settings.config_commands.add_config_url,
                         message.channel, url, utils
                     );
@@ -757,7 +762,7 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
                     str= child_process.execSync(cmd+" new_startup.cfg", {timeout: 4000}).toString();
                 }
                 catch(err){
-                    hereLog("Error while keeping addons: "+err);
+                    hereLog("Error while changing config: "+err);
                     str= undefined
                 }
 
@@ -770,19 +775,19 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
                             }]
                         }
                     if(_isServerRunning()){
-                        channel.send(`\`startup.cfg\` a bien été mis à jour.\n`+
+                        message.channel.send(`\`startup.cfg\` a bien été mis à jour.\n`+
                             `Cependant, celan n'aura aucun effet pour la session déjà en cours`,
                             options
                         );
                     }
                     else{
-                        channel.send(`\`startup.cfg\` a bien été mis à jour et sera effectif lors de la prochaine session.`,
+                        message.channel.send(`\`startup.cfg\` a bien été mis à jour et sera effectif lors de la prochaine session.`,
                                 options
                         );
                     }
                 }
                 else{
-                    channel.send(`❌ internal error while trying to update *startup.cfg*…`);
+                    message.channel.send(`❌ internal error while trying to update *startup.cfg*…`);
                 }
 
                 return true;
@@ -1096,7 +1101,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
             else if(url.endsWith('.lmp')){
                 // await __uploading_lmp(message.channel,url,message.author.id);
                 if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
-                    __ssh_download_cmd(
+                    await __ssh_download_cmd(
                         kart_settings.config_commands.add_times_url,
                         message.channel, url, utils, `${message.author.id}.lmp`
                     );
