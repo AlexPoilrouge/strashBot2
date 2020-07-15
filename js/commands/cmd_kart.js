@@ -319,7 +319,11 @@ async function __downloading(channel, url, destDir, utils, fileName=undefined){
                 reject(false);
             });
         }); })
+
+        return (await exe_p())
     }
+
+    return false;
 }
 
 async function __ssh_download_cmd(cmd, channel, url, utils, fileName=undefined){
@@ -422,8 +426,10 @@ async function __ssh_download_cmd(cmd, channel, url, utils, fileName=undefined){
             });
         }) });
 
-        await exe_p();
+        return await exe_p();
     }
+
+    return false;
 }
 
 async function _cmd_addons(cmdObj, clearanceLvl, utils){
@@ -482,17 +488,18 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
                 kart_settings.dirs.dl_dirs.temporary :
                 kart_settings.dirs.dl_dirs.permanent;
             
+            var _b=false;
             if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
-                await __ssh_download_cmd(
-                    kart_settings.config_commands.addon_url,
-                    message.channel, url, utils
-                );
+                _b= (await __ssh_download_cmd(
+                        kart_settings.config_commands.addon_url,
+                        message.channel, url, utils
+                    ) );
             }
             else{
-                await __downloading(message.channel, url, destDir, utils);
+                _b = (await __downloading(message.channel, url, destDir, utils) );
             }
 
-            if(!_updateAddonsConfig()){
+            if(!_b || !_updateAddonsConfig()){
                 channel.send(`❌ An error as occured, can't properly add \`${filename}\` to the server addons…`);
 
                 return false;
