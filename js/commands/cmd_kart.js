@@ -1644,8 +1644,9 @@ function cmd_help(cmdObj, clearanceLvl){
         "\t  If the optional argument `stand` is given, the server will have *__no__ designated admin*…\n\n"+
         "\t`!kart stop`\n\n"+
         "\tIf active, attempt to stop the SRB2Kart server.\n\n"+
-        "\t`!kart restart`\n\n"+
-        "\tAttempt to restart the SRB2Kart server.\n\n"+
+        "\t`!kart restart ['stand']`\n\n"+
+        "\tAttempt to restart the SRB2Kart server.\n"+
+        "\t  If the optional argument `stand` is given, the server will have *__no__ designated admin*…\n\n"+
         "\t`!kart password`\n\n"+
         "\tRequest to recieve the password of the active (if any) SRB2Kart server. (guild admin or designated SRB2Kart server admin only)\n\n"+
         "\t`!kart claim`\n\n"+
