@@ -1420,6 +1420,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                         message.channel.send("Strashbot srb2kart server restarted…\n"+
                             "\t⚠ No SRB2Kart server owner set. (use \`!kart claim\` to take admin privileges)"
                         );
+                        utils.settings.remove(message.guild, "serv_owner");
                     }
                     else{
                         pwd= _getPassword();
