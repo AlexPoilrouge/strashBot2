@@ -1572,7 +1572,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         }
         else if(["code","source","git"].includes(args[0])){
             if(Boolean(kart_settings) && Boolean(kart_settings.source_url)){
-                message.channel.send(`SRB2Kart server manager source at: ${kart_settings.source_url}`);
+                message.channel.send(`SRB2Kart server manager source at: <${kart_settings.source_url}>`);
 
                 return true;
             }
