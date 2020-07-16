@@ -36,5 +36,6 @@
             "get_times":"/home/${STRASHBOT_USER}/.srb2kart/addon_script.sh RECORD_GET",
             "time_info":"python /home/${STRASHBOT_USER}/.srb2kart/record_lmp_read.py",
             "remove_times":"/home/${STRASHBOT_USER}/.srb2kart/addon_script.sh RECORD_RM"
-    }
+    },
+    source_url:"${SRB2K_SERV_SOURCE_URL}"
 }
