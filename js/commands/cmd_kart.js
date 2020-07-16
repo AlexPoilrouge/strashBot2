@@ -82,6 +82,21 @@ function _startServer(){
     return b;
 }
 
+function _restartServer(){
+    b= false;
+    try{
+        // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.server_commands.restart))?cmd:"false";
+        var cmd= __kartCmd(kart_settings.server_commands.restart)
+        child_process.execSync(cmd, {timeout: 16000});
+        b= true;
+    }
+    catch(err){
+        hereLog("Error while restarting server: "+err);
+        b= false;
+    }
+    return b;
+}
+
 function _isServerRunning(){
     b= false;
     try{
@@ -1378,6 +1393,46 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
             else{
                 message.channel.send("Seule la personne qui a lancé le serveur SRB2Kart peut le stopper…");
+                return false;
+            }
+        }
+        else if(["restart","retry","re","again","relaunch"].includes(args[0])){
+            var servOwner= utils.settings.get(message.guild, "serv_owner");
+            var owner= undefined;
+            if( (!Boolean(servOwner) || !Boolean(owner= await utils.getBotClient().fetchUser(servOwner))) ||
+                ((clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE) || (owner.id===message.author.id))
+            ){
+                var success= _restartServer();
+                if(!success){
+                    var str="Error while restarting server…"
+                    if (_isServerRunning()){
+                        str+="\n\tServer seems to remain active…";
+                    }
+                    else{
+                        str+="\n\tServer seems stopped… ";
+                        utils.settings.remove(message.guild, "serv_owner");
+                    }
+                    message.channel.send(str);
+                    return false;
+                }
+                else{
+                    if( args.length>1 && ["lone","void","stand","alone","free","standalone"].includes(args[1])){
+                        message.channel.send("Strashbot srb2kart server restarted…\n"+
+                            "\t⚠ No SRB2Kart server owner set. (use \`!kart claim\` to take admin privileges)"
+                        );
+                    }
+                    else{
+                        pwd= _getPassword();
+                        utils.settings.set(message.guild, "serv_owner", message.member.id);
+                        message.member.send(`Server admin password: \`${pwd}\`\n\tUne fois connecté au serveur SRB2Kart, ingame utilise la commande \`login ${pwd}\` pour accéder à l'interface d'admin!`);
+                        message.channel.send("Strashbot srb2kart server restarted…");
+                    }
+    
+                    return true;
+                }
+            }
+            else{
+                message.channel.send("Seule la personne qui a lancé le serveur SRB2Kart peut le redémarrer");
                 return false;
             }
         }
