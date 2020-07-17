@@ -1705,8 +1705,10 @@ function cmd_help(cmdObj, clearanceLvl){
             "\t`!kart channel which`\n\n"+
             "\ttells which channel is set as the *designated srb2kart channel*\n\n"+
             "**All users commands:**\n"
-        )) +
-        "**Following commands are only usable in the designated \"srb2kart channel\"!**\n\n"+
+        ))
+    );
+    cmdObj.msg_obj.author.send(
+        "\n**Following commands are only usable in the designated \"srb2kart channel\"!**\n\n"+
         "\t`!kart start ['stand']`\n\n"+
         "\tTry to start the SRB2Kart server.\n\tIf success, the server password is send via private message, the reciever is considered as the *designated admin* of the server.\n"+
         "\t  If the optional argument `stand` is given, the server will have *__no__ designated admin*…\n\n"+
