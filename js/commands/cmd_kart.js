@@ -11,6 +11,8 @@ const urlExistSync = require("url-exist-sync");
 const os = require('os');
 const ifaces = os.networkInterfaces();
 
+const cron= require('node-cron');
+
 const {Attachment} = require('discord.js');
 
 
@@ -198,15 +200,68 @@ function _getPassword(){
     return stdout;
 };
 
+
+
+var l_guilds= [];
+
+
+
+function _autoStopServer(utils){
+    if(_isServerRunning()){
+        hereLog("[auto stop] stopping server…");
+        _stopServer();
+        
+        l_guilds.forEach( (g) =>{
+            utils.settings.set(g, "auto_stop", true);
+            utils.settings.remove(g, 'serv_owner');
+        });
+    }
+    else{
+        hereLog("[auto stop] server already stopped…"); 
+        l_guilds.forEach( (g) =>{
+            utils.settings.set(guild, "auto_stop", false);
+        });
+    }
+}
+
+function _autoStartServer(utils){
+    var didAutoStop= l_guilds.some( (g) => {
+        return Boolean(utils.settings.get(g, "auto_stop"))
+    });
+    var serv_run= _isServerRunning();
+    if(!serv_run && didAutoStop){
+        hereLog("[auto start] restarting server…");
+        _startServer();
+    }
+    
+    l_guilds.forEach( (g) =>{
+        utils.settings.set(g, "auto_stop", false);
+    });
+
+}
+
+
 function cmd_init(utils){
     if(!Boolean(kart_settings=__loadingJSONObj("data/kart.json"))){
         hereLog("Not able to load 'kart.json' setting…");
     }
     _initAddonsConfig();
+
+    cron.schedule('0 4 * * *', () =>{
+        hereLog("[schedule] 4 am: looking to stop srb2kart serv…");
+        _autoStopServer(utils);
+    });
+
+    cron.schedule('0 8 * * *', () =>{
+        hereLog("[schedule] 8 am: looking to start srb2kart serv…");
+        _autoStartServer(utils)
+    });
 }
 
 
 async function cmd_init_per_guild(utils, guild){
+    if(Boolean(guild)) l_guilds.push(guild)
+
     var servOwner= utils.settings.get(guild, "serv_owner");
     var m_owner= undefined;
     if( Boolean(servOwner) &&
