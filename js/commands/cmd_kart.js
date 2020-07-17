@@ -1695,6 +1695,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
 function cmd_help(cmdObj, clearanceLvl){
     cmdObj.msg_obj.author.send(
+        "========\n\n"+
         "⚠ **_IMPORTANT:_** SRB2Kart server is exclusively for Strasbourg Smasher's usage.\n\n"+
         `__**kart** command___:\n\n`+
         ((clearanceLvl<CLEARANCE_LEVEL.ADMIN)? "": ("**Admins only (usable in other channels):**\n\n"+
