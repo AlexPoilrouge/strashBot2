@@ -233,7 +233,7 @@ function _autoStartServer(utils){
         hereLog("[auto start] restarting server…");
         _startServer();
     }
-    
+
     l_guilds.forEach( (g) =>{
         utils.settings.set(g, "auto_stop", false);
     });
@@ -1695,7 +1695,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
 function cmd_help(cmdObj, clearanceLvl){
     cmdObj.msg_obj.author.send(
-        "⚠ **_IMPORTANT:_** SRB2Kart server is exclusively for Strasbourg Smasher's usage. Please **always** shutdown the server (`!kart stop`) once the playing session is over\n\n"+
+        "⚠ **_IMPORTANT:_** SRB2Kart server is exclusively for Strasbourg Smasher's usage.\n\n"+
         `__**kart** command___:\n\n`+
         ((clearanceLvl<CLEARANCE_LEVEL.ADMIN)? "": ("**Admins only (usable in other channels):**\n\n"+
             "\t`!kart channel #channelmention`\n\n"+
@@ -1715,6 +1715,7 @@ function cmd_help(cmdObj, clearanceLvl){
         "\t`!kart restart ['stand']`\n\n"+
         "\tAttempt to restart the SRB2Kart server.\n"+
         "\t  If the optional argument `stand` is given, the server will have *__no__ designated admin*…\n\n"+
+        "\t⚠ **_Note:** the SRB2Kart server will automatically shutdown at 4 am. It will restart at 8 am, __unless__ it was stopped manually.\n\n"+
         "\t`!kart password`\n\n"+
         "\tRequest to recieve the password of the active (if any) SRB2Kart server. (guild admin or designated SRB2Kart server admin only)\n\n"+
         "\t`!kart claim`\n\n"+
