@@ -1413,7 +1413,7 @@ function _getServInfos(){
             players.push(p);
         }
 
-        return (`Cuyrrent map: *${map}*\n`+
+        return (`Current map: *${map}*\n`+
                 `${num_spect} spectators:\n`+
                 `${(num_spect.length>0)?`\t*${spectators.join("*; ")}*`:''}`+
                 `${num_players} players:\n`+
