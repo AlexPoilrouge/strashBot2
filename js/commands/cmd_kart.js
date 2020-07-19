@@ -1379,7 +1379,7 @@ function _getServInfos(){
         }
 
         var num_spect= parseInt(resp[1]);
-        if(!isNaN(num_spect) || num_spect<0){
+        if(isNaN(num_spect) || num_spect<0){
             hereLog(`[getInfos] bad spectator number… (${num_spect})`);
             return undefined;
         }
@@ -1397,7 +1397,7 @@ function _getServInfos(){
         var p= num_spect+2;
 
         var num_players= parseInt(resp[p]);
-        if(!isNaN(num_players) || num_players<0){
+        if(isNaN(num_players) || num_players<0){
             hereLog(`[getInfos] bad player number… (${num_spect})`);
             return undefined;
         }
