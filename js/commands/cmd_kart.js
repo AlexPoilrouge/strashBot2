@@ -1170,7 +1170,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
                     }
                 }
 
-                ret=(ret.lenght>1900)?(ret.substring(0,1900)+"\n[…]"):ret;
+                ret=(ret.length>1900)?(ret.substring(0,1900)+"\n[…]"):ret;
 
                 return ret;
             }
@@ -1345,6 +1345,85 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
     }
 
     return false;
+}
+
+function _getServInfos(){
+    if(!Boolean(kart_settings) || !Boolean(kart_settings.config_commands)
+        || !Boolean(kart_settings.config_commands.serv_info)
+    ){
+        hereLog(`[getInfos] bad config…`);
+        return undefined;
+    }
+
+    var str= undefined
+    try{
+        var cmd= __kartCmd(kart_settings.config_commands.serv_info);
+        str= child_process.execSync(cmd, {timeout: 16000}).toString();
+    }
+    catch(err){
+        hereLog("[getInfos] Error while looking for server infos: "+err);
+        str= undefined
+    }
+
+    if( Boolean(str) ){
+        var resp= str.split('\n')
+        if(resp.length<3){
+            hereLog(`[getInfos] bad resp… (${resp})`);
+            return undefined;
+        }
+
+        var map= resp[0];
+        if(!Boolean(map)){
+            hereLog(`[getInfos] bad map name… (${map})`);
+            return undefined;
+        }
+
+        var num_spect= parseInt(resp[1]);
+        if(!Boolean(num_spect) || num_spect<0){
+            hereLog(`[getInfos] bad spectator number… (${num_spect})`);
+            return undefined;
+        }
+
+        var spectators= [];
+        for(var i=2; i<(num_spect+2); ++i){
+            var s= resp[i];
+            if(!Boolean(s)){
+                hereLog(`[getInfos] bad spectator name… (${s})`);
+                return undefined;
+            }
+            spectators.push(s);
+        }
+
+        var p= num_spect+2;
+
+        var num_players= parseInt(resp[p]);
+        if(!Boolean(num_players) || num_players<0){
+            hereLog(`[getInfos] bad player number… (${num_spect})`);
+            return undefined;
+        }
+
+        ++p;
+        var players= [];
+        for(var i=p; i<(num_players+p); ++i){
+            var p= resp[i];
+            if(!Boolean(p)){
+                hereLog(`[getInfos] bad player name… (${p})`);
+                return undefined;
+            }
+            players.push(p);
+        }
+
+        return (`Cuyrrent map: *${map}*\n`+
+                `${num_spect} spectators:\n`+
+                `${(num_spect.length>0)?`\t*${spectators.join("*; ")}*`:''}`+
+                `${num_players} players:\n`+
+                `${(num_players.length>0)?`\t*${players.join("*; ")}*`:''}`
+        );
+    }
+    else{
+        hereLog(`[getInfos] bad command result… (${str})`);
+        return undefined;
+    }
 }
 
 async function cmd_main(cmdObj, clearanceLvl, utils){
@@ -1611,6 +1690,11 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                     ){
                         str+=`\n\n\tL'adresse ip du serveur est \`${net['address']}\``;
                     }
+                }
+
+                var infoStr= _getServInfos()
+                if(Boolean(infoStr)){
+                    str+=`\n\n${infoStr}`
                 }
             }
             else{
