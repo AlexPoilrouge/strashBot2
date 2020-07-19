@@ -285,11 +285,6 @@ async function cmd_init_per_guild(utils, guild){
 async function __downloading(channel, url, destDir, utils, fileName=undefined){
     var filename= (!Boolean(fileName))? url.split('/').splice(-1)[0] : fileName;
 
-    let _serv_run= _isServerRunning();
-    // if (_serv_run && !permanent){
-    //     channel.send(`❌ Il est futil d'ajouter un addon *temporaire* alors qu'une session est déjà en cours…`);
-    //     return;
-    // }
 
     if (!urlExistSync(url)){
         channel.send(`❌ L'url \`${url}\` ne semble pas exister…`);
@@ -365,17 +360,6 @@ async function __downloading(channel, url, destDir, utils, fileName=undefined){
                     dl_msg.edit(`Downloading \`${filename}\` on server …\t[Done!]`);
 
                     dl_msg.react('✅');
-                }
-
-                if(_serv_run){
-                    var servOwner= utils.settings.get(channel.guild, "serv_owner");
-                    var owner= undefined;
-                    var str= `\`${filename}\` a bien été ajouté au serveur.\n`+
-                        `Cependant, il ne peut être utilisé pour une session déjà en cours`;
-                    channel.send(str+'.')         
-                }
-                else{
-                    channel.send(`\`${filename}\` a bien été ajouté et sera disponible prêt à l'emploi lors de la prochaine session.`);
                 }
 
                 resolve(true)
@@ -531,6 +515,8 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
             url= message.attachments.first().url;
         }
 
+        var filename= url.slice(-1)[0]
+
         let ext= [".pk3",".wad",".lua",".kart",".pk7"];
         var _ls="";
         if((_ls=_listAddonsConfig(url.split('/').splice(-1)[0]))!=="No result found…"){
@@ -573,6 +559,17 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
                 message.channel.send(`❌ An error as occured, can't properly add \`${filename}\` to the server addons…`);
 
                 return false;
+            }
+
+            if(_serv_run){
+                var servOwner= utils.settings.get(message.guild, "serv_owner");
+                var owner= undefined;
+                var str= `\`${filename}\` a bien été ajouté au serveur.\n`+
+                    `Cependant, il ne peut être utilisé pour une session déjà en cours`;
+                channel.send(str+'.')         
+            }
+            else{
+                channel.send(`\`${filename}\` a bien été ajouté et sera disponible prêt à l'emploi lors de la prochaine session.`);
             }
 
             return true;
@@ -873,7 +870,7 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
                         } : {}
                     if(_isServerRunning()){
                         message.channel.send(`\`startup.cfg\` a bien été mis à jour.\n`+
-                            `Cependant, celan n'aura aucun effet pour la session déjà en cours\n` +
+                            `Cependant, cela n'aura aucun effet pour la session déjà en cours\n` +
                             ( (kart_settings.server_commands.through_ssh)?
                                 `\nDiff: ${kart_settings.http_url}/startup.cfg.diff`
                                 : "Diff generated file" ),
