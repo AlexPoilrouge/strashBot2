@@ -566,10 +566,10 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
                 var owner= undefined;
                 var str= `\`${filename}\` a bien été ajouté au serveur.\n`+
                     `Cependant, il ne peut être utilisé pour une session déjà en cours`;
-                channel.send(str+'.')         
+                message.channel.send(str+'.')         
             }
             else{
-                channel.send(`\`${filename}\` a bien été ajouté et sera disponible prêt à l'emploi lors de la prochaine session.`);
+                message.channel.send(`\`${filename}\` a bien été ajouté et sera disponible prêt à l'emploi lors de la prochaine session.`);
             }
 
             return true;
