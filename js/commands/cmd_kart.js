@@ -54,19 +54,19 @@ function __kartCmd(command){
             :   "false";
 }
 
-function _stopServer(){
-    b= false;
+function _stopServer(force=false){
+    var str=undefined
     try{
         // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.server_commands.stop))?cmd:"false";
         var cmd= __kartCmd(kart_settings.server_commands.stop)
-        child_process.execSync(cmd, {timeout: 16000});
-        b= true;
+        str=child_process.execSync(cmd+`${(force)?" FORCE":""}`, {timeout: 16000});
     }
     catch(err){
         hereLog("Error while stopping server: "+err);
-        b= false;
+        return "error";
     }
-    return b;
+    
+    return (Boolean(str))?str:"ok";
 }
 
 function _startServer(){
@@ -84,19 +84,19 @@ function _startServer(){
     return b;
 }
 
-function _restartServer(){
-    b= false;
+function _restartServer(force=false){
+    str=undefined;
     try{
         // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.server_commands.restart))?cmd:"false";
         var cmd= __kartCmd(kart_settings.server_commands.restart)
-        child_process.execSync(cmd, {timeout: 16000});
-        b= true;
+        str= child_process.execSync(cmd+`${(force)?" FORCE":""}`, {timeout: 16000});
     }
     catch(err){
         hereLog("Error while restarting server: "+err);
-        b= false;
+        return "error"
     }
-    return b;
+
+    return (Boolean(str))?str:"ok";
 }
 
 function _isServerRunning(){
@@ -209,7 +209,7 @@ var l_guilds= [];
 function _autoStopServer(utils){
     if(_isServerRunning()){
         hereLog("[auto stop] stopping server…");
-        _stopServer();
+        _stopServer(true);
         
         l_guilds.forEach( (g) =>{
             utils.settings.set(g, "auto_stop", true);
@@ -276,7 +276,7 @@ async function cmd_init_per_guild(utils, guild){
         if(Boolean(m_owner)){
             var chanKart= utils.settings.remove(guild, 'serv_owner');
             if(_isServerRunning()){
-                _stopServer();
+                _stopServer(true);
             }
         }
     }
@@ -1434,7 +1434,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             utils.settings.remove(message.guild, 'kart_channel');
 
             if(_isServerRunning()){
-                _stopServer();
+                _stopServer(true);
             }
 
             return true;
@@ -1490,7 +1490,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 var success= _startServer();
 
                 if(!success){
-                    _stopServer();
+                    _stopServer(true);
                     message.member.send(`[kart command] unable to start SRB2Kart server…`);
 
                     return false;
@@ -1511,16 +1511,31 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 return true;
             }
         }
-        else if(["halt","quit","stop","nope","kill","shutdown"].includes(args[0])){
+        else if(["halt","quit","stop","nope","kill","shutdown","done"].includes(args[0])){
             var servOwner= utils.settings.get(message.guild, "serv_owner");
             var owner= undefined;
             if( (!Boolean(servOwner) || !Boolean(owner= await utils.getBotClient().fetchUser(servOwner))) ||
                 ((clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE) || (owner.id===message.author.id))
             ){
-                _stopServer();
-                message.channel.send("Strashbot srb2kart server stopped…");
-                utils.settings.remove(message.guild, "serv_owner");
-                return true;
+                res= _stopServer( args.length>1 && args[1]==="force" );
+                if(res!=="error"){
+                    if(res==="populated"){
+                        message.channel.send("There might be some players remaining on Strashbot srb2kart server…\n"+
+                            "Are you sure you want to stop the server?\n"+
+                            `If so use: \`!kart stop force\``
+                        );
+                        return false;
+                    }
+                    else{
+                        message.channel.send("Strashbot srb2kart server stopped…");
+                        utils.settings.remove(message.guild, "serv_owner");
+                        return true;
+                    }
+                }
+                else{
+                    message.channel.send("Error while trying to stop server… 😰");
+                    return false;
+                }
             }
             else{
                 message.channel.send("Seule la personne qui a lancé le serveur SRB2Kart peut le stopper…");
@@ -1533,8 +1548,9 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             if( (!Boolean(servOwner) || !Boolean(owner= await utils.getBotClient().fetchUser(servOwner))) ||
                 ((clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE) || (owner.id===message.author.id))
             ){
-                var success= _restartServer();
-                if(!success){
+                var b_force= ( args.length>1 && args.includes("force"));
+                var res= _restartServer(b_force);
+                if(res==="error"){
                     var str="Error while restarting server…"
                     if (_isServerRunning()){
                         str+="\n\tServer seems to remain active…";
@@ -1547,7 +1563,19 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                     return false;
                 }
                 else{
-                    if( args.length>1 && ["lone","void","stand","alone","free","standalone"].includes(args[1])){
+                    var b_stand= ( args.length>1 &&
+                        args.some((a) => {return ["lone","void","stand","alone","free","standalone"].includes(a)}) 
+                    );
+
+                    if(res==="populated"){
+                        message.channel.send("There might be some players remaining on Strashbot srb2kart server…\n"+
+                            "Are you sure you want to restart the server?\n"+
+                            `If so use: \`!kart restart ${(b_stand)?"stand ":""}force\``
+                        );
+                        return false;
+                    }
+
+                    if( b_stand ){
                         message.channel.send("Strashbot srb2kart server restarted…\n"+
                             "\t⚠ No SRB2Kart server owner set. (use \`!kart claim\` to take admin privileges)"
                         );
