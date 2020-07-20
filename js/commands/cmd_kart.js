@@ -1405,19 +1405,19 @@ function _getServInfos(){
         ++p;
         var players= [];
         for(var i=p; i<(num_players+p); ++i){
-            var p= resp[i];
-            if(!Boolean(p)){
-                hereLog(`[getInfos] bad player name… (${p})`);
+            var player= resp[i];
+            if(!Boolean(player)){
+                hereLog(`[getInfos] bad player name… (${player})`);
                 return undefined;
             }
-            players.push(p);
+            players.push(player);
         }
 
         return (`Current map: *${map}*\n`+
                 `${num_spect} spectators:\n`+
-                `${(num_spect.length>0)?`\t*${spectators.join("*; ")}*`:''}`+
+                `${(spectators.length>0)?`\t*${spectators.join("*; ")}*`:''}`+
                 `${num_players} players:\n`+
-                `${(num_players.length>0)?`\t*${players.join("*; ")}*`:''}`
+                `${(players.length>0)?`\t*${players.join("*; ")}*`:''}`
         );
     }
     else{
