@@ -515,7 +515,7 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
             url= message.attachments.first().url;
         }
 
-        var filename= url.slice(-1)[0]
+        var filename= url.split('/').slice(-1)[0]
 
         let ext= [".pk3",".wad",".lua",".kart",".pk7"];
         var _ls="";
