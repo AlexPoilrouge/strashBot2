@@ -464,16 +464,16 @@ async function __ssh_download_cmd(cmd, channel, url, utils, fileName=undefined){
                         dl_msg.react('✅');
                     }
 
-                    if(_isServerRunning()){
-                        var servOwner= utils.settings.get(channel.guild, "serv_owner");
-                        var owner= undefined;
-                        var str= `\`${filename}\` a bien été ajouté au serveur.\n`+
-                            `Cependant, il ne peut être utilisé pour une session déjà en cours`;
-                        channel.send(str+'.')         
-                    }
-                    else{
-                        channel.send(`\`${filename}\` a bien été ajouté et sera disponible prêt à l'emploi lors de la prochaine session.`);
-                    }
+                    // if(_isServerRunning()){
+                    //     var servOwner= utils.settings.get(channel.guild, "serv_owner");
+                    //     var owner= undefined;
+                    //     var str= `\`${filename}\` a bien été ajouté au serveur.\n`+
+                    //         `Cependant, il ne peut être utilisé pour une session déjà en cours`;
+                    //     channel.send(str+'.')         
+                    // }
+                    // else{
+                    //     channel.send(`\`${filename}\` a bien été ajouté et sera disponible prêt à l'emploi lors de la prochaine session.`);
+                    // }
 
                     resolve(true);
                 }
@@ -1415,9 +1415,9 @@ function _getServInfos(){
 
         return (`Current map: *${map}*\n`+
                 `${num_spect} spectators:\n`+
-                `${(spectators.length>0)?`\t*${spectators.join("*; ")}*`:''}`+
+                `${(spectators.length>0)?`\t*${spectators.join("*; *")}*\n`:''}`+
                 `${num_players} players:\n`+
-                `${(players.length>0)?`\t*${players.join("*; ")}*`:''}`
+                `${(players.length>0)?`\t*${players.join("*; *")}*`:''}`
         );
     }
     else{
