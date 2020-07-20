@@ -59,7 +59,7 @@ function _stopServer(force=false){
     try{
         // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.server_commands.stop))?cmd:"false";
         var cmd= __kartCmd(kart_settings.server_commands.stop)
-        str=child_process.execSync(cmd+`${(force)?" FORCE":""}`, {timeout: 16000});
+        str=child_process.execSync(cmd+`${(force)?" FORCE":""}`, {timeout: 16000}).toString();
     }
     catch(err){
         hereLog("Error while stopping server: "+err);
@@ -89,7 +89,7 @@ function _restartServer(force=false){
     try{
         // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.server_commands.restart))?cmd:"false";
         var cmd= __kartCmd(kart_settings.server_commands.restart)
-        str= child_process.execSync(cmd+`${(force)?" FORCE":""}`, {timeout: 16000});
+        str= child_process.execSync(cmd+`${(force)?" FORCE":""}`, {timeout: 16000}).toString();
     }
     catch(err){
         hereLog("Error while restarting server: "+err);
