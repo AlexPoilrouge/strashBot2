@@ -610,11 +610,12 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
                     return true;
                 }
                 else{
-                    hereLog("Error occured when updating addons after 'rm' call")
+                    hereLog("[rm] Error occured when updating addons after 'rm' call")
                     return false;
                 }
             }
             else{
+                hereLog("[rm] got bad resp: "+resp);
                 message.channel.send(`❌ Unable to remove${(Boolean(resp[1]))?(`:\n*\t${resp[1]}*`):"…"}`);
                 return false;
             }
@@ -624,7 +625,7 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
         var list= _listAddonsConfig((Boolean(args[1]))?args[1]:"");
         if(Boolean(list)){
             if(!Boolean(args[1]) && Boolean(kart_settings) && Boolean(kart_settings.http_url)){
-                list+=`\n\nStrashbobt addons download: ${kart_settings.http_url}/strashbot_addons.zip`
+                list+=`\n\nStrashbot addons download: ${kart_settings.http_url}/strashbot_addons.zip`
             }
 
             var resp= "Addons list for srb2kart server:\n"+list;

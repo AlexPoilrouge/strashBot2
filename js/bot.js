@@ -105,15 +105,15 @@ class StrashBot extends Discord.Client{
             hereLog(error);
         });
         
-        /*this.on('reconnecting', ()=>{
+        this.on('reconnecting', ()=>{
             hereLog("SmashBot is attempting a reconnection through websocket…");
-            this.worker.destroy();
+            //this.worker.destroy();
         });
         
         this.on('resume', (replayed) =>{
-            this.worker.destroy();
+            //this.worker.destroy();
             hereLog("SmashBot's websocket is resuming… "+replayed+" events were played.");
-        });*/
+        });
         
         this.on('warn', (info) =>{
             hereLog("SmashBot WARNING!!! : "+info);

@@ -562,9 +562,10 @@ async function _runReportGuild(guild, utils, sendToUser= undefined){
 
 
 var l_guilds= []
+var cron_job= undefined;
 
 function cmd_init(utils){
-    cron.schedule('0 0 * * *', () => {
+    cron_job= cron.schedule('0 0 * * *', () => {
         l_guilds.forEach(guild => {
             if(Boolean(guild)){
                 var reportOn= utils.settings.get(guild, 'run-report');
