@@ -1,5 +1,4 @@
 const cron= require('node-cron');
-const { delete } = require('request');
 
 const CLEARANCE_LEVEL= require('../defines').CLEARANCE_LEVEL;
 
