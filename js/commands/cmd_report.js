@@ -567,15 +567,6 @@ var cron_job= undefined;
 var report_job= undefined;
 
 function cmd_init(utils){
-<<<<<<< Updated upstream
-    cron_job= cron.schedule('0 0 * * *', () => {
-        l_guilds.forEach(guild => {
-            if(Boolean(guild)){
-                var reportOn= utils.settings.get(guild, 'run-report');
-                if (Boolean(reportOn)){
-                    hereLog(`Daily report for guild ${guild}`)
-                    _runReportGuild(guild, utils);
-=======
     if(!Boolean(report_job)){
         report_job= cron.schedule('0 0 * * *', () => {
             l_guilds.forEach(guild => {
@@ -585,7 +576,6 @@ function cmd_init(utils){
                         hereLog(`Daily report for guild ${guild}`)
                         _runReportGuild(guild, utils);
                     }
->>>>>>> Stashed changes
                 }
             });
         });
