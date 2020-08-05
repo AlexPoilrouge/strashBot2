@@ -106,13 +106,13 @@ class StrashBot extends Discord.Client{
         });
         
         this.on('reconnecting', ()=>{
-            hereLog("SmashBot is attempting a reconnection through websocket…");
+            //hereLog("SmashBot is attempting a reconnection through websocket…");
             //this.worker.destroy();
         });
         
         this.on('resume', (replayed) =>{
             //this.worker.destroy();
-            hereLog("SmashBot's websocket is resuming… "+replayed+" events were played.");
+            //hereLog("SmashBot's websocket is resuming… "+replayed+" events were played.");
         });
         
         this.on('warn', (info) =>{
@@ -120,6 +120,7 @@ class StrashBot extends Discord.Client{
         });
         
         this.on('disconnect', (event)=>{
+            hereLog("SmashBot's disconnecting…"); 
             if(Boolean(this.worker))
                 this.worker.destroy();
             hereLog("SmashBot disconnected.");
