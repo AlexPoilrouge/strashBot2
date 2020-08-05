@@ -302,6 +302,14 @@ class Commander{
         this._trackedMessagesRefreshed= false;
     }
 
+    destroy(){
+        this.loaded_commands.forEach(lCmd =>{
+            if(Boolean(lCmd.destroy)){
+                lCmd.destroy();
+            }
+        });
+    }
+
     _loadCommands(){
         let t=this;
         glob.sync('./js/commands/cmd_*.js').map( file =>{
@@ -321,6 +329,7 @@ class Commander{
                 func: ((Boolean(rcf.command) && Boolean(m=rcf.command.main))? (cmdO, clrlv) => {return m(cmdO, clrlv, utils)}:null),
                 help: ((Boolean(rcf.command) && Boolean(h=rcf.command.help))? h:null),
                 event: ((Boolean(rcf.command) && Boolean(e=rcf.command.event))? ((name, ...args) => {return e(name, utils, ...args);}):null),
+                destroy: ((Boolean(rcf.command) && Boolean(e=rcf.command.destroy))? (() => {return e(utils);}):null),
                 clear_guild: ((Boolean(rcf.command) && Boolean(c=rcf.clear_guild))? c:null),
                 _wait_init: true,
             }); 

@@ -564,7 +564,10 @@ async function _runReportGuild(guild, utils, sendToUser= undefined){
 var l_guilds= []
 var cron_job= undefined;
 
+var report_job= undefined;
+
 function cmd_init(utils){
+<<<<<<< Updated upstream
     cron_job= cron.schedule('0 0 * * *', () => {
         l_guilds.forEach(guild => {
             if(Boolean(guild)){
@@ -572,10 +575,21 @@ function cmd_init(utils){
                 if (Boolean(reportOn)){
                     hereLog(`Daily report for guild ${guild}`)
                     _runReportGuild(guild, utils);
+=======
+    if(!Boolean(report_job)){
+        report_job= cron.schedule('0 0 * * *', () => {
+            l_guilds.forEach(guild => {
+                if(Boolean(guild)){
+                    var reportOn= utils.settings.get(guild, 'run-report');
+                    if (Boolean(reportOn)){
+                        hereLog(`Daily report for guild ${guild}`)
+                        _runReportGuild(guild, utils);
+                    }
+>>>>>>> Stashed changes
                 }
-            }
+            });
         });
-    });
+    }
     l_guilds= [];
 }
 
@@ -633,6 +647,14 @@ function cmd_event(eventName, utils){}
 
 function cmd_guild_clear(guild){}
 
+function cmd_destroy(utils){
+    hereLog("destroy…");
+    if(Boolean(report_job)){
+        delete report_job;
+        report_job= undefined;
+    }
+}
+
 
 module.exports.name= "report";
-module.exports.command= {init: cmd_init, init_per_guild: cmd_init_per_guild, main: cmd_main, help: cmd_help, event: cmd_event, clear_guild: cmd_guild_clear};
+module.exports.command= {init: cmd_init, init_per_guild: cmd_init_per_guild, main: cmd_main, help: cmd_help, event: cmd_event, clear_guild: cmd_guild_clear, destroy: cmd_destroy};

@@ -1,4 +1,5 @@
 const cron= require('node-cron');
+const { delete } = require('request');
 
 const CLEARANCE_LEVEL= require('../defines').CLEARANCE_LEVEL;
 
@@ -148,16 +149,20 @@ function _onChannelMissing(charChan, guild, chanID){
 
 var l_guilds= [];
 
+var unstall_job= undefined;
+
 function cmd_init(utils){
     hereLog(`cmd init`);
 
-    cron.schedule('0 0 * * 1', () => {
-        hereLog("monday at 00:00 ? unstall members");
+    if(!Boolean(unstall_job)){
+        unstall_job= cron.schedule('0 0 * * 1', () => {
+            hereLog("monday at 00:00 ? unstall members");
 
-        l_guilds.forEach(g => {
-            utils.settings.remove(g, 'stalledMembers');
-        });
-    })
+            l_guilds.forEach(g => {
+                utils.settings.remove(g, 'stalledMembers');
+            });
+        })
+    }
 
     l_guilds= [];
 }
@@ -686,5 +691,13 @@ function cmd_guild_clear(guild){
     });
 }
 
+function cmd_destroy(utils){
+    hereLog("destroy…");
+    if(Boolean(unstall_job)){
+        delete unstall_job;
+        unstall_job= undefined;
+    }
+}
+
 module.exports.name= "main";
-module.exports.command= {init: cmd_init, init_per_guild: cmd_init_per_guild, main: cmd_main, help: cmd_help, event: cmd_event, clear_guild: cmd_guild_clear};
+module.exports.command= {init: cmd_init, init_per_guild: cmd_init_per_guild, main: cmd_main, help: cmd_help, event: cmd_event, clear_guild: cmd_guild_clear, destroy: cmd_destroy};

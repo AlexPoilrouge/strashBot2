@@ -14,6 +14,7 @@ const ifaces = os.networkInterfaces();
 const cron= require('node-cron');
 
 const {Attachment} = require('discord.js');
+const { delete } = require('request');
 
 
 
@@ -240,6 +241,31 @@ function _autoStartServer(utils){
 
 }
 
+var _oldServInfos= undefined;
+
+function _checkServerStatus(utils){
+    hereLog("tmp _checkServerStatus")
+    var servInfoObj= _getServInfos();
+
+    if( !Boolean(_oldServInfos) ||
+        Boolean(Boolean(servInfoObj.players.length) ^ Boolean(_oldServInfos.players.length)) )
+    {
+        hereLog("Changes in srb2kart server status detected…");
+        var bot= utils.getBotClient();
+        if(servInfoObj.players.length>1){
+            bot.user.setActivity('Hosting SRB2Kart Races', { type: 'PLAYING' });
+        }
+        else{
+            bot.user.setActivity('');
+        }
+
+        _oldServInfos= serv_info;
+    }
+}
+
+var stop_job= undefined;
+var start_job= undefined;
+var status_job= undefined;
 
 function cmd_init(utils){
     if(!Boolean(kart_settings=__loadingJSONObj("data/kart.json"))){
@@ -247,15 +273,25 @@ function cmd_init(utils){
     }
     _initAddonsConfig();
 
-    cron.schedule('0 4 * * *', () =>{
-        hereLog("[schedule] 4 am: looking to stop srb2kart serv…");
-        _autoStopServer(utils);
-    });
+    if(!Boolean(stop_job)){
+        stop_job= cron.schedule('0 4 * * *', () =>{
+            hereLog("[schedule] 4 am: looking to stop srb2kart serv…");
+            _autoStopServer(utils);
+        });
+    }
 
-    cron.schedule('0 8 * * *', () =>{
-        hereLog("[schedule] 8 am: looking to start srb2kart serv…");
-        _autoStartServer(utils)
-    });
+    if(!Boolean(start_job)){
+        start_job= cron.schedule('0 8 * * *', () =>{
+            hereLog("[schedule] 8 am: looking to start srb2kart serv…");
+            _autoStartServer(utils)
+        });
+    }
+
+    if(!Boolean(status_job)){
+        status_job= cron.schedule('*/10 * * * *', () =>{
+            _checkServerStatus(utils)
+        });
+    }
 }
 
 
@@ -1414,12 +1450,11 @@ function _getServInfos(){
             players.push(player);
         }
 
-        return (`Current map: *${map}*\n`+
-                `${num_spect} spectators:\n`+
-                `${(spectators.length>0)?`\t*${spectators.join("*; *")}*\n`:''}`+
-                `${num_players} players:\n`+
-                `${(players.length>0)?`\t*${players.join("*; *")}*`:''}`
-        );
+        return {
+            'current_map': map,
+            'spectators': spectators,
+            'players': players
+        };
     }
     else{
         hereLog(`[getInfos] bad command result… (${str})`);
@@ -1721,9 +1756,13 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                     }
                 }
 
-                var infoStr= _getServInfos()
-                if(Boolean(infoStr)){
-                    str+=`\n\n${infoStr}`
+                var infoStrObj= _getServInfos()
+                if(Boolean(infoStrObj)){
+                    str+= `\n\nCurrent map: *${infoStrObj.current_map}*\n`;
+                    str+= `${infoStrObj.spectators.length} spectators:\n`;
+                    str+= `${(infoStrObj.spectators.length>0)?`\t*${infoStrObj.spectators.join("*; *")}*\n`:''}`;
+                    str+= `${infoStrObj.players.length} players:\n`;
+                    str+= `${(infoStrObj.players.length>0)?`\t*${infoStrObj.players.join("*; *")}*`:''}`;
                 }
             }
             else{
@@ -1947,6 +1986,22 @@ function cmd_event(eventName, utils){
 
 function cmd_guild_clear(guild){}
 
+function cmd_destroy(utils){
+    hereLog("destroy…");
+    if(Boolean(stop_job)){
+        delete stop_job;
+        stop_job= undefined;
+    }
+    if(Boolean(start_job)){
+        delete start_job;
+        start_job= undefined;
+    }
+    if(Boolean(status_job)){
+        delete status_job;
+        status_job= undefined;
+    }
+}
+
 
 module.exports.name= ['kart'];
-module.exports.command= {init: cmd_init, init_per_guild: cmd_init_per_guild, main: cmd_main, help: cmd_help, event: cmd_event, clear_guild: cmd_guild_clear};
+module.exports.command= {init: cmd_init, init_per_guild: cmd_init_per_guild, main: cmd_main, help: cmd_help, event: cmd_event, clear_guild: cmd_guild_clear, destroy: cmd_destroy};

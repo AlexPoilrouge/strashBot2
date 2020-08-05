@@ -13,7 +13,11 @@ class Worker{
         this._commander= new Commander(this);
     }
 
-    destroy(){}
+    destroy(){
+        if(Boolean(this._commander)){
+            this._commander.destroy();
+        }
+    }
 
     get bot(){
         return this._bot;
