@@ -14,8 +14,6 @@ const ifaces = os.networkInterfaces();
 const cron= require('node-cron');
 
 const {Attachment} = require('discord.js');
-const { delete } = require('request');
-
 
 
 let hereLog= (...args) => {console.log("[cmd_kart]", ...args);};
