@@ -242,22 +242,22 @@ function _autoStartServer(utils){
 var _oldServInfos= undefined;
 
 function _checkServerStatus(utils){
-    hereLog("tmp _checkServerStatus")
     var servInfoObj= _getServInfos();
 
-    if( !Boolean(_oldServInfos) ||
-        Boolean(Boolean(servInfoObj.players.length) ^ Boolean(_oldServInfos.players.length)) )
+    if( !Boolean(_oldServInfos) || !Boolean(_oldServInfos.players) ||
+        (servInfoObj.players.length !== _oldServInfos.players.length) )
     {
-        hereLog("Changes in srb2kart server status detected…");
         var bot= utils.getBotClient();
         if(servInfoObj.players.length>1){
+            hereLog(`Changes in srb2kart server status detected… (player count: ${servInfoObj.players.length})`);
             bot.user.setActivity('Hosting SRB2Kart Races', { type: 'PLAYING' });
         }
         else{
+            hereLog(`Changes in srb2kart server status detected… (not enough player though)`);
             bot.user.setActivity('');
         }
 
-        _oldServInfos= serv_info;
+        _oldServInfos= servInfoObj;
     }
 }
 

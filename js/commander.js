@@ -316,7 +316,7 @@ class Commander{
             hereLog(`[Commander] loading '${file}'…`);
 
             let rcf= require(path.resolve(file))
-            var m= null, h= null, e=null, i= null, c= null;
+            var m= null, h= null, e=null, i= null, c= null, d=null;
 
             var cmd_name= my_utils.commandNameFromFilePath(file);
             
@@ -329,7 +329,7 @@ class Commander{
                 func: ((Boolean(rcf.command) && Boolean(m=rcf.command.main))? (cmdO, clrlv) => {return m(cmdO, clrlv, utils)}:null),
                 help: ((Boolean(rcf.command) && Boolean(h=rcf.command.help))? h:null),
                 event: ((Boolean(rcf.command) && Boolean(e=rcf.command.event))? ((name, ...args) => {return e(name, utils, ...args);}):null),
-                destroy: ((Boolean(rcf.command) && Boolean(e=rcf.command.destroy))? (() => {return e(utils);}):null),
+                destroy: ((Boolean(rcf.command) && Boolean(d=rcf.command.destroy))? (() => {return d(utils);}):null),
                 clear_guild: ((Boolean(rcf.command) && Boolean(c=rcf.clear_guild))? c:null),
                 _wait_init: true,
             }); 
