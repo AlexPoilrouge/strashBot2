@@ -1407,7 +1407,7 @@ function _getServInfos(){
     try{
         var cmd= __kartCmd(kart_settings.config_commands.serv_info);
         str= child_process.execSync(cmd, {timeout: 16000}).toString();
-    }kart_settings.
+    }
     catch(err){
         hereLog("[getInfos] Error while looking for server infos: "+err);
         str= undefined
