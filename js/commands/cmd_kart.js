@@ -1204,7 +1204,11 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
                     break;
                     case 8:
                     {
-                        files= `${lines[i][2]} files: ${lines[i].substring(5,200)+((lines[i].length>=100)?"…":"")}`
+                        var _r= undefined
+                        var n_files= undefined
+                        if(Boolean(_r=(files.match(/^[0-9]+.*/))) && Boolean(n_files=parseInt(_r[1]))){
+                            files= `${n_files} files: ${lines[i].substring(_r[1].length+4,200)+((lines[i].length>=100)?"…":"")}`
+                        }
 
                         ret+= `\`${time}\` by ${by} (from ${name}) with ${wth} (${stats})\n`
                         ret+= `\t\t${files}\n`
@@ -1318,7 +1322,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
 
         match= str.match(/ZIPPED - (\/((.+)\/)*.+)/)
         var path= undefined;
-        if(Boolean(match) && Boolean(path=match[1]) && fs.existsSync(path)){
+        if(Boolean(match) && Boolean(path=match[1])){
             if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
                 if(Boolean(kart_settings.http_url) ){
                     message.channel.send(`"Submitted time for **${mapname}**: ${http_url}/${path}`)
