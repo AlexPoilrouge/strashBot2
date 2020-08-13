@@ -1320,7 +1320,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
             return false;
         }
 
-        match= str.match(/ZIPPED - (\/((.+)\/)*.+)/)
+        match= str.match(/ZIPPED - (\/?((.+)\/)*.+)/)
         var path= undefined;
         if(Boolean(match) && Boolean(path=match[1])){
             if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
