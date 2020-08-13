@@ -1425,7 +1425,6 @@ function _getServInfos(){
             hereLog(`[getInfos] bad map name… (${map})`);
             return undefined;
         }
-        kart_settings.
         var num_spect= parseInt(resp[1]);
         if(isNaN(num_spect) || num_spect<0){
             hereLog(`[getInfos] bad spectator number… (${num_spect})`);
@@ -1478,7 +1477,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
     let args= cmdObj.args;
     if(args[0]==="channel" && (clearanceLvl>CLEARANCE_LEVEL.NONE)){
         if(args[1]==="clear"){
-            utils.settings.remove(message.guild, 'kart_channel')kart_settings.;
+            utils.settings.remove(message.guild, 'kart_channel');
 
             if(_isServerRunning()){
                 _stopServer(true);
