@@ -958,7 +958,14 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
 }
 
 async function ___stringFromID(guild, id){
-    var member= await guild.fetchMember(id)
+    var member= undefined;
+    try{
+        member= await guild.fetchMember(id)
+    }
+    catch(err){
+        hereLog(`[StringFromID] Error while searching member '${id}' in guild ${guild}…`);
+        member= undefined
+    }
 
     if(Boolean(member)){
         if(Boolean(member.nickname)){
@@ -968,7 +975,7 @@ async function ___stringFromID(guild, id){
             return member.user.username;
         }
     }
-    else return undefined;
+    else return "Unknown";
 }
 
 async function __replaceIDinString(guild, string){
@@ -1260,7 +1267,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
                 var str= undefined
                 try{
                     var cmd= __kartCmd(kart_settings.config_commands.add_times);
-                    str= child_process.execSync(cmd+` ${filepath} ${id}`, {timeout: 16000}).toString();
+                    str= child_process.execSync(cmd+` ${filepath} ${message.author.id}`, {timeout: 16000}).toString();
                 }
                 catch(err){
                     hereLog("Error while adding time: "+err);
@@ -1269,10 +1276,12 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
 
                 var _f_str= str
                 if(Boolean(str) && ( ( (typeof(str)==='string') && str.startsWith("ADDED")) || (str=str.toString()).startsWith("ADDED") ) ){
-                    channel.send( _f_str );
+                    message.channel.send( _f_str );
                 }
                 else{
-                    channel.send(`❌ internal error while trying to add recorded time [${str}]`);
+                    message.channel.send(`❌ internal error while trying to add recorded time [${str}]`);
+
+                    return false;
                 }
 
                 return true;
