@@ -1206,7 +1206,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
                     {
                         var _r= undefined
                         var n_files= undefined
-                        if(Boolean(_r=(lines[i].match(/^[0-9]+.*/))) && Boolean(n_files=parseInt(_r[1]))){
+                        if(Boolean(_r=(lines[i].match(/^\[ ([0-9]*) \]+.*/))) && Boolean(n_files=parseInt(_r[1]))){
                             files= `${n_files} files: ${lines[i].substring(_r[1].length+4,200)+((lines[i].length>=100)?"…":"")}`
                         }
 
