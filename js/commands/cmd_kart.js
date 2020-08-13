@@ -1325,7 +1325,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
         if(Boolean(match) && Boolean(path=match[1])){
             if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
                 if(Boolean(kart_settings.http_url) ){
-                    message.channel.send(`"Submitted time for **${mapname}**: ${http_url}/${path}`)
+                    message.channel.send(`"Submitted time for **${mapname}**: ${kart_settings.http_url}/${path}`)
                     
                     return true;
                 }
@@ -1407,7 +1407,7 @@ function _getServInfos(){
     try{
         var cmd= __kartCmd(kart_settings.config_commands.serv_info);
         str= child_process.execSync(cmd, {timeout: 16000}).toString();
-    }
+    }kart_settings.
     catch(err){
         hereLog("[getInfos] Error while looking for server infos: "+err);
         str= undefined
@@ -1425,7 +1425,7 @@ function _getServInfos(){
             hereLog(`[getInfos] bad map name… (${map})`);
             return undefined;
         }
-
+        kart_settings.
         var num_spect= parseInt(resp[1]);
         if(isNaN(num_spect) || num_spect<0){
             hereLog(`[getInfos] bad spectator number… (${num_spect})`);
@@ -1478,7 +1478,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
     let args= cmdObj.args;
     if(args[0]==="channel" && (clearanceLvl>CLEARANCE_LEVEL.NONE)){
         if(args[1]==="clear"){
-            utils.settings.remove(message.guild, 'kart_channel');
+            utils.settings.remove(message.guild, 'kart_channel')kart_settings.;
 
             if(_isServerRunning()){
                 _stopServer(true);
@@ -1941,13 +1941,15 @@ function cmd_help(cmdObj, clearanceLvl){
         "----\n*SRB2Kart server's time record management:*\n\n"+
         "\t`!kart time`\n\n"+
         "\tLists all the maps that have a time record submitted.\n\n"+
-        "\t`!kart time[map name]`\n\n"+
+        "\t`!kart time [map name]`\n\n"+
         "\tLists all the time that were submitter for a given map.\n\n"+
         "\t`!kart time add`\n\n"+
         "\tAdds a new time record on the server given the .lmp file was provided as a message attachment. (One per person per map)\n\n"+
         "\t⚠ The new time record must be provided as a file attachment to the same message as the command, and must have `.lmp` extension.\n"+
         "\t`!kart time rm [map name]`\n\n"+
-        "\tRemoves a time record you have submitted for a given map.\n\n"
+        "\tRemoves a time record you have submitted for a given map.\n\n"+
+        "\t`!kart time get [map name]`\n\n"+
+        "\tLink to download uploaded times for a given map."
     );
     return true;
 }
