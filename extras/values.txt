@@ -13,6 +13,7 @@ SRB2K_SERVICE_STOP_CMD:/bin/systemctl stop srb2kart_serv
 SRB2K_SERVICE_RESTART_CMD:/bin/systemctl restart srb2kart_serv
 SRB2K_SERVICE_ISACTIVE_CMD:/bin/systemctl is-active srb2kart_serv
 SRB2K_SSH:false
+SRB2K_IP:
 SRB2K_ADDR:
 SRB2K_PORT:
 SRB2K_HTTP_SERV_URL:

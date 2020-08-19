@@ -43,8 +43,8 @@ function __kartCmd(command){
     var ks= undefined, srv_cmd= undefined;
     return (Boolean(ks=kart_settings) && Boolean(command))?
                 (Boolean(srv_cmd=ks.server_commands) && srv_cmd.through_ssh)?
-                    Boolean(srv_cmd.server_addr) && Boolean(srv_cmd.distant_user)?
-                        (`ssh ${srv_cmd.distant_user}@${srv_cmd.server_addr}`+
+                    Boolean(srv_cmd.server_ip) && Boolean(srv_cmd.distant_user)?
+                        (`ssh ${srv_cmd.distant_user}@${srv_cmd.server_ip}`+
                             ((srv_cmd.server_port)?` -p ${srv_cmd.server_port}`:'')
                             + ` ${command}`
                         )
@@ -424,7 +424,7 @@ async function __ssh_download_cmd(cmd, channel, url, utils, fileName=undefined){
         return
     }
     var addr=undefined, dUser=undefined;
-    if(!Boolean(addr=kart_settings.server_commands.server_addr) || !Boolean(dUser=kart_settings.server_commands.distant_user)){
+    if(!Boolean(addr=kart_settings.server_commands.server_ip) || !Boolean(dUser=kart_settings.server_commands.distant_user)){
         hereLog("[ssh dl] missing distant user or addr info…")
         channel.send(`❌ Internal error…`);
         return
@@ -1752,10 +1752,18 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 if (Boolean(kart_settings) && Boolean(kart_settings.server_commands)
                     && Boolean(kart_settings.server_commands.through_ssh)
                 ){
-                    var _addr= kart_settings.server_commands.server_addr
-                    if(Boolean(_addr) && Boolean(_addr.match(/^([0-9]{1,3}\.){3}[0-9]{1,3}$/))){
-                        str+=`\n\n\tL'adresse ip du serveur est \`${_addr}\``;
-                    }
+                    var _ip= kart_settings.server_commands.server_ip;
+                    var _ipValid= Boolean(_ip) && Boolean(_ip.match(/^([0-9]{1,3}\.){3}[0-9]{1,3}$/))
+                    var _addr= kart_settings.server_commands.server_addr;
+
+                    str+= "\n\n\t"+ (
+                        (Boolean(_addr))?
+                            ( `Vous pouvez vous connecter au serveur en utilisant l'adresse: \`${_addr}\``
+                                + ((_ipValid)?`\n\t\t(ou l'ip: ${_ip})`:'') )
+                        : (_ipValid)?
+                            `Vous pouvez vous connecter au serveur en utilisant l'ip: ${_ip}`
+                        :   `❌ Erreur addresse du serveur indisponible…`
+                    )
                 }
                 else{
                     var net= undefined;

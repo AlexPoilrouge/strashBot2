@@ -5,7 +5,8 @@
             "restart":"${SRB2K_SERVICE_RESTART_CMD}",
             "is_active":"${SRB2K_SERVICE_ISACTIVE_CMD}",
             "through_ssh":${SRB2K_SSH},
-            "server_addr":"${SRB2K_ADDR}",
+            "server_ip":"${SRB2K_IP}",
+            "server_addr":${SRB2K_ADDR},
             "server_port":"${SRB2K_PORT}",
             "distant_user":"${STRASHBOT_USER}"
     },
