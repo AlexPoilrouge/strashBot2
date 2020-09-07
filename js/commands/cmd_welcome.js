@@ -338,7 +338,7 @@ function cmd_event(eventName, utils){
                 Boolean(give_role=message.guild.roles.cache.get(give_role_id))
             ){
                 _reaction_add_lock= true;
-                message.member.addRole(give_role).catch(err => {hereLog(err);})
+                message.member.roles.add(give_role).catch(err => {hereLog(err);})
                     .finally(_reaction_add_lock=false);
             }
         }

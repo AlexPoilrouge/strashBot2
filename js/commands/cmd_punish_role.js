@@ -78,12 +78,12 @@ async function __punish_func(guild, member, p_role, utils){
 
     if(Boolean(old_s) && (old_s!==p_role.id)){
         hereLog(`[1] removeRole ${old_s}`)
-        await member.removeRole(old_s).catch(err=>{hereLog(err);});
+        await member.roles.remove(old_s).catch(err=>{hereLog(err);});
     }
     hereLog(`addRole ${p_role.name}`)
-    await member.addRole(p_role).catch(err=>{hereLog(err);});
+    await member.roles.add(p_role).catch(err=>{hereLog(err);});
     hereLog(`[2] removesRole ${saved_roles}`)
-    await member.removeRoles(saved_roles).catch(err=>{hereLog(err);});
+    await member.roles.remove(saved_roles).catch(err=>{hereLog(err);});
 }
 
 async function __cmd_punish(cmdObj, clearanceLvl, punishment, utils){
@@ -242,7 +242,7 @@ async function _free(cmdObj, member, utils){
     var s_role= con.sentence;
     if(Boolean(s_role)){
         hereLog(`removeRole ${s_role}`)
-        await member.removeRole(s_role).catch(err =>{
+        await member.roles.remove(s_role).catch(err =>{
             hereLog(err);
         });
     }
@@ -250,7 +250,7 @@ async function _free(cmdObj, member, utils){
     var old_roles= con.roles;
     if(Boolean(old_roles)){
         hereLog(`addRoles ${old_roles}`)
-        await member.addRoles(old_roles).catch(err =>{
+        await member.roles.add(old_roles).catch(err =>{
             hereLog(err);
         });
     }
@@ -283,13 +283,13 @@ async function cmd_init_per_guild(utils, guild){
         var punished_keys= Object.keys(punished);
         for(var k_m_id of punished_keys){
             var pun_m= punished[k_m_id];
-            await guild.fetchMember(k_m_id).then( m =>{
+            await guild.members.fetch(k_m_id).then( m =>{
                 var m_sent= Boolean(pun_m)? pun_m.sentence : undefined;
 
                 var r= undefined;
                 if(!Boolean(m_sent) || !Boolean(r=m.roles.cache.get(m_sent))){
                     if(Boolean(pun_m.roles)){
-                        m.addRoles(pun_m.roles).catch(err => {hereLog(err);});
+                        m.roles.add(pun_m.roles).catch(err => {hereLog(err);});
                     }
 
                     delete punished[k_m_id];
@@ -301,7 +301,7 @@ async function cmd_init_per_guild(utils, guild){
             .catch(err => hereLog(err))
         };
 
-        await guild.fetchMembers().then(g=>{
+        await guild.members.fetch().then(g=>{
             g.members.forEach(m=>{
                 var pun_m= undefined;
                 if((Boolean(r=m.roles.cache.get(p_r_id)) || Boolean(r=m.roles.cache.get(s_r_id))) &&
@@ -431,7 +431,7 @@ function cmd_event(eventName, utils){
                 var punished= utils.settings.get(newMember.guild, 'punished');
                 var old_roles= undefined, con= undefined;
                 if(Boolean(punished) && Boolean(con=punished[newMember.id]) && Boolean(old_roles=con.roles)){
-                    newMember.addRoles(old_roles).catch(err => {hereLog(err);});
+                    newMember.roles.add(old_roles).catch(err => {hereLog(err);});
                 }
 
                 delete punished[newMember.id];

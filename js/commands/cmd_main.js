@@ -23,7 +23,7 @@ async function __deleteMemberMainRoles(member, charChanObj){
         var role= r_cco[0];
         var cco= r_cco[1];
         hereLog(`removeRole ${role.name}(${role.id})`);
-        await member.removeRole(role);
+        await member.roles.remove(role);
 
         await member.guild.members.fetch();
         var l_members= member.guild.roles.cache.get(role.id).members;
@@ -444,7 +444,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         var r= chanCharObj.role;
         var role= undefined;
         if(Boolean(r) && (role=message.guild.roles.cache.get(r))){
-            message.member.addRole(role);
+            message.member.roles.add(role);
                     
             utils.settings.set(message.guild, 'stalledMembers', __stallMember(message.author.id,stalled));
             utils.settings.set(message.guild, 'channelCharacter', chanChar);
@@ -459,7 +459,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             })
             .then(
                 role => {
-                    message.member.addRole(role);
+                    message.member.roles.add(role);
                     
                     utils.settings.set(message.guild, 'stalledMembers', __stallMember(message.author.id,stalled));
                     chanCharObj.role= role.id;

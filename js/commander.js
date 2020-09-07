@@ -382,7 +382,7 @@ class Commander{
         if(this._trackedMessages.length>=roomLeft){
             if(!this._trackedMessagesRefreshed){
                 this._trackedMessages.forEach(msg =>{
-                    msg.channel.fetchMessage(msg.id).catch(err=>{hereLog(err);});
+                    msg.channel.messages.fetch(msg.id).catch(err=>{hereLog(err);});
                 });
                 this._trackedMessagesRefreshed= true;
             }
@@ -473,7 +473,7 @@ class Commander{
                     cmdObj.msg_obj.author.send("Cannot found specified channel…");
                     b= false;
                 }
-                else if(!Boolean(msg_id.match(/[0-9]{18}/g)) || !Boolean(message=(await channel.fetchMessage(msg_id)))){
+                else if(!Boolean(msg_id.match(/[0-9]{18}/g)) || !Boolean(message=(await channel.messages.fetch(msg_id)))){
                     cmdObj.msg_obj.author.send("Cannot found specified message…");
                     b= false;
                 }

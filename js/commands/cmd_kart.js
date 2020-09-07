@@ -299,7 +299,7 @@ async function cmd_init_per_guild(utils, guild){
     var servOwner= utils.settings.get(guild, "serv_owner");
     var m_owner= undefined;
     if( Boolean(servOwner) &&
-        (!Boolean(m_owner= await guild.fetchMember(servOwner)) || !_isServerRunning())    
+        (!Boolean(m_owner= await guild.members.fetch(servOwner)) || !_isServerRunning())    
     ){
         utils.settings.remove(guild, "serv_owner");
     }
@@ -960,7 +960,7 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
 async function ___stringFromID(guild, id){
     var member= undefined;
     try{
-        member= await guild.fetchMember(id)
+        member= await guild.members.fetch(id)
     }
     catch(err){
         hereLog(`[StringFromID] Error while searching member '${id}' in guild ${guild}…`);
@@ -1524,7 +1524,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
                 var servOwner= utils.settings.get(message.guild, "serv_owner");
                 var owner= undefined;
-                if(!Boolean(servOwner) || !Boolean(owner= await utils.getBotClient().fetchUser(servOwner))){
+                if(!Boolean(servOwner) || !Boolean(owner= await utils.getBotClient().users.fetch(servOwner))){
                     str+=`\n\t⚠ No SRB2Kart server owner set. (use \`!kart claim\` to take admin privileges)`;
                 }
                 else{
@@ -1560,7 +1560,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         else if(["halt","quit","stop","nope","kill","shutdown","done"].includes(args[0])){
             var servOwner= utils.settings.get(message.guild, "serv_owner");
             var owner= undefined;
-            if( (!Boolean(servOwner) || !Boolean(owner= await utils.getBotClient().fetchUser(servOwner))) ||
+            if( (!Boolean(servOwner) || !Boolean(owner= await utils.getBotClient().users.fetch(servOwner))) ||
                 ((clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE) || (owner.id===message.author.id))
             ){
                 res= _stopServer( args.length>1 && args[1]==="force" );
@@ -1591,7 +1591,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         else if(["restart","retry","re","again","relaunch"].includes(args[0])){
             var servOwner= utils.settings.get(message.guild, "serv_owner");
             var owner= undefined;
-            if( (!Boolean(servOwner) || !Boolean(owner= await utils.getBotClient().fetchUser(servOwner))) ||
+            if( (!Boolean(servOwner) || !Boolean(owner= await utils.getBotClient().users.fetch(servOwner))) ||
                 ((clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE) || (owner.id===message.author.id))
             ){
                 var b_force= ( args.length>1 && args.includes("force"));
@@ -1651,7 +1651,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             var servOwner= utils.settings.get(message.guild, "serv_owner");
             var owner= undefined;
             if( (clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE) || 
-                (Boolean(servOwner) && Boolean(owner= await utils.getBotClient().fetchUser(servOwner)) && (owner.id===message.author.id) )
+                (Boolean(servOwner) && Boolean(owner= await utils.getBotClient().users.fetch(servOwner)) && (owner.id===message.author.id) )
                 || !Boolean(servOwner) || !Boolean(owner)
             ){
                 pwd= _getPassword();
@@ -1669,7 +1669,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 return false;
             }
             if( (clearanceLvl>CLEARANCE_LEVEL.ADMIN_ROLE)
-                || !Boolean(servOwner) || !Boolean(owner= await utils.getBotClient().fetchUser(servOwner))
+                || !Boolean(servOwner) || !Boolean(owner= await utils.getBotClient().users.fetch(servOwner))
             ){
                 pwd= _getPassword();
                 await message.member.send(`Server admin password: \`${pwd}\`\n\tUne fois connecté au serveur SRB2Kart, ingame utilise la commande \`login ${pwd}\` pour accéder à l'interface d'admin!`);
@@ -1701,7 +1701,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             var servOwner= utils.settings.get(message.guild, "serv_owner");
             var owner= undefined;
             if( (clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE) ||
-            ( Boolean(servOwner) && Boolean(owner= await utils.getBotClient().fetchUser(servOwner)) && owner.id===message.author.id)
+            ( Boolean(servOwner) && Boolean(owner= await utils.getBotClient().users.fetch(servOwner)) && owner.id===message.author.id)
             ){
                 pwd= _getPassword();
                 member.send(`Server admin password: \`${pwd}\`\n\tUne fois connecté au serveur SRB2Kart, ingame, utilise la commande \`login ${pwd}\` pour accéder à l'interface d'admin!`);
@@ -1725,7 +1725,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             var servOwner= utils.settings.get(message.guild, "serv_owner");
             var owner= undefined;
             if( (clearanceLvl<=CLEARANCE_LEVEL.ADMIN_ROLE) ||
-            ( Boolean(servOwner) && Boolean(owner= await utils.getBotClient().fetchUser(servOwner)) && owner.id===message.author.id)
+            ( Boolean(servOwner) && Boolean(owner= await utils.getBotClient().users.fetch(servOwner)) && owner.id===message.author.id)
             ){
                 utils.settings.remove(message.guild, "serv_owner");
                 message.channel.send(`⚠ Le serveur SRB2Kart n'a plus d'admin désigné… 😢\n`+
@@ -1742,7 +1742,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
                 var servOwner= utils.settings.get(message.guild, "serv_owner");
                 var owner= undefined;
-                if(Boolean(servOwner) && Boolean(owner= await utils.getBotClient().fetchUser(servOwner))){
+                if(Boolean(servOwner) && Boolean(owner= await utils.getBotClient().users.fetch(servOwner))){
                     str+=`\nL'admin désigné du serveur SRB2Kart est **${owner.username}**.`;
                 }
                 else{
@@ -1987,7 +1987,7 @@ function cmd_event(eventName, utils){
 
         var servOwner= utils.settings.get(member.guild, "serv_owner");
         var m_owner= undefined;
-        if( Boolean(servOwner) && Boolean(await (m_owner= member.guild.fetchMember(servOwner))) && m_owner.id===member.id){
+        if( Boolean(servOwner) && Boolean(await (m_owner= member.guild.members.fetch(servOwner))) && m_owner.id===member.id){
             utils.settings.remove(member.guild, "serv_owner");
 
             if(_isServerRunning()){
