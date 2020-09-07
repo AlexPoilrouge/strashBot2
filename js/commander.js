@@ -442,11 +442,11 @@ class Commander{
                     cmdObj.msg_obj.author.send("Format: `!edit-message <guild_id> <channel_id> <message text…>`");
                     b= false;
                 }
-                else if(!Boolean(g_id.match(/[0-9]{18}/g)) || !Boolean(guild=this._worker._bot.guilds.get(g_id))){
+                else if(!Boolean(g_id.match(/[0-9]{18}/g)) || !Boolean(guild=this._worker._bot.guilds.cache.get(g_id))){
                     cmdObj.msg_obj.author.send("Cannot found specified guild…");
                     b= false;
                 }
-                else if(!Boolean(ch_id.match(/[0-9]{18}/g)) || !Boolean(channel=guild.channels.get(ch_id))){
+                else if(!Boolean(ch_id.match(/[0-9]{18}/g)) || !Boolean(channel=guild.channels.cache.get(ch_id))){
                     cmdObj.msg_obj.author.send("Cannot found specified channel…");
                     b= false;
                 }
@@ -465,11 +465,11 @@ class Commander{
                     cmdObj.msg_obj.author.send("Format: `!edit-message <guild_id> <channel_id> <message_id> <message text…>`");
                     b= false;
                 }
-                else if(!Boolean(g_id.match(/[0-9]{18}/g)) || !Boolean(guild=this._worker._bot.guilds.get(g_id))){
+                else if(!Boolean(g_id.match(/[0-9]{18}/g)) || !Boolean(guild=this._worker._bot.guilds.cache.get(g_id))){
                     cmdObj.msg_obj.author.send("Cannot found specified guild…");
                     b= false;
                 }
-                else if(!Boolean(ch_id.match(/[0-9]{18}/g)) || !Boolean(channel=guild.channels.get(ch_id))){
+                else if(!Boolean(ch_id.match(/[0-9]{18}/g)) || !Boolean(channel=guild.channels.cache.get(ch_id))){
                     cmdObj.msg_obj.author.send("Cannot found specified channel…");
                     b= false;
                 }
@@ -575,7 +575,7 @@ class Commander{
         return (Boolean(member.roles) &&  Boolean(guildSettings=this._worker._settings.guildsSettings[member.guild.id]) &&
                 (Boolean(roles=guildSettings['adminRoles'])) &&
                     roles.find(r_id=>{
-                        return (Boolean(member.roles.get(r_id)));
+                        return (Boolean(member.roles.cache.get(r_id)));
                     })
                 );
     }
@@ -622,14 +622,14 @@ class Commander{
 
             var obj= this._worker._settings.guildsSettings[guild.id][guildSettingsField];
             if(cmd==="add"){
-                message.mentions[mentionType].tap( type => {
+                message.mentions[mentionType].each( type => {
                     if(!obj.includes(type.id)) obj.push(type.id);
                 });
 
                 this._worker._settings.saveGuildsSetup();
             }
             else if(cmd==="rm"){
-                message.mentions[mentionType].tap( type => {
+                message.mentions[mentionType].each( type => {
                     if(obj.includes(type.id)) this._worker._settings.guildsSettings[guild.id][guildSettingsField]= obj.filter(e => {return e!=type.id});
                 });
 
@@ -641,8 +641,8 @@ class Commander{
                     str+=`\t- ${(guildSettingsField==='ctrlChannels')?
                                 `<#${element}>`
                                 : (guildSettingsField==='adminRoles')?
-                                    (Boolean(guild.roles) && Boolean(guild.roles.get(element)))?
-                                        guild.roles.get(element).name
+                                    (Boolean(guild.roles) && Boolean(guild.roles.cache.get(element)))?
+                                        guild.roles.cache.get(element).name
                                         : `<@${element}>`
                                     : "unknown"
                         }`

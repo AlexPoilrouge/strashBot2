@@ -306,7 +306,7 @@ async function cmd_init_per_guild(utils, guild){
 
     var chanKart= utils.settings.get(guild, 'kart_channel');
     var channel= undefined;
-    if(!Boolean(chanKart) || !Boolean(channel= guild.channels.get(chanKart))){
+    if(!Boolean(chanKart) || !Boolean(channel= guild.channels.cache.get(chanKart))){
         if(Boolean(m_owner)){
             var chanKart= utils.settings.remove(guild, 'serv_owner');
             if(_isServerRunning()){
@@ -1488,7 +1488,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         else if(args[1]==="which"){
             var chanKart= utils.settings.get(message.guild, 'kart_channel');
             var channel= undefined;
-            if(!Boolean(chanKart) || !Boolean(channel=message.guild.channels.get(chanKart))){
+            if(!Boolean(chanKart) || !Boolean(channel=message.guild.channels.cache.get(chanKart))){
                 message.author.send("No channel set as *dedicated srb2kart channel*…");
 
                 return true;
@@ -1993,7 +1993,7 @@ function cmd_event(eventName, utils){
             if(_isServerRunning()){
                 var chanKart= utils.settings.get(member.guild, 'kart_channel');
                 var channel= undefined;
-                if(Boolean(chanKart) && Boolean(channel= member.guild.channels.get(chanKart))){
+                if(Boolean(chanKart) && Boolean(channel= member.guild.channels.cache.get(chanKart))){
                     channel.send(`⚠ Le serveur SRB2Kart n'a plus d'admin désigné… 😢`+
                         `\t⚠ Il faut qu'un joueur récupère la propriété en utilisant la commande \`!kart claim\`!`
                     );

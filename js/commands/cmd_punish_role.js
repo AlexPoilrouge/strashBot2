@@ -14,7 +14,7 @@ function __get_stored_role(guild, name, utils){
     hereLog(`r_id: ${r_id}`)
     var role= undefined;
     if(!Boolean(r_id) ||
-        !(Boolean(guild.roles) && Boolean(role=guild.roles.get(r_id)))
+        !(Boolean(guild.roles) && Boolean(role=guild.roles.cache.get(r_id)))
     ){
         return undefined;
     }
@@ -59,7 +59,7 @@ async function __punish_func(guild, member, p_role, utils){
 
     if(Boolean(member.roles)){
         var saved_roles= old_sr;
-        member.roles.forEach(role =>{
+        member.roles.cache.forEach(role =>{
             if( !saved_roles.includes(role.id) && (role.id!==p_role.id)
                     && (!Boolean(spared) || !spared.includes(role.id)) && (!mains.includes(role.id))
             ){
@@ -122,7 +122,7 @@ async function __cmd_punish(cmdObj, clearanceLvl, punishment, utils){
                 str+=`\n\nThe following roles can't be stripped off when punishment occurs: ${
                     s_r.map(sr=>{
                         var sr_n;
-                        if(Boolean(sr_n=message.guild.roles.get(sr))) return sr_n.name;
+                        if(Boolean(sr_n=message.guild.roles.cache.get(sr))) return sr_n.name;
                         else return `<@${sr}>`;
                     })
                 }`;
@@ -273,10 +273,10 @@ async function cmd_init_per_guild(utils, guild){
     var p_r_id= utils.settings.get(guild, 'prison_role');
     var s_r_id= utils.settings.get(guild, 'silence_role');
     var punished= utils.settings.get(guild, 'punished');
-    if(Boolean(p_r_id) && !Boolean(guild.roles.get(p_r_id))){
+    if(Boolean(p_r_id) && !Boolean(guild.roles.cache.get(p_r_id))){
         utils.settings.remove(guild, 'prison_role');
     }
-    if(Boolean(s_r_id) && !Boolean(guild.roles.get(s_r_id))){
+    if(Boolean(s_r_id) && !Boolean(guild.roles.cache.get(s_r_id))){
         utils.settings.remove(guild, 'silence_role');
     }
     if(Boolean(punished)){
@@ -287,7 +287,7 @@ async function cmd_init_per_guild(utils, guild){
                 var m_sent= Boolean(pun_m)? pun_m.sentence : undefined;
 
                 var r= undefined;
-                if(!Boolean(m_sent) || !Boolean(r=m.roles.get(m_sent))){
+                if(!Boolean(m_sent) || !Boolean(r=m.roles.cache.get(m_sent))){
                     if(Boolean(pun_m.roles)){
                         m.addRoles(pun_m.roles).catch(err => {hereLog(err);});
                     }
@@ -304,7 +304,7 @@ async function cmd_init_per_guild(utils, guild){
         await guild.fetchMembers().then(g=>{
             g.members.forEach(m=>{
                 var pun_m= undefined;
-                if((Boolean(r=m.roles.get(p_r_id)) || Boolean(r=m.roles.get(s_r_id))) &&
+                if((Boolean(r=m.roles.cache.get(p_r_id)) || Boolean(r=m.roles.cache.get(s_r_id))) &&
                     !(Boolean(pun_m=punished[m.id]) && Boolean(pun_m.sentence))
                 ){
                     __punish_func(guild,m,r,utils);
@@ -317,7 +317,7 @@ async function cmd_init_per_guild(utils, guild){
     if(Boolean(spared) && spared.length>0){
         var f_s= spared, b=false;
         spared.forEach(s_r=>{
-            if(!Boolean(guild.roles.get(s_r))){
+            if(!Boolean(guild.roles.cache.get(s_r))){
                 f_s= f_s.filter(r =>{return r!==s_r});
                 b= true;
             }
@@ -366,10 +366,10 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         str= "Convicts list:\n\n";
         convicts.forEach(con => {
             var con_obj= punished[con];
-            str+= `\t[ ${(Boolean(con) && Boolean(con_obj.sentence))?message.guild.roles.get(con_obj.sentence).name:'???'} ] <@${con}>`;
-            str+= (Boolean(con) && Boolean(con_obj.roles))?"( stripped from "+con_obj.roles.map(r=>{
+            str+= `\t[ ${(Boolean(con) && Boolean(con_obj.sentence))?message.guild.roles.cache.get(con_obj.sentence).name:'???'} ] <@${con}>`;
+            str+= (Boolean(con) && Boolean(con_obj.roles))?"( stripped from "+con_obj.roles.cache.map(r=>{
                             var r_obj= undefined;
-                            return (Boolean(r_obj=message.guild.roles.get(r)))?
+                            return (Boolean(r_obj=message.guild.roles.cache.get(r)))?
                                         r_obj.name :
                                         "[ deleted role ]";
                         }
@@ -423,7 +423,7 @@ function cmd_event(eventName, utils){
 
         var punished= utils.settings.get(newMember.guild, 'punished');
 
-        if (oldMember.roles.size > newMember.roles.size) {
+        if (oldMember.roles.cache.size > newMember.roles.cache.size) {
             var suprRoles= oldMember.roles.filter(r => {return !newMember.roles.has(r.id);});
 
             var p_sent= (Boolean(punished) && Boolean(p_sent=punished[newMember.id]))? p_sent.sentence: undefined;

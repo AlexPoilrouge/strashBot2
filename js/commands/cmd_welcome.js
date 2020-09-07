@@ -25,7 +25,7 @@ function __isCustomEmoji(str, bot){
 
     var id= res[2];
 
-    return Boolean( bot.emojis.get(id) );
+    return Boolean( bot.emojis.cache.get(id) );
 
 }
 
@@ -53,7 +53,7 @@ async function cmd_init_per_guild(utils, guild){
     hereLog(`cmd init for guild ${guild}`);
 
     var w_chan_id= utils.settings.get(guild, 'welcome_channel');
-    if(Boolean(w_chan_id) && !Boolean(guild.channels.get(w_chan_id))){
+    if(Boolean(w_chan_id) && !Boolean(guild.channels.cache.get(w_chan_id))){
         utils.settings.remove(guild, 'welcome_channel');
         hereLog(`Non-existing welcome channel ${w_chan_id}…`);
     }
@@ -69,7 +69,7 @@ async function cmd_init_per_guild(utils, guild){
             }
             else{
                 var role_id= w_react_roles[emoji_txt];
-                if(!Boolean(role_id) || !Boolean(guild.roles.get(role_id))){
+                if(!Boolean(role_id) || !Boolean(guild.roles.cache.get(role_id))){
                     delete w_react_roles[emoji_txt];
                     hereLog(`In association "${emoji_txt} => ${role_id}": unrecognized role…`);
                     b= true;
@@ -187,7 +187,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         if(!Boolean(w_chan_id)){
             str+="- Welcome channel is not set yet…\n";
         }
-        else if(!Boolean(w_chan=message.guild.channels.get(w_chan_id))){
+        else if(!Boolean(w_chan=message.guild.channels.cache.get(w_chan_id))){
             str+="- Welcome channel is not availabe anymore (deleted?)…\n";
         }
         else{
@@ -210,7 +210,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
                 var role_id= w_reac_roles[emoji_txt];
                 var role= undefined;
-                if(!Boolean(role_id) || !Boolean(role=message.guild.roles.get(role_id))){
+                if(!Boolean(role_id) || !Boolean(role=message.guild.roles.cache.get(role_id))){
                     t_str+= "[unavailabe role]\n";
                 }
                 else{
@@ -304,7 +304,7 @@ function cmd_event(eventName, utils){
         let w_chan_id= utils.settings.get(message.guild, 'welcome_channel');
         let w_react_roles= utils.settings.get(message.guild, 'reaction_roles');
         if(Boolean(w_chan_id) && message.channel.id===w_chan_id && Boolean(w_react_roles) &&
-            !Boolean(Object.values(w_react_roles).find(r_id => {return Boolean(message.member.roles.get(r_id));}))
+            !Boolean(Object.values(w_react_roles).find(r_id => {return Boolean(message.member.roles.cache.get(r_id));}))
         ){
             if(message.content.length<42){
                 message.react('🙄').catch(err => {hereLog(err);});
@@ -316,7 +316,7 @@ function cmd_event(eventName, utils){
                 reacts.forEach(react =>{
                     if(__isCustomEmoji(react, utils.getBotClient())){
                         var id_e= (/^<\:([a-zA-Z\-_0-9]+)\:([0-9]{18})>$/g).exec(react)[2];
-                        var react= utils.getBotClient().emojis.get(id_e);
+                        var react= utils.getBotClient().emojis.cache.get(id_e);
                     }
                     message.react(react).catch(err => {hereLog(err);});
                 });
@@ -333,9 +333,9 @@ function cmd_event(eventName, utils){
             var roles= Object.values(w_react_roles);
             var give_role_id= undefined, give_role= undefined;
             if( !_reaction_add_lock && (message.author.id===user.id) &&
-                !Boolean(message.member.roles.find(r => {return roles.includes(r.id);})) &&
+                !Boolean(message.member.roles.cache.find(r => {return roles.includes(r.id);})) &&
                 Boolean(give_role_id=w_react_roles[messageReaction.emoji.toString()]) &&
-                Boolean(give_role=message.guild.roles.get(give_role_id))
+                Boolean(give_role=message.guild.roles.cache.get(give_role_id))
             ){
                 _reaction_add_lock= true;
                 message.member.addRole(give_role).catch(err => {hereLog(err);})

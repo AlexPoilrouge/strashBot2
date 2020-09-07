@@ -9,7 +9,7 @@ let hereLog= (...args) => {console.log("[cmd_main]", ...args);};
 async function __deleteMemberMainRoles(member, charChanObj){
     hereLog(`delete main roles for ${member}`)
     var rms= [];
-    member.roles.forEach( (r, id, map) =>{
+    member.roles.cache.forEach( (r, id, map) =>{
         var found_cco= undefined;
         if( Boolean(found_cco=Object.values(charChanObj).find(chObj =>{
                 return Boolean(chObj.role) && (chObj.role===r.id)
@@ -25,9 +25,9 @@ async function __deleteMemberMainRoles(member, charChanObj){
         hereLog(`removeRole ${role.name}(${role.id})`);
         await member.removeRole(role);
 
-        await member.guild.fetchMembers();
-        var l_members= member.guild.roles.get(role.id).members;
-        if(!Boolean(l_members) || l_members.size<=0){
+        await member.guild.members.fetch();
+        var l_members= member.guild.roles.cache.get(role.id).members;
+        if(!Boolean(l_members) || l_members.cache.size<=0){
             hereLog(`[1] role delete ${role.name}(${role.id})`);
             role.delete();
             delete cco["role"];
@@ -38,7 +38,7 @@ async function __deleteMemberMainRoles(member, charChanObj){
 async function _postColorVoteMessage(channel, charChanObj, utils){
     hereLog(`post color vote on ${channel.name}(${channel})`)
     var r= undefined, role= undefined;
-    if(!Boolean(charChanObj) || !Boolean(r=charChanObj.role) || !Boolean(role=channel.guild.roles.get(r))){
+    if(!Boolean(charChanObj) || !Boolean(r=charChanObj.role) || !Boolean(role=channel.guild.roles.cache.get(r))){
         return false;
     }
 
@@ -70,27 +70,27 @@ async function _process_color_vote(message, emojis_colors, charChanObj){
     if(!Boolean(charObj.color_message) || (charObj.color_message!==message.id)) return false;
 
     var r= undefined, role= undefined;
-    if(!Boolean(r= charObj.role) || !Boolean(role=message.guild.roles.get(r))) return false;
+    if(!Boolean(r= charObj.role) || !Boolean(role=message.guild.roles.cache.get(r))) return false;
 
     var max= -1, res=undefined, count= -1;
     var emojis= Object.keys(emojis_colors);
 
     for (var emj of emojis){
         if( Boolean(message.reactions) &&
-            !Boolean(message.reactions.find(r => {return (r.emoji.name===emj && !r.me);}))
+            !Boolean(message.reactions.cache.find(r => {return (r.emoji.name===emj && !r.me);}))
         ){
             await message.react(emj);
         }
     }
     
-    for(var reac of message.reactions){
+    for(var reac of message.reactions.cache){
         var mr= reac[1]
         if(emojis.includes(mr.emoji.name)){
-            if(mr.count>mr.users.size) await mr.fetchUsers();
+            if(mr.count>mr.users.cache.size) await mr.users.fetch();
             count=0;
-            mr.users.forEach(u => {
-                var member=message.guild.members.get(u.id);
-                if(Boolean(member) && Boolean(member.roles.get(r))){
+            mr.users.cache.forEach(u => {
+                var member=message.guild.members.cache.get(u.id);
+                if(Boolean(member) && Boolean(member.roles.cache.get(r))){
                     ++count;
                 }
             })
@@ -136,7 +136,7 @@ function _unstallMember(id, stalledObj){
 function _onChannelMissing(charChan, guild, chanID){
     hereLog(`on channel missing… ${chanID}`)
     var cco= undefined, r= undefined, role=undefined;
-    if(Boolean(cco=charChan[chanID]) && Boolean(r=cco.role) && Boolean(role=guild.roles.get(r))){
+    if(Boolean(cco=charChan[chanID]) && Boolean(r=cco.role) && Boolean(role=guild.roles.cache.get(r))){
         hereLog(`[2] role delete ${role.name}(${role.id})`);
         role.delete();
     }
@@ -176,12 +176,12 @@ function cmd_init_per_guild(utils, guild){
             var cco= undefined;
             var channel= undefined;
             if(Boolean(chan) && Boolean(cco=charChan[chan])){
-                if(!Boolean(channel=guild.channels.get(chan))){
+                if(!Boolean(channel=guild.channels.cache.get(chan))){
                     _onChannelMissing(charChan, guild, chan);
                 }
                 else{
                     if(Boolean(cco.color_message)){
-                        channel.fetchMessage(cco.color_message).then(msg =>{
+                        channel.messages.fetch(cco.color_message).then(msg =>{
                             _process_color_vote(msg, emojis_color, charChan);
                         })
                         .catch(err => {
@@ -192,12 +192,12 @@ function cmd_init_per_guild(utils, guild){
                     if(Boolean(cco.role)
                     ){
                         var r= undefined;
-                        if (!Boolean(r=guild.roles.get(cco.role))){
+                        if (!Boolean(r=guild.roles.cache.get(cco.role))){
                             delete cco['role'];
                         }
                         else{
-                            guild.fetchMembers().then( gld =>{
-                                if(r.members.size<=0){
+                            guild.members.fetch().then( gld =>{
+                                if(r.members.cache.size<=0){
                                     delete cco['role'];
                                     utils.settings.set(guild, 'channelCharacter', charChan);
                                     hereLog(`[3] role delete ${r.name}(${r.id})`);
@@ -294,12 +294,12 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
         var str=`Channel ${chan} unassociated from ${char}…`;
         var role= undefined;
-        if(Boolean(chanChar[chan.id].role) && Boolean(role=chan.guild.roles.get(chanChar[chan.id].role))){
+        if(Boolean(chanChar[chan.id].role) && Boolean(role=chan.guild.roles.cache.get(chanChar[chan.id].role))){
             str+=`\nDeleting '${role.name}' role…`;
         }
         var col_msg= undefined;
         if(Boolean(col_msg=chanChar[chan.id].color_message)){
-            chan.fetchMessage(col_msg).then(msg => {
+            chan.messages.fetch(col_msg).then(msg => {
                 msg.delete();
                 utils.cache_message_management.untrack(msg);
             })
@@ -333,7 +333,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
         var r= undefined;
         message.author.send(`The ${message.channel} channel is for ${chanChar[message.channel.id].character} players.\n`+
-            ((Boolean(charObj.role) && Boolean(r=message.guild.roles.get(charObj.role)))? `\tAssociated role is: ${r}` : '')
+            ((Boolean(charObj.role) && Boolean(r=message.guild.roles.cache.get(charObj.role)))? `\tAssociated role is: ${r}` : '')
         );
 
         return true;
@@ -349,7 +349,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         Object.keys(chanChar).forEach(ch_k=>{
             var n_char= undefined, chan= undefined;
             var tmp_str= "";
-            if(Boolean(n_char=chanChar[ch_k].character) && Boolean(chan=message.guild.channels.get(ch_k))){
+            if(Boolean(n_char=chanChar[ch_k].character) && Boolean(chan=message.guild.channels.cache.get(ch_k))){
                 tmp_str=`⋅ Channel "${chan.name}" is associated with character "${n_char}"\n`;
                 if((tmp_str.length + str.length)>1998){
                     message.author.send(str);
@@ -404,13 +404,13 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         }
 
         var role= undefined;
-        if(!Boolean(role=message.member.roles.get(chanCharObj.role))){
+        if(!Boolean(role=message.member.roles.cache.get(chanCharObj.role))){
             message.author.send(`You are not registered as a "${chanCharObj.character}" main…`);
 
             return false;
         }
         if(Boolean(chanCharObj.color_message)){
-            message.channel.fetchMessage(chanCharObj.color_message).then(msg =>{
+            message.channel.messages.fetch(chanCharObj.color_message).then(msg =>{
                 message.channel.send(`Color vote for "${role}" role is here: <${msg.url}>`);
             })
             .catch(err => {
@@ -443,7 +443,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         let roleName= `${chanCharObj.character} main`;
         var r= chanCharObj.role;
         var role= undefined;
-        if(Boolean(r) && (role=message.guild.roles.get(r))){
+        if(Boolean(r) && (role=message.guild.roles.cache.get(r))){
             message.member.addRole(role);
                     
             utils.settings.set(message.guild, 'stalledMembers', __stallMember(message.author.id,stalled));
@@ -598,7 +598,7 @@ function cmd_event(eventName, utils){
                 return ( Boolean(chanChar[chan].role) &&
                     (chanChar[chan].role.id===newRole.id)) ;
             }))
-            && Boolean(channel=newRole.guild.channels.get(ch))
+            && Boolean(channel=newRole.guild.channels.cache.get(ch))
         ){
             channel.send(`Associated role (${oldRole.name}→${newRole.name}) has been updated by a higher power.`);
 
@@ -618,7 +618,7 @@ function cmd_event(eventName, utils){
         if(Boolean(ch=Object.keys(chanChar).find(chan => {
                 return chanChar[chan].role===role.id;
             }))
-            && Boolean(channel=role.guild.channels.get(ch))
+            && Boolean(channel=role.guild.channels.cache.get(ch))
         ){
             channel.send(`Associated role (${role.name}) has been deleted by a higher power.`);
 
@@ -626,7 +626,7 @@ function cmd_event(eventName, utils){
 
             var c= undefined;
             if(Boolean(c=chanChar[channel.id].color_message)) {
-                channel.fetchMessage(c).then( msg => {
+                channel.messages.fetch(c).then( msg => {
                     msg.delete();
                     utils.cache_message_management.untrack(msg);
                 });
@@ -637,7 +637,7 @@ function cmd_event(eventName, utils){
 
             if(Boolean(role.members)){
                 var stalledObj= utils.settings.get(channel.guild, 'stalledMembers');
-                for (var m of role.members){
+                for (var m of role.members.cache){
                     stalledObj= _unstallMember(m.id, stalledObj);
                 }
                 utils.settings.set(channel.guild, 'stalledMembers', stalledObj);
@@ -654,8 +654,8 @@ function cmd_event(eventName, utils){
         var newMember= arguments[3];
 
         hereLog("guildMemberUpdate!")
-        if (oldMember.roles.size > newMember.roles.size) {
-            var suprRoles= oldMember.roles.filter(r => {return !newMember.roles.has(r.id);});
+        if (oldMember.roles.cache.size > newMember.roles.cache.size) {
+            var suprRoles= oldMember.roles.cache.filter(r => {return !newMember.roles.cache.has(r.id);});
             hereLog(`suprRoles: ${suprRoles.map(r => {return `${r.name} (${r.id})`})}`);
             
             var charChan= utils.settings.get(newMember.guild, 'channelCharacter');

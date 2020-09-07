@@ -77,7 +77,7 @@ async function _reportCmdPunishRole(guild, utils){
         msg= `prison role doesn't seem to be present in data`
         problems.add(guild.id, msg)
     }
-    else if (!Boolean(role=guild.roles.get(obj_prisonRole))){
+    else if (!Boolean(role=guild.roles.cache.get(obj_prisonRole))){
         msg= `prison role (#${obj_prisonRole}) doesn't seem to be a valid role in guild`
         problems.add(guild.id, msg, ProblemCount.TYPES.ERROR)
     }
@@ -96,7 +96,7 @@ async function _reportCmdPunishRole(guild, utils){
         msg= `slience role doesn't seem to be present in data`
         problems.add(guild.id, msg, ProblemCount.TYPES.ERROR)
     }
-    else if (!Boolean(role=guild.roles.get(obj_silenceRole))){
+    else if (!Boolean(role=guild.roles.cache.get(obj_silenceRole))){
         msg= `slience role (#${obj_silenceRole}) doesn't seem to be a valid role in guild`
         problems.add(guild.id, msg, ProblemCount.TYPES.ERROR)
     }
@@ -117,7 +117,7 @@ async function _reportCmdPunishRole(guild, utils){
     else{
         obj_sparedRoles.forEach(r_id =>{
             role= undefined
-            if(!Boolean(r_id) || !Boolean(role=guild.roles.get(r_id))){
+            if(!Boolean(r_id) || !Boolean(role=guild.roles.cache.get(r_id))){
                 var _msg= `[invalid_role](#${r_id})`
                 problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
                 msg+= _msg
@@ -148,11 +148,11 @@ async function _reportCmdPunishRole(guild, utils){
         });
         
         if(!_err){
-            await guild.fetchMembers(user_ids)
+            await guild.members.fetch(user_ids)
 
             user_ids.forEach( u_id =>{
                 var member= undefined
-                if(!Boolean(member=guild.members.get(u_id))){
+                if(!Boolean(member=guild.members.cache.get(u_id))){
                     var _msg= `unfound member id #${u_id}`
                     problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
                     msg+= _msg
@@ -168,7 +168,7 @@ async function _reportCmdPunishRole(guild, utils){
                     else{
                         var u_sentenceObj= u_obj['sentence'];
                         role= undefined
-                        if (!Boolean(u_sentenceObj) || !Boolean(role=guild.roles.get(u_sentenceObj))){
+                        if (!Boolean(u_sentenceObj) || !Boolean(role=guild.roles.cache.get(u_sentenceObj))){
                             var _msg= `bad sentence - bad role (#${u_sentenceObj}); `
                             problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
                             msg+= _msg
@@ -187,7 +187,7 @@ async function _reportCmdPunishRole(guild, utils){
                             msg+= `saved roles: [`
                             u_rolesObj.forEach(r_id => {
                                 role= undefined
-                                if (!Boolean(r_id) || !Boolean(role=guild.roles.get(r_id))){
+                                if (!Boolean(r_id) || !Boolean(role=guild.roles.cache.get(r_id))){
                                     var _msg= `bad saved role (#${r_id}); `
                                     problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
                                     msg+= _msg
@@ -228,7 +228,7 @@ function __isCustomEmoji(str, bot){
 
     var id= res[2];
 
-    return Boolean( bot.emojis.get(id) );
+    return Boolean( bot.emojis.cache.get(id) );
 }
 
 function _reportCmdWelcome(guild, utils){
@@ -242,7 +242,7 @@ function _reportCmdWelcome(guild, utils){
         msg= `welcome channel doesn't seem to be present in data`
         problems.add(guild.id, msg, ProblemCount.TYPES.ERROR)
     }
-    else if (!(Boolean(channel=guild.channels.get(obj_welcomeChan)))){
+    else if (!(Boolean(channel=guild.channels.cache.get(obj_welcomeChan)))){
         msg= `welcome channel #${obj_welcomeChan} doesn't seem to exist in ${guild.name}`
         problems.add(guild.id, msg, ProblemCount.TYPES.ERROR)
     }
@@ -284,7 +284,7 @@ function _reportCmdWelcome(guild, utils){
             else{
                 var role_id= obj_reacRoles[emoji];
                 var role= undefined
-                if(!Boolean(role_id) || !Boolean(role=guild.roles.get(role_id))){
+                if(!Boolean(role_id) || !Boolean(role=guild.roles.cache.get(role_id))){
                     var _msg= `@${role_id} bad role id for emoji association`
                     problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR);
                     msg+= msg
@@ -316,7 +316,7 @@ function _reportCmdMain(guild, utils){
     else{
         channels.forEach(chan_id => {
             var channel= undefined;
-            if (!Boolean(chan_id) || !Boolean(channel=guild.channels.get(chan_id))){
+            if (!Boolean(chan_id) || !Boolean(channel=guild.channels.cache.get(chan_id))){
                 var _msg= `Invalid channel #${chan_id}`
                 problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
                 msg+= _msg+"<br/>"
@@ -339,7 +339,7 @@ function _reportCmdMain(guild, utils){
                     problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
                     msg+= _msg+'; '
                 }
-                else if(!Boolean(role=guild.roles.get(obj_mainRole))){
+                else if(!Boolean(role=guild.roles.cache.get(obj_mainRole))){
                     var _msg= `Invalid main role (@${obj_mainRole}) associated to channel #${channel.name}(#${chan_id})`
                     problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
                     msg+= _msg+'; '
@@ -355,7 +355,7 @@ function _reportCmdMain(guild, utils){
                     problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
                     msg+= _msg+'; '
                 }
-                else if(!Boolean(message=channel.messages.get(obj_colorMessage))){
+                else if(!Boolean(message=channel.messages.cache.get(obj_colorMessage))){
                     var _msg= `color message (\\${obj_colorMessage}) invalid or not found on channel #${channel.name}(#${chan_id})`
                     problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
                     msg+= _msg+'; '
@@ -398,7 +398,7 @@ function _reportCmdMain(guild, utils){
             msg+= "[ "
             obj_members.forEach( member_id => {
                 var member= undefined;
-                if(!Boolean(member_id) || !Boolean(member=guild.members.get(member_id))){
+                if(!Boolean(member_id) || !Boolean(member=guild.members.cache.get(member_id))){
                     var _msg= `Invalid or gone stalled user @${member_id}`
                     problems.add(guild.id, _msg);
                     msg= _msg+'; '
@@ -429,7 +429,7 @@ function _reportCmdKart(guild, utils){
         problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
         msg+= _msg
     }
-    else if (!Boolean(kartChan=guild.channels.get(obj_kartChan))){
+    else if (!Boolean(kartChan=guild.channels.cache.get(obj_kartChan))){
         var _msg= `Set kart channel is invalid… (${kartChan} - #${obj_kartChan})`
         problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
         msg+= _msg
@@ -451,7 +451,7 @@ function _reportCmdKart(guild, utils){
         problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
         msg+= _msg
     }
-    else if (!Boolean(servOwner=guild.members.get(obj_owner))){
+    else if (!Boolean(servOwner=guild.members.cache.get(obj_owner))){
         var _msg= `Serv owner is invalid… (${servOwner} - @${obj_owner})`
         problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
         msg+= _msg
@@ -479,7 +479,7 @@ async function _runReportGuild(guild, utils, sendToUser= undefined){
 
     var user= sendToUser;
     if(!Boolean(user)){
-        user= await guild.fetchMember(utils.getMasterID())
+        user= await guild.members.fetch(utils.getMasterID())
 
         if(!Boolean(user)) return false
     }
@@ -493,7 +493,7 @@ async function _runReportGuild(guild, utils, sendToUser= undefined){
     var report_str=`<h2>${guild.name}</h2> (#${guild.id})\n\n`;
 
     report_str+= `<h4>Roles:</h4>\n<table><thead>\n<tr>\n<th>role name</th><th>id</th>\n</tr>\n</thead>\n<tbody>\n`;
-    guild.roles.forEach(role => {
+    guild.roles.cache.forEach(role => {
         report_str+= `<tr><td>${role.name}</td><td id="${role.id}">${role.id}</td></tr>\n`;
     });
     report_str+= `</tbody>\n</table>\n\n`;
