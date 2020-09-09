@@ -1759,7 +1759,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                     str+= "\n\n\t"+ (
                         (Boolean(_addr))?
                             ( `Vous pouvez vous connecter au serveur en utilisant l'adresse: \`${_addr}\``
-                                + ((_ipValid)?`\n\t\t(ou l'ip: ${_ip})`:'') )
+                                + ((_ipValid)?`\n\t\t(ou l'ip: \`${_ip}\`)`:'') )
                         : (_ipValid)?
                             `Vous pouvez vous connecter au serveur en utilisant l'ip: ${_ip}`
                         :   `❌ Erreur addresse du serveur indisponible…`
