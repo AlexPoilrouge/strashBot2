@@ -330,7 +330,7 @@ class Commander{
                 help: ((Boolean(rcf.command) && Boolean(h=rcf.command.help))? h:null),
                 event: ((Boolean(rcf.command) && Boolean(e=rcf.command.event))? ((name, ...args) => {return e(name, utils, ...args);}):null),
                 destroy: ((Boolean(rcf.command) && Boolean(d=rcf.command.destroy))? (() => {return d(utils);}):null),
-                clear_guild: ((Boolean(rcf.command) && Boolean(c=rcf.clear_guild))? c:null),
+                clear_guild: ((Boolean(rcf.command) && Boolean(c=rcf.command.clear_guild))? c:null),
                 _wait_init: true,
             }); 
             t._cmdSettings.add(file);
@@ -371,7 +371,9 @@ class Commander{
 
     _rmGuildCmd(guild){
         this.loaded_commands.forEach(l_cmd => {
-            l_cmd.clear_guild(guild);
+            if(Boolean(l_cmd.clear_guild)){
+                l_cmd.clear_guild(guild);
+            }
         });
         Object.keys(this._cmdSettings._cmdSettings).forEach( cmd => {
             this._cmdSettings.rmGuild(cmd, guild.id);
