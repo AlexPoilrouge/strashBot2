@@ -27,7 +27,7 @@ async function __deleteMemberMainRoles(member, charChanObj){
 
         await member.guild.members.fetch();
         var l_members= member.guild.roles.cache.get(role.id).members;
-        if(!Boolean(l_members) || l_members.cache.size<=0){
+        if(!Boolean(l_members) || l_members.size<=0){
             hereLog(`[1] role delete ${role.name}(${role.id})`);
             role.delete();
             delete cco["role"];
@@ -197,7 +197,7 @@ function cmd_init_per_guild(utils, guild){
                         }
                         else{
                             guild.members.fetch().then( gld =>{
-                                if(r.members.cache.size<=0){
+                                if(r.members.size<=0){
                                     delete cco['role'];
                                     utils.settings.set(guild, 'channelCharacter', charChan);
                                     hereLog(`[3] role delete ${r.name}(${r.id})`);
@@ -452,10 +452,13 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             return true;
         }
         else{
-            message.guild.createRole({
-                name: roleName,
-                mentionable: true,
-                permissions: [],
+            message.guild.roles.create({
+                data: {
+                    name: roleName,
+                    mentionable: true,
+                    permissions: []
+                },
+                reason: `strashbot - ${message.member}: !main`
             })
             .then(
                 role => {

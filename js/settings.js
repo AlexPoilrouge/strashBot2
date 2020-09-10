@@ -36,7 +36,7 @@ class Settings{
 
         if(!Boolean(this.guildConfigs.settings)) this.guildConfigs.settings= {};
 
-        this._bot.guilds.forEach((guild) => {
+        this._bot.guilds.cache.forEach((guild) => {
             if(!(Boolean(this.guildConfigs.settings[guild.id]))){
                 this.guildConfigs.settings[guild.id]= {};
             }

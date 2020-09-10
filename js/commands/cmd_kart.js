@@ -1962,7 +1962,7 @@ function cmd_help(cmdObj, clearanceLvl){
 }
 
 
-function cmd_event(eventName, utils){
+async function cmd_event(eventName, utils){
     if(eventName==="channelDelete"){
         var channel= arguments[2];
 
@@ -1987,7 +1987,7 @@ function cmd_event(eventName, utils){
 
         var servOwner= utils.settings.get(member.guild, "serv_owner");
         var m_owner= undefined;
-        if( Boolean(servOwner) && Boolean(await (m_owner= member.guild.members.fetch(servOwner))) && m_owner.id===member.id){
+        if( Boolean(servOwner) && Boolean(m_owner= (await (member.guild.members.fetch(servOwner)))) && m_owner.id===member.id){
             utils.settings.remove(member.guild, "serv_owner");
 
             if(_isServerRunning()){

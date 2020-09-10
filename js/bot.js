@@ -38,7 +38,7 @@ class StrashBot extends Discord.Client{
             hereLog("Pif paf! StrashBot rrrready to rumblllllllllle!");
             
             hereLog("Guilds:")
-            this.guilds.forEach((guild) => {
+            this.guilds.cache.forEach((guild) => {
                 hereLog(" - " + guild.name)
             })
 

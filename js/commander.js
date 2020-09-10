@@ -342,7 +342,7 @@ class Commander{
                 }
                 if(Boolean(rcf.command.init_per_guild)){
                     tmp_l_cmd._wait_init= true;
-                    this._worker.bot.guilds.forEach(async g => {
+                    this._worker.bot.guilds.cache.forEach(async g => {
                         t._cmdSettings.addGuild(cmd_name, g.id)
                         await rcf.command.init_per_guild(utils,g);
                     });
@@ -439,7 +439,7 @@ class Commander{
 
                 var guild= undefined, channel= undefined;
                 if(cmdObj.args.length<2){
-                    cmdObj.msg_obj.author.send("Format: `!edit-message <guild_id> <channel_id> <message text…>`");
+                    cmdObj.msg_obj.author.send("Format: `!post-message <guild_id> <channel_id> <message text…>`");
                     b= false;
                 }
                 else if(!Boolean(g_id.match(/[0-9]{18}/g)) || !Boolean(guild=this._worker._bot.guilds.cache.get(g_id))){
@@ -651,7 +651,7 @@ class Commander{
                     str= "\tthere are none…"
                 }
 
-                message.author.send(`Admin roles for ${guild}:\n${str}`);
+                message.author.send(`${(guildSettingsField==='ctrlChannels')?"Contoll channels":"Admin roles"} for ${guild}:\n${str}`);
             }
             else if(cmd==="help"){
                 message.author.send("No help available…");

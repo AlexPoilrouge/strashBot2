@@ -289,6 +289,7 @@ async function cmd_init_per_guild(utils, guild){
                 var r= undefined;
                 if(!Boolean(m_sent) || !Boolean(r=m.roles.cache.get(m_sent))){
                     if(Boolean(pun_m.roles)){
+                        hereLog(`tmp add roles ${pun_m.roles}`)
                         m.roles.add(pun_m.roles).catch(err => {hereLog(err);});
                     }
 
@@ -301,8 +302,8 @@ async function cmd_init_per_guild(utils, guild){
             .catch(err => hereLog(err))
         };
 
-        await guild.members.fetch().then(g=>{
-            g.members.forEach(m=>{
+        await guild.members.fetch().then(g_m=>{
+            g_m.forEach(m=>{
                 var pun_m= undefined;
                 if((Boolean(r=m.roles.cache.get(p_r_id)) || Boolean(r=m.roles.cache.get(s_r_id))) &&
                     !(Boolean(pun_m=punished[m.id]) && Boolean(pun_m.sentence))
@@ -367,7 +368,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         convicts.forEach(con => {
             var con_obj= punished[con];
             str+= `\t[ ${(Boolean(con) && Boolean(con_obj.sentence))?message.guild.roles.cache.get(con_obj.sentence).name:'???'} ] <@${con}>`;
-            str+= (Boolean(con) && Boolean(con_obj.roles))?"( stripped from "+con_obj.roles.cache.map(r=>{
+            str+= (Boolean(con) && Boolean(con_obj.roles))?"( stripped from "+con_obj.roles.map(r=>{
                             var r_obj= undefined;
                             return (Boolean(r_obj=message.guild.roles.cache.get(r)))?
                                         r_obj.name :
@@ -424,13 +425,14 @@ function cmd_event(eventName, utils){
         var punished= utils.settings.get(newMember.guild, 'punished');
 
         if (oldMember.roles.cache.size > newMember.roles.cache.size) {
-            var suprRoles= oldMember.roles.filter(r => {return !newMember.roles.has(r.id);});
+            var suprRoles= oldMember.roles.cache.filter(r => {return !newMember.roles.cache.has(r.id);});
 
             var p_sent= (Boolean(punished) && Boolean(p_sent=punished[newMember.id]))? p_sent.sentence: undefined;
             if(Boolean(p_sent) && suprRoles.some(s_role => {return s_role.id===p_sent;})){
                 var punished= utils.settings.get(newMember.guild, 'punished');
                 var old_roles= undefined, con= undefined;
                 if(Boolean(punished) && Boolean(con=punished[newMember.id]) && Boolean(old_roles=con.roles)){
+                    hereLog(`tmp add roles ${old_roles}`)
                     newMember.roles.add(old_roles).catch(err => {hereLog(err);});
                 }
 
@@ -439,7 +441,7 @@ function cmd_event(eventName, utils){
             }
         }
         else if(oldMember.roles.size < newMember.roles.size){
-            var addedRoles= newMember.roles.filter(r => {return !oldMember.roles.has(r.id);});
+            var addedRoles= newMember.roles.cache.filter(r => {return !oldMember.roles.cache.has(r.id);});
 
             var pris_r= utils.settings.get(newMember.guild, 'prison_role');
             var sil_r= utils.settings.get(newMember.guild, 'silence_role');
