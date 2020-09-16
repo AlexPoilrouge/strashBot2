@@ -108,6 +108,14 @@ find . -regex '.*\.template$' -exec bash -c 'convert_template {}' \;
 
 
 ##### install #####
+install_file(){
+    FILE="$1"
+    TARGET_FILE="$2"
+
+    mkdir -p "$(dirname ${TARGET_FILE})"
+    install "${FILE}" "${TARGET_FILE}"
+}
+export -f install_file
 
 if [ "$(grep -c "^${STRASHBOT_USER}:" /etc/passwd)" -eq 0 ]; then
     useradd -m "${STRASHBOT_USER}"
@@ -119,7 +127,7 @@ find ./config -type f -exec install {} "${ROOT_DIR}/${STRASHBOT_DIR}/config" \;
 mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}/extras"
 find ./extras -type f -exec install {} "${ROOT_DIR}/${STRASHBOT_DIR}/extras" \;
 mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}/js/commands"
-find ./js -type f -exec install {} "${ROOT_DIR}/${STRASHBOT_DIR}/{}" \;
+find ./js -type f -exec bash -c 'install_file "$0" "$1"' {} "${ROOT_DIR}/${STRASHBOT_DIR}/{}" \;
 install ./bot_main.js ./README.md ./package.json ./version.txt "${ROOT_DIR}/${STRASHBOT_DIR}"
 
 mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}/js/commands/data"

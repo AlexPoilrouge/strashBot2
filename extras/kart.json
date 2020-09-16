@@ -1,11 +1,11 @@
 {
     "server_commands":{
-            "start":"/bin/systemctl start srb2kart_serv",
-            "stop":"/bin/systemctl stop srb2kart_serv",
-            "restart":"/bin/systemctl restart srb2kart_serv",
-            "is_active":"/bin/systemctl is-active srb2kart_serv",
+            "start":"/home/strashbot/.srb2kart/addon_script.sh START_SERV",
+            "stop":"/home/strashbot/.srb2kart/addon_script.sh STOP_SERV",
+            "restart":"/home/strashbot/.srb2kart/addon_script.sh RESTART_SERV",
+            "is_active":"/home/strashbot/.srb2kart/addon_script.sh IS_ACTIVE_SERV",
             "through_ssh":true,
-            "server_ip":"151.80.155.236",
+            "server_ip":"192.168.1.13",
             "server_addr":"strashbot.fr",
             "server_port":"",
             "distant_user":"strashbot"
@@ -17,7 +17,7 @@
                     "permanent":"dl"
             }
     },
-    "http_url": "http://strashbot.fr/.srb2kart",
+    "http_url": "http://bogus.fr/.srb2kart",
     "config_commands":{
             "init":"/home/strashbot/.srb2kart/addon_script.sh INIT",
             "update":"/home/strashbot/.srb2kart/addon_script.sh UPDATE",
@@ -39,5 +39,5 @@
             "time_info":"python /home/strashbot/.srb2kart/record_lmp_read.py",
             "remove_times":"/home/strashbot/.srb2kart/addon_script.sh RECORD_RM"
     },
-    "source_url":""
+    "source_url":"http://bogus.git"
 }

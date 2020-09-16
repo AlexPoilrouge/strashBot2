@@ -15,6 +15,7 @@ const PlayerManager= require('./player/playerDataManager');
 //      control channel
 const CLEARANCE_LEVEL= require('../defines').CLEARANCE_LEVEL;
 
+let hereLog= (...args) => {console.log("[cmd_player]", ...args);};
 
 let playerDataManagers= {};
 
@@ -93,10 +94,11 @@ async function cmd_init_per_guild(utils, guild){
 async function cmd_main(cmdObj, clearanceLvl, utils){
     let message= cmdObj.msg_obj;
     let playerDataManager= playerDataManagers[message.guild.id]
+    let args= cmdObj.args;
 
     var chan_id= utils.settings.get(message.guild, 'channel');
 
-    if(args[0]==="channel" && clearanceLvl<=CLEARANCE_LEVEL.NONE){
+    if(args[0]==="channel" && clearanceLvl>CLEARANCE_LEVEL.NONE){
         if(args[1]==="get"){
             var str= "***!player channel*** command: "
             var chan= undefined
@@ -127,16 +129,20 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 return false;
             }
     
-            utils.settings.set(cmdObj.msg_obj.guild, 'welcome_channel', chan.id);
+            utils.settings.set(cmdObj.msg_obj.guild, 'channel', chan.id);
     
             return true;
         }
     }
     
+    hereLog("please?")
     if(chan_id===message.channel.id){
-        if(args[1]==="roster"){
-            if(args.length<=2){
-                var r= playerDataManager.getPlayerRoster(message.author.id)
+        hereLog("ok0")
+        if(args[0]==="roster"){
+            hereLog("ok1")
+            if(args.length<=1){
+                hereLog("ok2")
+                var r= ( await playerDataManager.getPlayerRoster(message.author.id))
 
                 if(Boolean(r)){
                     message.member.send(`roster: ${r}`)
@@ -151,6 +157,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             var roster= []
             var i= 0
             for( arg of args.slice(1) ) {
+                hereLog(`ok3-${i}`)
                 var n= Number(arg)
                 if(!isNaN(n)){
                     var char_code= parseInt(n)
@@ -172,7 +179,8 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             // player_obj.roster= roster
             // players_obj[message.member.id]= player_obj
             // utils.settings.set(cmdObj.msg_obj.guild, message.member.id, players_obj)
-            return playerDataManager.setPlayerRoster(message.author.id, roster.join(';'))
+            hereLog("ok4")
+            return (await playerDataManager.setPlayerRoster(message.author.id, roster.join(';')))
         }
     }
     else if(!Boolean(chan_id)){
