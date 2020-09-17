@@ -75,6 +75,34 @@ async function cmd_init_per_guild(utils, guild){
     }
 }
 
+function _processArgsQuoteMarks(args){
+    var n_args= []
+    var i=0;
+    while(i<args.length){
+        if(args[i].startsWith("\"") && !(args[i].length>1 && args[i].endsWith("\""))){
+            var j=i+1;
+            var endsmeet= false;
+            while(j<args.length){
+                if(endsmeet=(args[j].endsWith("\""))){
+                    break;
+                }
+                ++j;
+            }
+            if(endsmeet){
+                n_args.push(args.slice(i+1,j+1).join(' ').slice(1,-1))
+                i= j;
+            }
+            else{
+                n_args.push(args[i])
+            }
+        }
+        else{
+            n_args.push(args[i])
+        }
+        ++i;
+    }
+    return n_args
+}
 
 
 //this function is called when a command registered by this module
@@ -155,32 +183,36 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
 
             var roster= []
-            var i= 0
-            for( arg of args.slice(1) ) {
-                hereLog(`ok3-${i}`)
-                var n= Number(arg)
-                if(!isNaN(n)){
-                    var char_code= parseInt(n)
-                    roster.push(char_code)
-                }
-
+            var n_args= _processArgsQuoteMarks(args.slice(1));
+            var i= 0;
+            while(i<n_args.length){
+                var name= n_args[i]
+                var color= "0"
                 ++i
-                if(i>4) break;
+                if(i<n_args.length && Boolean(n_args[i].match(/^\-?[0-9]+$/))){
+                    color= n_args[i]
+                    ++i
+                }
+                roster.push({"name": name, "color": color});
+                if(roster.length>4) break;
             }
-
-            // var players_obj= utils.settings.get(cmdObj.msg_obj.guild, "players")
-            // if(!Boolean(players_obj)){
-            //     players_obj= {}
-            // }
-            // var player_obj= players_obj[message.member.id]
-            // if(!Boolean(player_obj)){
-            //     player_obj= {"roster": []}
-            // }
-            // player_obj.roster= roster
-            // players_obj[message.member.id]= player_obj
-            // utils.settings.set(cmdObj.msg_obj.guild, message.member.id, players_obj)
-            hereLog("ok4")
-            return (await playerDataManager.setPlayerRoster(message.author.id, roster.join(';')))
+            
+            // return (await playerDataManager.setPlayerRoster(message.author.id, roster.join(';')))
+            var res= (await playerDataManager.setRosterByNameAndColor(message.author.id, roster))
+            if(!Boolean(res)){
+                return false;
+            }
+            else if(res.length===0){
+                return true;
+            }
+            else{
+                var str= "Could match following names with any fighter:\n\t";
+                for(var f of res){
+                    str+= `\"${f.name}\"; `
+                }
+                message.member.send(str);
+                return false;
+            }
         }
     }
     else if(!Boolean(chan_id)){
