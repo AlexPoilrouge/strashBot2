@@ -62,7 +62,7 @@ JSONCheck ={
 };
 
 function commandDecompose(message){
-    if(!message.content.startsWith('!')){
+    if(!message.content.startsWith('!') || !message.content.startsWith('?')){
         return null;
     }
 

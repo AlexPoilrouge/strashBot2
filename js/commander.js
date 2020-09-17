@@ -16,6 +16,8 @@ function __sleep(ms){
       });
 }
 
+let debug= false;
+
 
 class CommandSettings{
     constructor(){
@@ -263,6 +265,9 @@ class Commander{
         this._cmdSettings= new CommandSettings();
 
         this.loaded_commands= [];
+
+        var debug= ["1","on","true","debug"].includes(config.get('StrashBot.debug').toLowerCase());
+        this._cmd_prefix= (debug)?'?':'!';
 
         this._utils= (cmd_name) => { return {
             settings: {
@@ -529,7 +534,7 @@ class Commander{
                 b= true;
             }
             else{
-                askedCmd= (askedCmd.startsWith('!'))?
+                askedCmd= (askedCmd.startsWith(this._cmd_prefix))?
                         askedCmd.slice(1)
                     :   askedCmd;
                 if( (b=__clearanceManagementCmd(askedCmd, "ctrlchannel", this.CMD_manageCtrlChannel.bind(this), 'help')) || 

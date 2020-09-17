@@ -6,6 +6,8 @@
 
         "token": "STRASHBOT_TOKEN",
 
-        "masterID": "STRASHBOT_MASTERID"
+        "masterID": "STRASHBOT_MASTERID",
+
+        "debug": "STRASHBOT_DEBUG"
     }
 }

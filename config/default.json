@@ -6,6 +6,8 @@
 
         "token": "",
 
-        "masterID": ""
+        "masterID": "",
+
+        "debug": "false"
     }
 }
