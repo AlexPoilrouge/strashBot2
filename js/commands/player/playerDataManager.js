@@ -83,7 +83,11 @@ class PlayerDataManager{
         if(!Boolean(roster) || roster.length<=0) return false;
 
         var res= false
-        var m_roster= [...roster]
+        var m_roster= roster.filter((chara, pos, self) => {
+            return ( self.findIndex(chr =>{
+                        return chr.split('.')[0]===chara.split('.')[0];
+            }) ) === pos;
+        });
         if(await this.playerExists(playerID)){
             var query= "UPDATE players SET "
             for(var i=0; i<4; ++i){
