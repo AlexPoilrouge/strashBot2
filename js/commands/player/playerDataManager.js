@@ -1,5 +1,6 @@
-const sqlite3 = require('sqlite3').verbose();
-const cron= require('node-cron');
+const fs= require( 'fs' );
+const path= require( 'path' );
+const child_process= require("child_process");
 
 let hereLog= (...args) => {console.log("[playersDB]", ...args);};
 
@@ -26,22 +27,8 @@ function __loadFightersObj(){
 let fightersObj= undefined;
 
 class PlayerDataManager{
-    constructor(db_filepath){
-        this._db_path= db_filepath
-
-        this._db= null
-        this._db_closeStamp= undefined
-
-        this._cron_db_closer= cron.schedule('*/5 * * * *', () =>{
-            if(Boolean(this._db_closeStamp) && ((Date.now()-this._db_closeStamp)>120000)
-                && Boolean(this._db)
-            ){
-                this._db.close()
-                hereLog("Closing database…")
-                this._db= null
-                this._db_closeStamp= undefined
-            }
-        });
+    constructor(dbManager){
+        this._db= dbManager
 
         if(!Boolean(fightersObj)){
             fightersObj= __loadFightersObj()
@@ -52,66 +39,31 @@ class PlayerDataManager{
     }
 
     _open_db(){
-        if(!Boolean(this._db)){
-            this._db_closeStamp= undefined
-            this._db= new sqlite3.Database( this._db_path, (err) =>{
-                if(err){
-                    hereLog(err.message)
-                    this._db_closeStamp= Date.now()-5000
-                }
-    
-                hereLog(`Connection to ${this._db_path}`)
-            })
-        }
-        else{
-            this._db_closeStamp= undefined
-        }
+        if(Boolean(this._db))
+            this._db._open_db();
     }
 
     _closeRequest_db(){
-        this._db_closeStamp= Date.now()
+        if(Boolean(this._db))
+            this._db._closeRequest_db();
     }
 
     __runQuery(query, placeholders=[]){
-        return new Promise((resolve, reject)=>{
-            this._db.run(query,placeholders,(err)=>{
-                hereLog(`[RunQuery] query: ${query}; placeholders: ${placeholders}`)
-                if(Boolean(err)){
-                    hereLog(`[RunQuery] error: ${err.message}`)
-                    resolve(false);
-                }
-
-                resolve(true)
-            })
-        })
+        return this._db.__runQuery(query, placeholders);
     }
 
     __getQuery(query,placeholders=[]){
-        return new Promise((resolve, reject)=>{
-            var t= this;
-            this._db.serialize(function(){
-            t._db.get(query,placeholders,(err,row)=>{
-                hereLog(`query: ${query} ; placeholders: ${placeholders}`)
-                if(Boolean(err)){
-                    hereLog(`[getQuery] error: ${err.message}`)
-                    resolve(undefined)
-                }
-                else{
-                    hereLog(`[getQuery] no err`) 
-                }
-                hereLog(`[getQuery] row= ${row}`)
-                //hereLog(`[getQuery] -${row}- roster? ${row.roster}`)
-                resolve(row)
-            })
-            })
-        })
+        return this._db.__getQuery(query, placeholders);
     }
 
     async _init_db(){
         this._open_db()
 
         await this.__runQuery('CREATE TABLE IF NOT EXISTS players (user_id INTEGER PRIMARY KEY,'+
-                                'roster_1 TEXT DEFAULT "0", roster_2 TEXT DEFAULT "0", roster_3 TEXT DEFAULT "0", roster_4 TEXT DEFAULT "0")');
+                                'roster_1 TEXT DEFAULT "0", roster_2 TEXT DEFAULT "0", roster_3 TEXT DEFAULT "0", roster_4 TEXT DEFAULT "0", '+
+                                'roster_msg_id TEXT DEFAULT "-", '+
+                                'name TEXT DEFAULT "", team TEXT DEFAULT "")')
+                            ;
 
         this._closeRequest_db()
     }
@@ -119,9 +71,7 @@ class PlayerDataManager{
     async playerExists(playerID){
         this._open_db()
 
-        hereLog("test1")
         var res= Boolean(await this.__getQuery("SELECT * FROM players WHERE user_id = ?;", [playerID]));
-        hereLog(`[playerExists?] ${res}`)
 
         this._closeRequest_db()
         return res
@@ -133,62 +83,68 @@ class PlayerDataManager{
         if(!Boolean(roster) || roster.length<=0) return false;
 
         var res= false
-        hereLog("[setroster] 1")
+        var m_roster= [...roster]
         if(await this.playerExists(playerID)){
-            hereLog("[setroster] 2")
             var query= "UPDATE players SET "
-            for(var i=0; i<roster.length; ++i){
-                query+= `${(i>0?", ":"")}roster_${i} = ?`
+            for(var i=0; i<4; ++i){
+                query+= `${(i>0?", ":"")}roster_${i+1} = ?`
+                if(i>=m_roster.length){
+                    m_roster.push('0')
+                }
             }
             query+= " WHERE user_id = ?"
 
-            res= (Boolean( await (this.__runQuery(query, roster.concat(playerID)))));
+            res= (Boolean( await (this.__runQuery(query, m_roster.concat(playerID)))));
         }
         else{
-            hereLog("[setroster] 6")
             var query= "INSERT INTO players (user_id"
-            for(var i=0; i<roster.length; ++i){
-                query+= `,roster_${i}`
+            for(var i=0; i<4; ++i){
+                query+= `,roster_${i+1}`
+                if(i>=m_roster.length){
+                    m_roster.push('0')
+                }
             }
-            query+=`) VALUES (?,${roster.join(',')})`
+            query+= (`) VALUES (?, ?, ?, ?, ?)`)
 
-            res= (Boolean( await (this.__runQuery(query, [ playerID ].concat(roster)) ) ));
+            res= (Boolean( await (this.__runQuery(query, [ playerID ].concat(m_roster)) ) ));
         }
 
         this._closeRequest_db()
-        hereLog("[setroster] 8")
         return res
     }
 
     async getPlayerRoster(playerID){
         this._open_db()
 
-        var res= undefined
-        hereLog("[getroster] 1")
+        var res= undefined;
         if(await this.playerExists(playerID)){
-            hereLog("[getroster] 2")
             var tmp= ( await (this.__getQuery("SELECT roster_1,roster_2,roster_3,roster_4 FROM players WHERE user_id = ?", [playerID])))
             if(Boolean(tmp)){
-                hereLog("[getroster] uh?")
-                res= `${tmp.roster_1};${tmp.roster_2};${tmp.roster_3};${tmp.roster_4}`
+                res= [tmp.roster_1,tmp.roster_2,tmp.roster_3,tmp.roster_4]
             }
-            hereLog(`[getroster] 3: res= ${res}`)
         }
 
         this._closeRequest_db()
-        hereLog("[getroster] 4")
         return res
     }
 
     findFighter(name){
         if(Boolean(name) && Boolean(this.fightersObj)){
+            let keys= Object.keys(this.fightersObj);
             var res= undefined
-            for (var key of Object.keys(this.fightersObj)){
-                var fighter= this.fightersObj[key]
-                var regex= (Boolean(fighter) && Boolean(fighter.regex))?(new RegExp(fighter.regex)):undefined
-                if(Boolean(regex) && (Boolean(name.toLowerCase().match(regex)) || Boolean(name===fighter.number))){
-                    res= {"name": key, "number": fighter.number}
-                    break;
+
+            if(Boolean(name.toLowerCase().match(/^(ra?n?do?m)|(rng)|(al([éeè])atoire?)$/))){
+                var idx= Math.floor(Math.random() * Math.floor(keys.length))
+                res= {"name" : keys[idx], "number": this.fightersObj[keys[idx]].number}
+            }
+            else{
+                for (var key of keys){
+                    var fighter= this.fightersObj[key]
+                    var regex= (Boolean(fighter) && Boolean(fighter.regex))?(new RegExp(fighter.regex)):undefined
+                    if(Boolean(regex) && (Boolean(name.toLowerCase().match(regex)) || Boolean(name===fighter.number))){
+                        res= {"name": key, "number": fighter.number}
+                        break;
+                    }
                 }
             }
             return res;
@@ -240,6 +196,225 @@ class PlayerDataManager{
         }
 
         return leftovers;
+    }
+
+    async getPlayerIconsPaths(playerID){
+        var r= ( await this.getPlayerRoster(playerID))
+
+        var icons= []
+        if(Boolean(r)){
+            for(var chara of r){
+                var base= chara.split('.')[0]
+                var skin= chara.split('.')[1]
+                skin= (!Boolean(skin))?
+                            "00"
+                        : ( (!isNaN(Number(skin)))?
+                                ("00"+skin).slice(-2)
+                            :  "00" 
+                            )
+
+
+                if(Boolean(base) && base!=='0'){
+                    icons.push(__dirname+`/stock_icons/${base}/${skin}.png`)
+                }
+            }
+
+            return icons;
+        }
+
+        return undefined
+    }
+
+    async getPlayerIconRosterPath(playerID){
+        var dir= __dirname+`/tmp_roster_imgs`
+        if(!fs.existsSync(dir)){
+            fs.mkdirSync(dir)
+        }
+
+        var icons= ( await this.getPlayerIconsPaths(playerID))
+        if(Boolean(icons) && icons.length>0){
+            var svg=
+                `<svg width="416" height="96"\n`+
+                `\txmlns="http://www.w3.org/2000/svg">\n`;
+            
+            for(var i=0; i<icons.length; ++i){
+                var s= (i===0)?96:64
+                svg+= `\t<image xlink:href="${icons[i]}" width="${s}" height="${s}" x="${((i>0)?32:0)+(i+1)*64}" y="${96-s}"/>\n`
+            }
+            svg+= `</svg>`
+
+            var svg_file= dir+`/${playerID}.svg`
+            var b_success= true
+            fs.writeFileSync(svg_file, svg, (err)=>{
+                if(err){
+                    b_success= false
+                }
+            })
+
+            if(b_success){
+                var png_file= dir+`/${playerID}.png`
+                b_success= true
+                try{
+                    var cmd= `convert -background none ${svg_file} -resize 50% ${png_file}`
+                    child_process.execSync(cmd, {timeout: 16000});
+                }
+                catch(err){
+                    hereLog(`Error while converting svg roster for ${playerID}: ${err.message}`);
+                    b_success= false
+                }
+
+                if(b_success){
+                    fs.unlink(svg_file, err => {
+                        if(err){
+                            hereLog(`[cleaning gen imgs] svg_file: ${err.message}`)
+                        }
+                    })
+                    
+                    return png_file
+                }
+            }
+        }
+
+        return undefined
+    }
+
+    async playerHasRoster(playerID){
+        var r= (await this.getPlayerRoster(playerID))
+        return ( Boolean(r) && r.length>0 &&
+            r.some(e => { return e!=="0"; })
+        );
+    }
+
+    async setPlayerRosterMessage(playerID, messageID){
+        this._open_db();
+
+        var res= false
+        if(!( await this.playerExists(playerID) ) || !Boolean(messageID)){
+            var query= "INSERT INTO players (user_id, roster_msg_id) VALUES (?, ?)"
+
+            res= (Boolean( await (this.__runQuery(query, [ playerID, messageID ]) ) ));
+        }
+        else{
+            var query= "UPDATE players SET roster_msg_id = ? WHERE user_id = ?"
+
+            res= (Boolean( await (this.__runQuery(query, [messageID, playerID])) ));
+        }
+
+        this._closeRequest_db();
+
+        return res;
+    }
+
+    async getPlayerRosterMessage(playerID){
+        this._open_db()
+
+        var res= undefined
+        if(await this.playerExists(playerID)){
+            var tmp= ( await (this.__getQuery("SELECT roster_msg_id FROM players WHERE user_id = ?", [playerID])))
+            if(Boolean(tmp)){
+                res= tmp.roster_msg_id;
+            }
+        }
+
+        this._closeRequest_db()
+        return res
+    }
+
+    async removeRosterMessage(messageID){
+        this._open_db()
+
+        var res= Boolean( await (this.__runQuery("UPDATE players SET roster_msg_id = ? WHERE roster_msg_id = ?", ['-', messageID])) );
+
+        this._closeRequest_db()
+
+        return res;
+    }
+
+    async removeAllRosterMessages(){
+        this._open_db()
+
+        var res= Boolean( await (this.__runQuery("UPDATE players SET roster_msg_id = ?", ['-', messageID])) )
+
+        this._closeRequest_db()
+
+        return res;
+    }
+
+    async isMessageIDReferenced(messageID){
+        this._open_db()
+
+        var res= Boolean(await this.__getQuery("SELECT * FROM players WHERE roster_msg_id = ?;", [messageID]));
+
+        this._closeRequest_db()
+
+        return res;
+    }
+
+    async setPlayerName(playerID, name){
+        this._open_db();
+
+        var res= false
+        if(!( await this.playerExists(playerID) )){
+            var query= "INSERT INTO players (user_id, name) VALUES (?, ?)"
+
+            res= (Boolean( await (this.__runQuery(query, [ playerID, name ]) ) ));
+        }
+        else{
+            var query= "UPDATE players SET name = ? WHERE user_id = ?"
+
+            res= (Boolean( await (this.__runQuery(query, [name, playerID])) ));
+        }
+
+        this._closeRequest_db();
+
+        return res;
+    }
+
+    async setPlayerTeam(playerID, team){
+        this._open_db();
+
+        var res= false
+        if(!( await this.playerExists(playerID) )){
+            var query= "INSERT INTO players (user_id, team) VALUES (?, ?)"
+
+            res= (Boolean( await (this.__runQuery(query, [ playerID, team ]) ) ));
+        }
+        else{
+            var query= "UPDATE players SET team = ? WHERE user_id = ?"
+
+            res= (Boolean( await (this.__runQuery(query, [team, playerID])) ));
+        }
+
+        this._closeRequest_db();
+
+        return res;
+    }
+
+    async getPlayerTag(playerID){
+        this._open_db()
+
+        var res= undefined
+        if(await this.playerExists(playerID)){
+            var tmp= ( await (this.__getQuery("SELECT name, team FROM players WHERE user_id = ?", [playerID])))
+            if(Boolean(tmp)){
+                res= { name: tmp.name, team: tmp.team };
+            }
+        }
+
+        this._closeRequest_db()
+        return res
+    }
+
+    async removePlayer(playerID){
+        this._open_db()
+
+        var res= false;
+        if(await this.playerExists(playerID)){
+            res= (Boolean( await (this.__runQuery('DELETE FROM players WHERE user_id = ?', [playerID])) ));
+        }
+
+        this._closeRequest_db()
+        return res;
     }
 }
 

@@ -31,7 +31,7 @@ class Worker{
 
     processMessage(message, cacheRoom){
         this._commander._msgRoomUpdate(cacheRoom);
-        let cmd= utils.commandDecompose(message);
+        let cmd= utils.commandDecompose(message, this._commander._cmd_prefix);
         if(cmd){
             this._commander.processCommand(cmd);
         }
@@ -46,15 +46,17 @@ class Worker{
 
     newGuild(guild){
         this._commander._addGuildCmd(guild);
+        this._commander._addGuildDB(guild);
     }
 
     byeGuild(guild){
         this._commander._rmGuildCmd(guild);
+        this._commander._rmGuildDB(guild);
     }
 
     processDMessage(message, cacheRoom){
         this._commander._msgRoomUpdate(cacheRoom);
-        let cmd= utils.commandDecompose(message);
+        let cmd= utils.commandDecompose(message, this._cmd_prefix._cmd_prefix);
         if(cmd){
             this._commander.processCommand(cmd, true);
         }

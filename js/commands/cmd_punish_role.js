@@ -380,6 +380,9 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
         return true;
     }
+    else if(command==="help"){
+        return cmd_help(cmdObj, clearanceLvl);
+    }
 
     return false;
 }

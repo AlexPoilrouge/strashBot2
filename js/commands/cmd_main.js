@@ -426,6 +426,9 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             utils.settings.set(message.guild, 'channelCharacter', charChan);
         }
     }
+    else if(args[0]==="help"){
+        return cmd_help(cmdObj, clearanceLvl);
+    }
     else{
         hereLog("'vanilla' subcommand")
         var chanChar= utils.settings.get(message.guild, 'channelCharacter');

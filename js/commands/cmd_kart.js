@@ -244,8 +244,9 @@ var _oldServInfos= undefined;
 function _checkServerStatus(utils){
     var servInfoObj= _getServInfos();
 
-    if( !Boolean(_oldServInfos) || !Boolean(_oldServInfos.players) ||
-        (servInfoObj.players.length !== _oldServInfos.players.length) )
+    if( Boolean(servInfoObj) &&
+        ( !Boolean(_oldServInfos) || !Boolean(_oldServInfos.players) ||
+          (servInfoObj.players.length !== _oldServInfos.players.length) ) )
     {
         var bot= utils.getBotClient();
         if(servInfoObj.players.length>1){

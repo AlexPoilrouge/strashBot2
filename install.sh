@@ -34,6 +34,8 @@ depend_check "find"
 depend_check "useradd"
 depend_check "envsubst"
 
+depend_check "convert"
+
 
 
 

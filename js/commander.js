@@ -266,8 +266,18 @@ class Commander{
 
         this.loaded_commands= [];
 
-        var debug= ["1","on","true","debug"].includes(config.get('StrashBot.debug').toLowerCase());
+        debug= ["1","on","true","debug"].includes(config.get('StrashBot.debug').toLowerCase());
         this._cmd_prefix= (debug)?'?':'!';
+
+        this._db_guilds= {}
+
+        this._trackedMessages= [];
+        this._trackedMessagesRefreshed= false;
+
+
+        this._dbDirPath= "../data/db"
+        fs.mkdirSync(path.resolve(__dirname, this._dbDirPath), { recursive: true });
+        
 
         this._utils= (cmd_name) => { return {
             settings: {
@@ -283,6 +293,9 @@ class Commander{
                     var cmd= (Boolean(mod_name))? mod_name : cmd_name;
                     this._cmdSettings.removeField(cmd, guild, field);
                 },
+            },
+            getDataBase: (guild) =>{
+                return Boolean(guild)?this._db_guilds[guild.id]:undefined;
             },
             getMemberClearanceLevel: this._getMemberClearanceLevel.bind(this),
             getBotClient: () => { return this._worker._bot;},
@@ -302,9 +315,6 @@ class Commander{
         }; };
 
         this._loadCommands();
-
-        this._trackedMessages= [];
-        this._trackedMessagesRefreshed= false;
     }
 
     destroy(){
@@ -321,7 +331,7 @@ class Commander{
             hereLog(`[Commander] loading '${file}'…`);
 
             let rcf= require(path.resolve(file))
-            var m= null, h= null, e=null, i= null, c= null, d=null;
+            var m= null, d= null, h= null, e=null, i= null, c= null, d=null;
 
             var cmd_name= my_utils.commandNameFromFilePath(file);
             
@@ -332,6 +342,7 @@ class Commander{
                 name: rcf.name,
                 init_per_guild: ((Boolean(rcf.command) && Boolean(i=rcf.command.init_per_guild))? (g =>{i(utils,g)}):null),
                 func: ((Boolean(rcf.command) && Boolean(m=rcf.command.main))? (cmdO, clrlv) => {return m(cmdO, clrlv, utils)}:null),
+                funcDM: ((Boolean(rcf.command) && Boolean(d=rcf.command.directMsg))? (cmdO, clrlv, gs) => {return m(cmdO, clrlv, utils)}:null),
                 help: ((Boolean(rcf.command) && Boolean(h=rcf.command.help))? h:null),
                 event: ((Boolean(rcf.command) && Boolean(e=rcf.command.event))? ((name, ...args) => {return e(name, utils, ...args);}):null),
                 destroy: ((Boolean(rcf.command) && Boolean(d=rcf.command.destroy))? (() => {return d(utils);}):null),
@@ -349,6 +360,7 @@ class Commander{
                     tmp_l_cmd._wait_init= true;
                     this._worker.bot.guilds.cache.forEach(async g => {
                         t._cmdSettings.addGuild(cmd_name, g.id)
+                        t._addGuildDB(g)
                         await rcf.command.init_per_guild(utils,g);
                     });
                     tmp_l_cmd._wait_init= false;
@@ -383,6 +395,19 @@ class Commander{
         Object.keys(this._cmdSettings._cmdSettings).forEach( cmd => {
             this._cmdSettings.rmGuild(cmd, guild.id);
         });
+    }
+
+    _addGuildDB(guild){
+        if(Boolean(guild) && !Boolean(this._db_guilds[guild.id])){
+            var fn= path.resolve(__dirname, `${this._dbDirPath}/${guild.id}.db`);
+            this._db_guilds[guild.id]= new my_utils.DataBaseManager(fn)
+        }
+    }
+
+    _rmGuildDB(guild){
+        if(Boolean(guild) && Boolean(this._db_guilds[guild.id])){
+            delete this._db_guilds[guild.id];
+        }
     }
 
     _msgRoomUpdate(roomLeft){
@@ -489,6 +514,23 @@ class Commander{
                     b=true;
                 }
             }
+            else if(Boolean(l_cmd=this.loaded_commands.find(e =>{return ( (Array.isArray(e.name) && e.name.includes(cmd)) || (e.name===cmd));}))){
+                if(Boolean(l_cmd.func)){
+                    while(l_cmd._wait_init){
+                        __sleep(500);
+                    }
+                    var l_guilds= []
+                    this._worker.bot.guilds.cache.each( (g) => {
+                        if(Boolean(g) && Boolean(await (g.members.fetch(cmdObj.msg_obj.author.id)))){
+                            l_guilds.push(g)
+                        }
+                    })
+                    b= await l_cmd.funcDM(cmdObj, this._getClearanceLevel(cmdObj.msg_obj), l_guilds);
+                }
+                else{
+                    b= undefined;
+                }
+            }
         }
 
         var __clearanceManagementCmd= (cmd, sfx, mng_func, s_cmd=undefined) => {
@@ -589,7 +631,8 @@ class Commander{
 
     _isCtrlChannel(channel){
         var guildSettings= undefined, channels= undefined;
-        return (Boolean(guildSettings=this._worker._settings.guildsSettings[channel.guild.id]) &&
+        return (Boolean(channel.guild) &&
+                Boolean(guildSettings=this._worker._settings.guildsSettings[channel.guild.id]) &&
                 (Boolean(channels=guildSettings['ctrlChannels'])) &&
                     channels.includes(channel.id)
                 );
@@ -602,8 +645,13 @@ class Commander{
     }
 
     _getClearanceLevel(message){
-        return (this._getMemberClearanceLevel(message.member) |
-                ((this._isCtrlChannel(message.channel))? DEFINES.CLEARANCE_LEVEL.CONTROL_CHANNEL : 0));
+        if(!Boolean(message.guild)){
+            return ((this._isMaster(member.user))? DEFINES.CLEARANCE_LEVEL.MASTER_ID : DEFINES.CLEARANCE_LEVEL.NONE)
+        }
+        else{
+            return (this._getMemberClearanceLevel(message.member) |
+                    ((this._isCtrlChannel(message.channel))? DEFINES.CLEARANCE_LEVEL.CONTROL_CHANNEL : 0));
+        }
     }
 
     _meta_CMD_management(cmd, message, mentionType, guildSettingsField){

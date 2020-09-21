@@ -1,6 +1,11 @@
 
 const path= require( 'path' );
 
+const sqlite3 = require('sqlite3').verbose();
+const cron= require('node-cron');
+
+
+let hereLog= (...args) => {console.log("[utils]", ...args);};
 
 JSONCheck ={
     VERSION: 0b1,
@@ -61,8 +66,8 @@ JSONCheck ={
     },
 };
 
-function commandDecompose(message){
-    if(!message.content.startsWith('!') || !message.content.startsWith('?')){
+function commandDecompose(message, prefix='!'){
+    if(!message.content.startsWith(prefix)){
         return null;
     }
 
@@ -99,7 +104,85 @@ const splitString = (string, prepend = '', append = '') => {
     return [`${string.slice(0, sliceEnd)}${append}`, `${prepend}${rest[0]}`, ...rest.slice(1)];
 };
 
+class DataBaseManager{
+    constructor(dbFilepath){
+        this._db_path= dbFilepath
+
+        this._db= null
+        this._db_closeStamp= undefined
+
+        this._cron_db_closer= cron.schedule('*/5 * * * *', () =>{
+            if(Boolean(this._db_closeStamp) && ((Date.now()-this._db_closeStamp)>120000)
+                && Boolean(this._db)
+            ){
+                this._db.close()
+                hereLog("[DB_Manager]Closing database…")
+                this._db= null
+                this._db_closeStamp= undefined
+            }
+        });
+    }
+
+    _open_db(){
+        if(!Boolean(this._db)){
+            this._db_closeStamp= undefined
+            this._db= new sqlite3.Database( this._db_path, (err) =>{
+                if(err){
+                    hereLog(err.message)
+                    this._db_closeStamp= Date.now()-5000
+                }
+    
+                hereLog(`[DB_Manager]Connection to ${this._db_path}`)
+            })
+        }
+        else{
+            this._db_closeStamp= undefined
+        }
+    }
+
+    _closeRequest_db(){
+        this._db_closeStamp= Date.now()
+    }
+
+    _is_db_open(){ return Boolean(this._db);}
+
+    __runQuery(query, placeholders=[]){
+        return new Promise((resolve, reject)=>{
+            if(!this._is_db_open()) resolve(false);
+            else{
+                this._db.run(query,placeholders,(err)=>{
+                    if(Boolean(err)){
+                        hereLog(`[DB_Manager][RunQuery] query: ${query}; placeholders: ${placeholders}; error: ${err.message}`)
+                        resolve(false);
+                    }
+
+                    resolve(true)
+                })
+            }
+        })
+    }
+
+    __getQuery(query,placeholders=[]){
+        return new Promise((resolve, reject)=>{
+            if(!this._is_db_open()) resolve(undefined);
+            else{
+            var t= this;
+                this._db.serialize(function(){
+                    t._db.get(query,placeholders,(err,row)=>{
+                        if(Boolean(err)){
+                            hereLog(`[DB_Manager][getQuery] query: ${query} ; placeholders: ${placeholders}; error: ${err.message}`)
+                            resolve(undefined)
+                        }
+                        resolve(row)
+                    })
+                })
+            }
+        })
+    }
+}
+
 module.exports.JSONCheck= JSONCheck;
 module.exports.commandDecompose= commandDecompose;
 module.exports.commandNameFromFilePath= commandNameFromFilePath;
 module.exports.splitString= splitString;
+module.exports.DataBaseManager= DataBaseManager;

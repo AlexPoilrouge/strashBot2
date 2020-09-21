@@ -593,6 +593,10 @@ async function cmd_init_per_guild(utils, guild){
 async function cmd_main(cmdObj, clearanceLvl, utils){
     let args= cmdObj.args;
     let message= cmdObj.msg_obj;
+    if(args[0]==="help"){
+        return cmd_help(cmdObj, clearanceLvl);
+    }
+
     if(clearanceLvl>CLEARANCE_LEVEL.NONE){
         if (args.length<=0)
             return await _runReportGuild(message.guild, utils, message.author);
