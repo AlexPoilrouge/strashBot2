@@ -238,6 +238,7 @@ class PlayerDataManager{
         var icons= ( await this.getPlayerIconsPaths(playerID))
         if(Boolean(icons) && icons.length>0){
             var svg=
+                `<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n`+
                 `<svg width="416" height="96"\n`+
                 `\txmlns="http://www.w3.org/2000/svg">\n`;
             
