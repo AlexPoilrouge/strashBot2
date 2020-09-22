@@ -162,6 +162,28 @@ class DataBaseManager{
         })
     }
 
+    __allQuery(query, fn, placeholders=[]){
+        return new Promise((resolve, reject)=>{
+            if(!this._is_db_open()) resolve(false);
+            else{
+                this._db.all(query, placeholders, async (err, rows)=>{
+                    if(Boolean(err)){
+                        hereLog(`[DB_Manager][eachQuery] query: ${query}; placeholders: ${placeholders}; error: ${err.message}`)
+                        resolve(false);
+                    }
+
+                    if(Boolean(fn) && Boolean(rows)){
+                        for(var row of rows){
+                            await fn(row);
+                        }
+                    }
+
+                    resolve(true);
+                })
+            }
+        })
+    }
+
     __getQuery(query,placeholders=[]){
         return new Promise((resolve, reject)=>{
             if(!this._is_db_open()) resolve(undefined);
