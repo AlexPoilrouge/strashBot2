@@ -85,7 +85,7 @@
 	},
 	"falco" : {
 		"number": "20",
-		"regex": "^(star)?[\\s\\_\\-\\.]*f((al)|(la))co((uilles?)|(ovid-?(19)?))$"
+		"regex": "^(star)?[\\s\\_\\-\\.]*f((al)|(la))co((uilles?)|(ovid-?(19)?))?$"
 	},
 	"marth" : {
 		"number": "21",
@@ -173,7 +173,7 @@
 	},
 	"sonic" : {
 		"number": "38",
-		"regex": "^soni((c?k?)|(que))([\\s\\_\\-\\.]*((le)?[\\s\\_\\-\\.]*(h(é|e)risson))|((the)?[\\s\\_\\-\\.]*((h?edge)?hog)))$"
+		"regex": "^soni((c?k?)|(que))?([\\s\\_\\-\\.]*((le)?[\\s\\_\\-\\.]*(h(é|e)risson))|((the)?[\\s\\_\\-\\.]*((h?edge)?hog)))?$"
 	},
 	"roi_dadidou" : {
 		"number": "39",
