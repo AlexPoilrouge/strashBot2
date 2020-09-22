@@ -56,7 +56,7 @@ class Worker{
 
     processDMessage(message, cacheRoom){
         this._commander._msgRoomUpdate(cacheRoom);
-        let cmd= utils.commandDecompose(message, this._cmd_prefix._cmd_prefix);
+        let cmd= utils.commandDecompose(message, this._commander._cmd_prefix);
         if(cmd){
             this._commander.processCommand(cmd, true);
         }
