@@ -169,7 +169,7 @@ class PlayerDataManager{
         }
         else{
             var n= 0
-            s_color= (Boolean(color.match(/^[0-9]+$/)))?
+            s_color= (Boolean(color.match(/^-?[0-9]+$/)))?
                         ( ((n=Number(color))>7)?
                             "7"    
                         : ( (n<0)?
