@@ -5,7 +5,7 @@
 	},
 	"donkey_kong" : {
 		"number": "2",
-		"regex": "^((d(onkey)?k(ong)?)|(((gros|big)\\s*)?(monkey|ape|singe)))$"
+		"regex": "^((d(onkey)?[\\s\\_\\-\\.]*k(ong)?)|(((gros|big)[\\s\\_\\-\\.]*)?(monkey|ape|singe)))$"
 	},
 	"link" : {
 		"number": "3",
@@ -69,7 +69,7 @@
 	},
 	"sheik" : {
 		"number": "16",
-		"regex": "^sheik(ah)?$"
+		"regex": "^shr?ei?c?k(ah)?$"
 	},
 	"zelda" : {
 		"number": "17",
@@ -133,7 +133,7 @@
 	},
 	"zero_suit_samus" : {
 		"number": "29",
-		"regex": "^(((z(ero))|(0))?[\\s\\_\\-\\.]*s((uit)|(lut))?[\\s\\_\\-\\.]*sam(i|y|(us))?)|((sam(i|y|(us))?[\\s\\_\\-\\.]*)?sa?n?s[\\s\\_\\-\\.]*ar?mo?ure?s?)$"
+		"regex": "^(((z(ero)?)|(0))?[\\s\\_\\-\\.]*s((uit)|(lut))?[\\s\\_\\-\\.]*s(am(i|y|(us))?)?)|((sam(i|y|(us))?[\\s\\_\\-\\.]*)?sa?n?s[\\s\\_\\-\\.]*ar?mo?ure?s?)$"
 	},
 	"wario" : {
 		"number": "30",
@@ -153,19 +153,19 @@
 	},
 	"carapuce" : {
 		"number": "33",
-		"regex": "^((cara(pu(c|t)e)?)|(squi(r(tle)?)?))$"
+		"regex": "^((cara(pu(c|t)e)?)|(squi(r(t+le)?)?))$"
 	},
 	"herbizarre" : {
 		"number": "34",
-		"regex": "^((herbi(zarr?e)?)|(iv(ysaure?(us)?)?))$"
+		"regex": "^((herbi(zar+e)?)|(iv(ys((au)|o)re?(us)?)?))$"
 	},
 	"dracaufeu" : {
 		"number": "35",
-		"regex": "^(((drac(au|o)(f((eu)|(uego)))?)|((cau)?f((eu)|(uego))))|((ch(a|o)r+i(z(a|o)rd)?)|(z(a|o)rd)))$"
+		"regex": "^(((drac(au|o)(f((eu)|(uego)))?)|((cau)?f((eu)|(uego))))|((ch(a|o)r+i(z+(a|o)rd)?)|(z+(a|o)rd)))$"
 	},
 	"diddy_kong" : {
 		"number": "36",
-		"regex": "^d(i|y)d?d(y|i)[\\s\\_\\-\\.]*k(ong)?$"
+		"regex": "^d(i|y)?d?d(y|i)?[\\s\\_\\-\\.]*k(ong)?$"
 	},
 	"lucas" : {
 		"number": "37",
@@ -177,7 +177,7 @@
 	},
 	"roi_dadidou" : {
 		"number": "39",
-		"regex": "^(roi|king)[\\s\\_\\-\\.]*((da?di?d(o+u*)?)|(de+de+de+))$"
+		"regex": "^(roi|king)?[\\s\\_\\-\\.]*((da?di?d(o+u*)?)|(de+de+de+))$"
 	},
 	"olimar" : {
 		"number": "40",
@@ -193,15 +193,15 @@
 	},
 	"toon_link" : {
 		"number": "43",
-		"regex": "^(t(oon)?[\\s\\_\\-\\.]*l((i|o|u)nk)?)|(l((i|o|u)nk)?[\\s\\_\\-\\.]*c(arto?o*n))$"
+		"regex": "^(t(o+u*n)?[\\s\\_\\-\\.]*l((i|o|u)nk)?)|(l((i|o|u)nk)?[\\s\\_\\-\\.]*((c(arto?o*n)))|(to+u*n))$"
 	},
 	"wolf" : {
 		"number": "44",
-		"regex": "^(star)?((wolf)|(dogg?o?)|(wo+u*f))$"
+		"regex": "^(star)?((wo+(l|(u*))f)|(dogg?o?))$"
 	},
 	"villageois" : {
 		"number": "45",
-		"regex": "^village((oise?)|r)$"
+		"regex": "^villa(g|j)e?((oise?)|r)$"
 	},
 	"mega_man" : {
 		"number": "46",
@@ -217,7 +217,7 @@
 	},
 	"little_mac" : {
 		"number": "49",
-		"regex": "^li(t?t)?le?[\\s\\_\\-\\.]*m(ac)?$"
+		"regex": "^(li(t?t)?le?[\\s\\_\\-\\.]*m(ac)?)|(mac)$"
 	},
 	"greninja" : {
 		"number": "50",
@@ -229,7 +229,7 @@
 	},
 	"mii_swordfighter" : {
 		"number": "52",
-		"regex": "^mii*[\\s\\_\\-\\.]*((sword([\\s\\_\\-\\.]*fight(eu?r))?)|(ée?pé?e*iste))$"
+		"regex": "^mii*[\\s\\_\\-\\.]*((sword([\\s\\_\\-\\.]*fight(eu?r))?)|((é|e)pé?e*(iste)?))$"
 	},
 	"mii_gunner" : {
 		"number": "53",
@@ -253,7 +253,7 @@
 	},
 	"bowser_jr" : {
 		"number": "58",
-		"regex": "^(bo?wse?r)[\\s\\_\\-\\.]*(ju?n?i?o?r)[\\s\\_\\-\\.]*$"
+		"regex": "^((bo?wse?r)|(ko+p+a))[\\s\\_\\-\\.]*(ju?n?i?o?r)[\\s\\_\\-\\.]*$"
 	},
 	"duo_duck_hunt" : {
 		"number": "59",
@@ -265,7 +265,7 @@
 	},
 	"ken" : {
 		"number": "60e",
-		"regex": "^ke+n+e+([\\s\\_\\-\\.]*masters?)?$"
+		"regex": "^ke+n+e?([\\s\\_\\-\\.]*masters?)?$"
 	},
 	"cloud" : {
 		"number": "61",
@@ -285,7 +285,7 @@
 	},
 	"ridley" : {
 		"number": "65",
-		"regex": "^ridle?a?y([\\s\\_\\-\\.]*scot+)$"
+		"regex": "^ridle?a?y([\\s\\_\\-\\.]*scot+)?$"
 	},
 	"simon" : {
 		"number": "66",
@@ -301,7 +301,7 @@
 	},
 	"marie" : {
 		"number": "68",
-		"regex": "^(mariy?e?)|(isa(bel+a+)?)$"
+		"regex": "^(mariy?e?)|(isa(bel+(a|e)+)?)$"
 	},
 	"felinferno" : {
 		"number": "69",
