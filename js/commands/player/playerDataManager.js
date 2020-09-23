@@ -169,6 +169,16 @@ class PlayerDataManager{
         }
         else{
             s_color= color
+            var n= 0
+            s_color= (Boolean(str.match(/^[0-9]+$/)))?
+                        ( ((n=Number(str))>7)?
+                            "7"    
+                        : ( (n<0)?
+                            "0"
+                            : n.toString()
+                            )
+                        )
+                    : "0";
         }
 
         return f.number+'.'+s_color;
