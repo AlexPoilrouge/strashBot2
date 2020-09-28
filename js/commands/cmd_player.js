@@ -143,13 +143,14 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
     var args= cmdObj.args;
     var index= undefined;
     if( ( index=(args.findIndex(arg=>{return (arg.includes('\n'))})) ) >=0 ){
-        args= args.slice(0,index);
+        args= cmdObj.args.slice(0,index+1);
+        args[-1].replace("\n","")
 
         message.author.send(
             `**Warning on** \`!${command}\`:\n`+
             `\t- One command per message!`+
             `\t- Command \`!${command}\` only considers first line…`+
-            `\t\t => Read only: \`${args.join(' ')}\``
+            `\t\t => Read only: \`!${command} ${args.join(' ')}\``
         )
     }
 
