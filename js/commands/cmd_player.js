@@ -95,8 +95,17 @@ async function cmd_init_per_guild(utils, guild){
 function _processArgsQuoteMarks(args){
     var n_args= []
     var i=0;
+
+    let startsWithQM= ( str => {
+        return Boolean(str.match(/^[\"\«]/));
+    })
+
+    let endsWithQM= ( str => {
+        return Boolean(str.match(/[\"\»]$/));
+    })
+
     while(i<args.length){
-        if(args[i].startsWith("\"") && !(args[i].length>1 && args[i].endsWith("\""))){
+        if(startsWithQM(args[i]) && !(args[i].length>1 && endsWithQM(args[i]))){
             var j=i+1;
             var endsmeet= false;
             while(j<args.length){
@@ -113,7 +122,7 @@ function _processArgsQuoteMarks(args){
                 n_args.push(args[i])
             }
         }
-        else if(args[i].startsWith("\"") && args[i].endsWith("\"")){
+        else if(startsWithQM(args[i]) && endsWithQM(args[i])){
             n_args.push(args[i].slice(1,-1))
         }
         else{
@@ -130,7 +139,19 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
     let command= cmdObj.command;
     let message= cmdObj.msg_obj;
     let playerDataManager= playerDataManagers[message.guild.id]
-    let args= cmdObj.args;
+
+    var args= cmdObj.args;
+    var index= undefined;
+    if((index=args.find(arg=>{return (arg.includes('\n'))}))>=0){
+        args= cmdObj.slice(0,index);
+
+        message.author.send(
+            `**Warning on** \`!${command}\`:\n`+
+            `\t- One command per message!`+
+            `\t- Command \`!${command}\` only considers first line…`+
+            `\t\t => Read only: \`${args.join(' ')}\``
+        )
+    }
 
     if(args[0]==="help"){
         return cmd_help(cmdObj, clearanceLvl);
