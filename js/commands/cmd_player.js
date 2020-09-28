@@ -144,7 +144,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
     var index= undefined;
     if( ( index=(args.findIndex(arg=>{return (arg.includes('\n'))})) ) >=0 ){
         args= cmdObj.args.slice(0,index+1);
-        args.push(args[args.length-1].splice('\n')[0]);
+        args.push(args[args.length-1].split('\n')[0]);
 
         message.author.send(
             `**Warning on** \`!${command}\`:\n`+
