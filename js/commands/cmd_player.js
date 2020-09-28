@@ -142,7 +142,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
     var args= cmdObj.args;
     var index= undefined;
-    if((index=args.find(arg=>{return (arg.includes('\n'))}))>=0){
+    if( ( index=(args.findIndex(arg=>{return (arg.includes('\n'))})) ) >=0 ){
         args= cmdObj.slice(0,index);
 
         message.author.send(
