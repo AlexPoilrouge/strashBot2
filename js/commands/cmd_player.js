@@ -109,7 +109,7 @@ function _processArgsQuoteMarks(args){
             var j=i+1;
             var endsmeet= false;
             while(j<args.length){
-                if(endsmeet=(args[j].endsWith("\""))){
+                if(endsmeet=(endsWithQM(args[j]))){
                     break;
                 }
                 ++j;
