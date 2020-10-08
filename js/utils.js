@@ -87,6 +87,252 @@ function commandNameFromFilePath(fpath){
     return cmd_name;
 }
 
+function commandArgsOptionsExtract(args, optionPrefix='?'){
+    // var cursor= 0
+    // var i=0
+    // var options= []
+    // var remove_args=[]
+    // while(i<args.length){
+    //     var new_option=undefined
+    //     cursor=i;
+    //     var arg= args[i]
+    //     var eq_met= false
+    //     if(arg.startsWith(optionPrefix) && arg.length>1){
+    //         var buff="";
+    //         if(arg.endsWith('=')){
+    //             new_option={name: arg.slice(1,-1), value: undefined}
+    //             eq_met= true;
+    //         }
+    //         else if(arg.includes('=')){
+    //             var _tmp= arg.slice(1).split('=')
+    //             buff= _tmp.slice(1).join('=')
+    //             new_option={name: _tmp[0], value: undefined}
+    //             eq_met= true;
+    //         }
+    //         else{
+    //             new_option={name: arg.slice(1), value: undefined}
+    //         }
+    //         remove_args.push(arg)
+
+    //         if(!Boolean(new_option.value)){
+    //             ++cursor
+    //             var tmp=undefined
+    //             if(cursor>=args.length || (Boolean(buff) && (!buff.startsWith('\"') || (buff.length>1 && buff.endsWith('\"'))))){
+    //                 arg=undefined;
+    //                 tmp= (buff.length>0)?buff:undefined
+    //             }
+    //             else{
+    //                 arg= args[cursor]
+    //                 if(arg==='='){
+    //                     remove_args.push(arg)
+    //                     if(!eq_met){
+    //                         ++cursor
+    //                         if(cursor<args.length){
+    //                             arg= args[cursor]
+    //                             tmp= args.slice(cursor).join(' ')
+    //                         }
+    //                     }
+    //                     else{
+    //                         tmp= ((buff.length>0)?buff:"")+arg
+    //                     }
+    //                     eq_met= true;
+    //                 }
+    //                 else if(arg.startsWith('=')){
+    //                     if(!eq_met){
+    //                         tmp= args.slice(cursor).join(' ').slice(1);
+    //                     }
+    //                     else{
+    //                         tmp= buff+((buff.length>0)?" ":"")+arg
+    //                     }
+    //                     eq_met= true;
+    //                 }
+    //                 else if(arg.startsWith('\"')){
+    //                     if(eq_met){
+    //                         tmp= buff+((buff.length>0)?" ":"")+args.slice(cursor).join(' ')
+    //                     }
+    //                     else{
+    //                         arg= undefined
+    //                     }
+    //                 }
+    //                 else if(!eq_met){
+    //                     arg= undefined
+    //                 }
+    //                 else{
+    //                     tmp= buff+((buff.length>0)?" ":"")+args.slice(cursor).join(' ')
+    //                 }
+    //                 // hereLog(`\t\t${tmp}`)
+    //             }
+
+    //             if(Boolean(tmp)){
+    //                 var s_qm_index=-1
+    //                 var e_qm_index=-1
+    //                 var count_spaces=0
+
+    //                 for(var j=0; j<tmp.length; ++j){
+    //                     if(tmp[j]===' '){
+    //                         ++count_spaces
+    //                     }
+    //                     else if(s_qm_index<0 && tmp[j]==='\"'){
+    //                         if(j===0 || count_spaces==j){
+    //                             s_qm_index= j
+    //                         }
+    //                         else{
+    //                             break;
+    //                         }
+    //                     }
+    //                     else if(e_qm_index<0 && tmp[j]==='\"'
+    //                             && !((j+1)<tmp.length && tmp[j+1]!==' '))
+    //                     {
+    //                         e_qm_index= j
+    //                         break;
+    //                     }
+    //                 }
+
+    //                 // hereLog(`\t\t${s_qm_index} - ${e_qm_index} - ${count_spaces}`)
+    //                 if(s_qm_index<0 || e_qm_index<0 ){
+    //                     if(Boolean(arg)){
+    //                         new_option.value= (arg.startsWith('='))?arg.slice(1):arg;
+    //                         remove_args.push(arg)
+    //                     }
+    //                     else{
+    //                         new_option.value= (buff.length>0)?buff:undefined;
+    //                     }
+    //                     i= cursor
+    //                 }
+    //                 else{
+    //                     new_option.value= tmp.slice(s_qm_index+1, e_qm_index)
+    //                     i= cursor+count_spaces
+    //                     var _d= (Boolean(arg))?1:0;
+    //                     hereLog(`\t\tadd to rm args: ${args.slice(cursor,cursor+count_spaces+_d)} (cur=${cursor},c_space=${count_spaces},_d=${_d},arg=${arg},buff=${buff})`)
+    //                     remove_args= remove_args.concat(args.slice(cursor,cursor+count_spaces+_d))
+    //                 }
+    //             }
+    //             else{
+    //                 new_option.value= (Boolean(arg) && arg.startsWith('='))?arg.slice(1):arg;
+    //             }
+    
+    //         }
+    //         options.push(new_option);
+    //     }
+    //     ++i
+    // }
+
+    // var left_args=[]
+    // hereLog(`\t\trm_args ${remove_args}`)
+    // for(var j=0; (j<args.length); ++j){
+    //     var arg= args[j]
+    //     if(remove_args.length>0 && arg===remove_args[0]){
+    //         remove_args.shift()
+    //     }
+    //     else{
+    //         left_args.push(arg)
+    //     }
+    // }
+
+    var i=0;
+    var options= []
+    var left_args= []
+    while(i<args.length){
+        var arg= args[i]
+        var rm_args= []
+        if(arg.startsWith(optionPrefix) && arg.length>1){
+            var joined_rest= args.slice(i).join(' ').slice(1)
+            
+            var opt_name=""
+            var opt_val=""
+
+            const _States={
+                READ_OPT_NAME: 0,
+                EXPECTING_EQ: 1,
+                READ_OPT_VAL: 0b010,
+                EXPECTING_END_QM: 0b100
+            }
+
+            var option= {name: ""}
+            var state= _States.READ_OPT_NAME;
+            var j= 0;
+            while(j<joined_rest.length){
+                var char= joined_rest[j]
+                if(state===_States.READ_OPT_NAME){
+                    if(char===' '){
+                        state= _States.EXPECTING_EQ;
+                    }
+                    else if(char==='='){
+                        state= _States.READ_OPT_VAL
+                    }
+                    else{
+                        opt_name+= char;
+                    }
+                }
+                else if(state===_States.EXPECTING_EQ){
+                    if(char==='='){
+                        state= _States.READ_OPT_VAL
+                    }
+                    else if(char!==' '){
+                        ++j
+                        break;
+                    }
+                }
+                else if(state & _States.READ_OPT_VAL){
+                    if(char==='"'){
+                        if([' ','='].includes(joined_rest[j-1]) && !(state & _States.EXPECTING_END_QM)){
+                            state= state | _States.EXPECTING_END_QM
+                        }
+                        else if((state & _States.EXPECTING_END_QM) && !(joined_rest.length>(j+1) && joined_rest[j+1]!==' ')){
+                            ++j
+                            break;
+                        }
+                        else{
+                            opt_val+= char
+                        }
+                    }
+                    else if(char===' '){
+                        if(!(state & _States.EXPECTING_END_QM) && opt_val.length>0){
+                            ++j
+                            break;
+                        }
+                        else{
+                            opt_val+= char
+                        }
+                    }
+                    else{
+                        opt_val+= char
+                    }
+                }
+
+                ++j
+            }
+
+            option.name= opt_name;
+            option['value']= (opt_val.length===0)?
+                    (((state & _States.EXPECTING_END_QM) && joined_rest[j-1]==='"')?"":undefined)
+                :   opt_val; 
+
+            options.push(option)
+
+            var ul=
+                (joined_rest[j-1]===' ' || ((state & _States.EXPECTING_END_QM) && joined_rest[j-1]==='"') )?j-1
+                : ((state===_States.EXPECTING_EQ) && joined_rest[j-2]===' ')? j-2    
+                : j;
+            rm_args= joined_rest.slice(0,ul).split(' ')
+            // hereLog(`\t\trm_args: ${rm_args}`)
+        }
+        else{
+            left_args.push(arg)
+        }
+
+        if(rm_args.length>0){
+            i+= rm_args.length
+        }
+        else{
+            ++i
+        }
+    }
+    // return options
+
+    return {options: options, args: left_args}
+}
+
 
 /**
  * from https://github.com/hydrabolt/discord.js/pull/641
@@ -206,5 +452,6 @@ class DataBaseManager{
 module.exports.JSONCheck= JSONCheck;
 module.exports.commandDecompose= commandDecompose;
 module.exports.commandNameFromFilePath= commandNameFromFilePath;
+module.exports.commandArgsOptionsExtract= commandArgsOptionsExtract;
 module.exports.splitString= splitString;
 module.exports.DataBaseManager= DataBaseManager;

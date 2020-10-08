@@ -69,13 +69,18 @@ while read -r VAR_LINE; do
     fi
 done < "${VALUES_FILE}"
 
-if [ -z "${STRASHBOT_DISCORD_BUILD}" ]; then
+if [ -d .git ] && git rev-parse --git-dir > /dev/null 2>&1; then
     STRASHBOT_DISCORD_BUILD="$( git branch --show-current  2>/dev/null )"
 fi
 if [ "${STRASHBOT_DISCORD_BUILD}" == "" ]; then
     STRASHBOT_DISCORD_BUILD="custom"
 fi
 export STRASHBOT_DISCORD_BUILD
+
+if [ -f "version.txt" ]; then
+    STRASHBOT_DISCORD_VER="$(head -n 1 version.txt)"
+    export STRASHBOT_DISCORD_VER
+fi
 
 
 

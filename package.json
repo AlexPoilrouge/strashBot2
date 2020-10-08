@@ -17,6 +17,7 @@
     "path": "^0.12.7",
     "request": "^2.88.2",
     "sqlite3": "^5.0.0",
-    "url-exist-sync": "^1.0.2"
+    "url-exist-sync": "^1.0.2",
+    "xml2json": "^0.12.0"
   }
 }
