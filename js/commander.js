@@ -49,11 +49,17 @@ class CommandSettings{
             var data= fs.readFileSync(fileName);
 
             var r= undefined;
-            if(Boolean(data) && Boolean(r=JSON.parse(data))){
-                return r;
+            try{
+                if(Boolean(data) && Boolean(r=JSON.parse(data))){
+                    return r;
+                }
+                else{
+                    hereLog(`[Settings] Error reading data from '${fileName}'`);
+                    return undefined;
+                }
             }
-            else{
-                hereLog(`[Settings] Error reading data from '${fileName}'`);
+            catch(error){
+                hereLog(`[Settings] Error loading JSON data from '${fileName}':\n\t${error}`)
                 return undefined;
             }
         }
@@ -77,7 +83,9 @@ class CommandSettings{
 
         var fn= `${this._dirPath}/${cmd_name}_${guildID}.json`;
         perGuildSettings['file']= path.resolve(__dirname, fn);
-        var ld_data= this.__loadingJSONObj(perGuildSettings['file']);
+        var ld_data= (fs.existsSync(perGuildSettings['file']))?
+                        this.__loadingJSONObj(perGuildSettings['file'])
+                    :   undefined;
         if(Boolean(ld_data)){
             perGuildSettings['object_json']= ld_data;
         }

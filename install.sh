@@ -149,7 +149,7 @@ if "${SYSTEMD_INSTALL}"; then
     mkdir -p "${ROOT_DIR}/${SUDOERS_DIR}"
     install extras/10-strashbot-kartserv-systemd "${ROOT_DIR}/${SUDOERS_DIR}" -m 644
 
-    systemctl deamon-reload
+    systemctl daemon-reload
 fi
 
 install extras/launch.sh "${ROOT_DIR}/${STRASHBOT_DIR}"

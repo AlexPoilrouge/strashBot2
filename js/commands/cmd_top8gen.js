@@ -1,11 +1,13 @@
 const fs = require('fs');
 const path= require('path');
-const { generate } = require('./top8gen/templates/scarletarena/generate');
 
-const my_utils= requite('../utils.js')
+const child_process= require("child_process");
+
+const my_utils= require('../utils.js')
 
 
-const Generate_destination_path= "../../html"
+const Top8Gen_data_dir= `${__dirname}/top8gen`
+const Generate_destination_path= `${__dirname}/../../html`
 
 
 
@@ -70,7 +72,17 @@ const CLEARANCE_LEVEL= require('../defines').CLEARANCE_LEVEL;
 //    'utils.cache_message_management.untrack(msg)' is a function to call when you no longer need
 //      for a particular message to being kept in cache.
 //    'utils.getMasterID' returns the bot's master's user ID.
-function cmd_init(utils){}
+function cmd_init(utils){
+    try{
+        if(!fs.existsSync(Top8Gen_data_dir+'/templates') ||
+            !fs.statSync(Top8Gen_data_dir+'/templates').isDirectory()
+        ){
+            fs.mkdirSync(Top8Gen_data_dir+'/templates',{recursive: true})
+        }
+    }catch(error){
+        hereLog(`[cmd_init] couldn't find or create necessary data folders '${Top8Gen_data_dir}/templates':\n\t${error}`)
+    }
+}
 
 
 
@@ -78,7 +90,17 @@ function cmd_init(utils){}
 //once per guild the bot is part of.
 //It is the opprtunity, for example, to verify the data's integrity
 //and coherence with the current state of the guild…
-async function cmd_init_per_guild(utils, guild){}
+async function cmd_init_per_guild(utils, guild){
+    if(!(Boolean(utils.settings.get(guild, "vector_to_raster_exe")))){
+        utils.settings.set(guild, "vector_to_raster_exe", "inkscape")
+    }
+    if(!(Boolean(utils.settings.get(guild, "zip_exe")))){
+        utils.settings.set(guild, "zip_exe", "zip")
+    }
+    if(!(Boolean(utils.settings.get(guild, "http_zip_dl_dir_addr")))){
+        utils.settings.set(guild, "http_zip_dl_dir_addr", "https://127.0.0.1/html")
+    }
+}
 
 
 
@@ -96,21 +118,53 @@ function listTemplates(){
 
 
 function _generateTop8(template, genInfos, channel){
-    let generate= undefined;
+    let generateModule= undefined;
+    let generateSVG= undefined;
     try{
-        generate= require(`./top8gen/templates/${template}/generate.js`)
+        generateModule= require(`${__dirname}/top8gen/templates/${template}/generate.js`)
+        generateSVG= generateModule.generateSVG
     } catch(error){
-        hereLog(`Unable to load '${template}' generate.js module…`)
+        hereLog(`Unable to load '${template}' generate.js module…\n\t${error}`)
     }
 
-    if(!Boolean(generate)){
+    let unload= () => {
+        try{
+            var name= require.resolve(`${__dirname}/top8gen/templates/${template}/generate.js`)
+            delete require.cache[name]
+        } catch(error){
+            hereLog(`Unable to unload '${template}' generate.js module…\n\t${error}`)
+        }
+    }
+
+    if(!Boolean(generateSVG)){
         channel.send(`❌ Internal error. (can't access generating method)`)
+        unload()
         return false
     }
 
-    let genResults= generate(genInfos);
+    let rasterizeFunc= (svg, outpng) => {
+        var b= true;
+        var cmd= `${genInfos.svg_bin} ${svg} --export-png=${outpng}`
+        try{
+            hereLog(`[rasterize func] calling command '${cmd}'`)
+            child_process.execSync(cmd, {timeout: 24000});
+        } catch(error){
+            hereLog(`[rast_func] error invoking rasterizing command \`${cmd}\`!\n\t${error}`)
+            b= false;
+        }
+        return b;
+    }
+
+    let genResults= undefined
+    try{
+        genResults= generateSVG(genInfos, rasterizeFunc);
+    } catch(error){
+        hereLog(`Error within the 'generate' method…\n\t${error}`)
+        genResults= undefined
+    }
     if(!Boolean(genResults)){
         channel.send(`❌ Internal error with generating method…`)
+        unload()
         return false
     }
     else if(!Boolean(genResults.is_success)){
@@ -118,22 +172,56 @@ function _generateTop8(template, genInfos, channel){
 
         for(var attr of ['preparation', 'read', 'generation']){
             if(Boolean(genResults[attr]))
-                msg+= `\t- \`${attr}\` issue`
+                msg+= `\t- \`${attr}\` issue\n`
         }
         if(Boolean(genResults.ressource_copy.char_img)){
-            msg+= `\t- \`ressource copy - character image\` issue`
+            msg+= `\t- \`ressource copy - character image\` issue\n`
         }
         if(Boolean(genResults.ressource_copy.base_img)){
-            msg+= `\t- \`ressource copy - character image\` issue`
+            msg+= `\t- \`ressource copy - character image\` issue\n`
         }
 
         channel.send(msg)
 
+        unload()
         return false
     }
-    else if(!Boolean(genResults.out_svg) || fs.existsSync(genResults.out_svg)){
+    else if(!Boolean(genResults.out_svg) || !fs.existsSync(genResults.out_svg)){
         channel.send(`❌ Final svg generation failed…`)
+        unload()
         return false
+    }
+    else{
+        let zip_func= (files, destination) => {
+            var b= true;
+            var l_f= (Array.isArray(files))? files : [ files ];
+            for(var f of l_f){
+                try{
+                    var cmd= `${genInfos.zip_bin} -ur ${destination} ${f}`
+                    child_process.execSync(cmd, {timeout: 8000});
+                } catch(error){
+                    hereLog(`[rast_func] error invoking ziping command \`${cmd}\`!\n\t${error}`)
+                    b= false;
+                }
+            }
+            return b;
+        }
+
+        var post_generate= generateModule.post_generate
+        var z_b= false;
+        if(!(z_b=(Boolean(post_generate)) ||
+            !post_generate(genInfos.destination_dir,zip_func))
+        ){
+            hereLog(`[rast_func] unable to generate final archive!`)
+        }
+
+        channel.send(
+            ((b_z)?`Source at: <${utils.settings.get(guild, "http_zip_dl_dir_addr")}/top8.zip>`:''),
+            { files : [ `${genInfos.destination_dir}/top8.png` ] }
+        )
+
+        unload()
+        return true
     }
 
 
@@ -156,12 +244,14 @@ function _generateTop8(template, genInfos, channel){
 async function cmd_main(cmdObj, clearanceLvl, utils){
     let command= cmdObj.command;
     let message= cmdObj.msg_obj;
-    let playerDataManager= playerDataManagers[message.guild.id]
 
     var args= cmdObj.args;
 
+    hereLog("...")
     if(command==="top8"){
+        hereLog("a")
         if(args[0].match(/^te?m?pl?a?te?s?$/)){
+            hereLog("b")
             var templates= listTemplates();
 
             if(templates.length===0){
@@ -178,33 +268,40 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             return true
         }
         else{
-            let argOpt= my_utils.commandArgsOptionsExtract(args);
+            let argsOpt= my_utils.commandArgsOptionsExtract(args);
 
-            if(!Boolean(argsOpt.args[0])){
-                message.channel.channel(
+            hereLog(`argsOpt be like: ${JSON.stringify(argsOpt)}`)
+
+            let template= argsOpt.args[0]
+            if(!Boolean(template)){
+                message.channel.send(
                     "Nom de template requis en paramètre.\n"+
                     "\t( Pour consulter la liste de templates disponibles, utiliser la commande `!top8 templates` )"
                 )
 
                 return false;
             }
-            else if(!(listTemplates().includes(argsOpt.args[0]))){
-                message.channel.channel(
-                    `Nom de template “*${argsOpt.args[0]}*” inconnu…\n`+
+            else if(!(listTemplates().includes(template))){
+                message.channel.send(
+                    `Nom de template “*${template}*” inconnu…\n`+
                     "\t( Pour consulter la liste de templates disponibles, utiliser la commande `!top8 templates` )"
                 )
 
                 return false;
             }
 
-            let getOpt= (opt, defaultVal) =>{
-                return (Boolean(argsOpt.options[opt])?argsOpt.options[opt]:"-")
+            let getOpt= (optName, defaultVal) =>{
+                var option= undefined;
+                var ret= (Boolean(option=(argsOpt.options.find(o => {return o.name===optName}))))?
+                            ((Boolean(option.value))?option.value:defaultVal)
+                        :   defaultVal ;
+                return ret
             }
 
             let getTopRoster= (topNum) => {
                 var r= [];
                 for(var i=1; i<=4; ++i){
-                    r.push(argsOpt.options[`top${topNum}-char${i}`])
+                    r.push(getOpt(`top${topNum}-char${i}`,undefined))
                 }
                 return r.filter(char => {return Boolean(char)})
             }
@@ -219,10 +316,14 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
             var genInfos={
                 destination_dir: Generate_destination_path,
-                title: ((Boolean(argOpt.args[1]))?argOpt.args[1]:"title"),
+                title: getOpt('title','title'),
 
-                top8: top8Tab
+                top8: top8Tab,
+
+                svg_bin: utils.settings.get(message.guild, "vector_to_raster_exe"),
+                zip_bin: utils.settings.get(message.guild, "zip_exe")
             }
+            hereLog(`genInfos be like:\n${JSON.stringify(genInfos)}`)
 
             return _generateTop8(template, genInfos, message.channel);
 
