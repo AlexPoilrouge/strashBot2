@@ -31,6 +31,81 @@ const CLEARANCE_LEVEL= require('../defines').CLEARANCE_LEVEL;
 
 
 
+
+var fightersOBJ= undefined
+
+function __loadFightersObj(){
+    var fn= path.resolve(__dirname,"./player/fighters.json")
+    if(fs.existsSync(fn)){
+        try{
+            var data= fs.readFileSync(fn);
+        } catch(err){
+            hereLog(`[load_fighters] Couldn't read '${fn}'`)
+        }
+
+        var r= undefined;
+        if(Boolean(data) && Boolean(r=JSON.parse(data))){
+            fightersOBJ= r;
+        }
+        else{
+            hereLog(`[load_fighters] Error reading data from '${fn}'`);
+        }
+    }
+    else{
+        hereLog(`[load_fighters]'${fn}' file not found`);
+    }
+}
+
+class PlayerDB{
+    constructor(dbManager){
+        this._db=utils.getDataBase(dbManager)
+
+        this._open_db()
+
+        this._db.__runQuery('CREATE TABLE IF NOT EXISTS players (user_id INTEGER PRIMARY KEY,'+
+                                'roster_1 TEXT DEFAULT "0", roster_2 TEXT DEFAULT "0", roster_3 TEXT DEFAULT "0", roster_4 TEXT DEFAULT "0", '+
+                                'roster_msg_id TEXT DEFAULT "-", '+
+                                'name TEXT DEFAULT "", team TEXT DEFAULT "")', [])
+                            ;
+
+        this._closeRequest_db()
+    }
+
+    _open_db(){
+        if(Boolean(this._db))
+            this._db._open_db();
+    }
+
+    _closeRequest_db(){
+        if(Boolean(this._db))
+            this._db._closeRequest_db();
+    }
+
+    async getPlayerInfos(playerName){
+        this._open_db()
+
+        var res= {name: playerName, team: "", roster: []};
+
+        tmp= ( await (this._db.__getQuery("SELECT * FROM players WHERE name MATCH \'?\'", [playerName.toLowerCase()])))
+        if(Boolean(tmp)){
+            res.name= (Boolean(tmp.roster))?tmp.name:playerName
+            res.team= (Boolean(tmp.team))?tmp.team:""
+            res.roster= [tmp.roster_1,tmp.roster_2,tmp.roster_3,tmp.roster_4]
+            for(var i=1; i<=4; ++i){
+                var attr= `roster_${i}`
+                if(Boolean(tmp[attr])){
+                    res.roster.push(tmp[attr])
+                }
+            }
+        }
+
+        this._closeRequest_db()
+        return res
+    }
+}
+
+let playerDBs= {}
+
 //when the module is loaded, during the bot's launch,
 //this function is called.
 //  utils is an object provided by the bot, constructed as follow:
@@ -82,6 +157,8 @@ function cmd_init(utils){
     }catch(error){
         hereLog(`[cmd_init] couldn't find or create necessary data folders '${Top8Gen_data_dir}/templates':\n\t${error}`)
     }
+
+    __loadFightersObj()
 }
 
 
@@ -99,6 +176,9 @@ async function cmd_init_per_guild(utils, guild){
     }
     if(!(Boolean(utils.settings.get(guild, "http_zip_dl_dir_addr")))){
         utils.settings.set(guild, "http_zip_dl_dir_addr", "https://127.0.0.1/html")
+    }
+    if(!Boolean(playerDBs[guild.id])){
+        playerDBs[guild.id]= new PlayerDB(utils.getDataBase(guild))
     }
 }
 
@@ -227,6 +307,40 @@ function _generateTop8(template, genInfos, channel){
 
 }
 
+
+
+function __rosterCharNameProcess(str){
+    var num_match= str.match(/^([0-9]*[1-9][ae]?)(\.[0-9]+)?$/)
+    if(Boolean(num_match) && Boolean(num_match[1])){
+        return `${num_match[1]}${(Boolean(num_match[2]))?`${num_match[2]}`:''}`
+    }
+    else{
+        var skin_test= str.match(/[\s\.]*([0-9]+)\s*$/)
+        var input= (Boolean(skin_test))?str.replace(/[\s\.]*([0-9]+)\s*$/,''): str;
+
+        if(!Boolean(fightersOBJ)){
+            __loadFightersObj()
+        }
+
+        if(!Boolean(fightersOBJ)){
+            let keys= Object.keys(fightersOBJ);
+            for (var key of keys){
+                var fighter= fightersOBJ[key]
+                var regex= (Boolean(fighter) && Boolean(fighter.regex))?(new RegExp(fighter.regex)):undefined
+                if(Boolean(regex) && (Boolean(input.toLowerCase().match(regex)) || Boolean(input===fighter.number))){
+                    return `${fighter.number}${(Boolean(skin_test) && Boolean(skin_test[1]))?`.${skin_test[1]}`:''}`
+                }
+            }
+
+            return str;
+        }
+        else{
+            return str;
+        }
+    }
+}
+
+
 //this function is called when a command registered by this module
 //(see end of this file) has been called in a guild.
 // 'clearanceLvl' is the clearance level in wich this command has been posted
@@ -299,18 +413,36 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
 
             let getTopRoster= (topNum) => {
-                var r= [];
+                var r= [undefined,undefined,undefined,undefined];
                 for(var i=1; i<=4; ++i){
-                    r.push(getOpt(`top${topNum}-char${i}`,undefined))
+                    r[i](__rosterCharNameProcess(getOpt(`top${topNum}-char${i}`,undefined)))
                 }
                 return r.filter(char => {return Boolean(char)})
             }
 
             var top8Tab= [];
             for(var i=1; i<=8; ++i){
+                var n= (i===5)?'5a':(i===6)?'5b':(i===7)?'7a':(i===8)?'7b':`${i}`
+                var p_name= getOpt(`top${n}-name`,'-')
+                var p_info= undefined;
+                var p_db= undefined;
+                if(Boolean(p_db=playerDBs[message.guild.id])){
+                    p_info= await p_db.getPlayerInfos(p_name)
+                    p_name= p_info.name
+                }
+                var p_roster= getTopRoster(`${n}`)
+                p_roster= p_roster.map((c,idx) => {
+                    if(Boolean(c)) return c;
+                    else if(p_info.roster[idx]) return p_info.roster[idx]
+                    else return undefined;
+                }).filter((c) => {return Boolean(c)})
+
                 top8Tab.push(
-                    {name: getOpt(`top${i}-name`,'-'), twitter: getOpt(`top${i}-twitter`,'-'),
-                    roster: getTopRoster(`${(i===5)?'5a':(i===6)?'5b':(i===7)?'7a':(i===8)?'7b':`${i}`}`)}
+                    {
+                        name: p_name,
+                        twitter: getOpt(`top${n}-twitter`,'-'),
+                        roster: p_roster
+                    }
                 )
             }
 
