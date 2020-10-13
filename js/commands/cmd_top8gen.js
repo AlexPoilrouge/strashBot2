@@ -58,7 +58,7 @@ function __loadFightersObj(){
 
 class PlayerDB{
     constructor(dbManager){
-        this._db=utils.getDataBase(dbManager)
+        this._db=dbManager
 
         this._open_db()
 
@@ -86,7 +86,7 @@ class PlayerDB{
 
         var res= {name: playerName, team: "", roster: []};
 
-        tmp= ( await (this._db.__getQuery("SELECT * FROM players WHERE name MATCH \'?\'", [playerName.toLowerCase()])))
+        var tmp= ( await (this._db.__getQuery("SELECT * FROM players WHERE name MATCH \'?\'", [playerName.toLowerCase()])))
         if(Boolean(tmp)){
             res.name= (Boolean(tmp.roster))?tmp.name:playerName
             res.team= (Boolean(tmp.team))?tmp.team:""
@@ -415,7 +415,10 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             let getTopRoster= (topNum) => {
                 var r= [undefined,undefined,undefined,undefined];
                 for(var i=1; i<=4; ++i){
-                    r[i](__rosterCharNameProcess(getOpt(`top${topNum}-char${i}`,undefined)))
+                    var roster_opt= getOpt(`top${topNum}-char${i}`,undefined)
+                    if(Boolean(roster_opt)){
+                        r[i]= __rosterCharNameProcess(roster_opt)
+                    }
                 }
                 return r.filter(char => {return Boolean(char)})
             }
