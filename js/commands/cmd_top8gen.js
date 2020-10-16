@@ -285,6 +285,7 @@ async function _generateTop8(template, genInfos, channel){
         }
         
         let zip_func= (files, destination) => {
+            hereLog(`[zip_func] entering zipping func (files=${files}, dest=${destination})`);
             var b= true;
             var l_f= (Array.isArray(files))? files : [ files ];
             for(var f of l_f){
@@ -299,13 +300,12 @@ async function _generateTop8(template, genInfos, channel){
             return b;
         }
 
-        var post_generate= generateModule.post_generate
+        let post_generate= generateModule.post_generate
         var z_b= false;
-        if(!(z_b=(Boolean(post_generate)) ||
-            !post_generate(genInfos.destination_dir,zip_func, newfiles_to_delete))
-        ){
+        if( !(zb=( Boolean(post_generate) && post_generate(genInfos.destination_dir,zip_func, newfiles_to_delete) )) ){
             hereLog(`[rast_func] unable to generate final archive!`)
         }
+
 
         if(b_svg){
             channel.send(
