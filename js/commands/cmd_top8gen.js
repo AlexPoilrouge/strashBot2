@@ -291,7 +291,7 @@ async function _generateTop8(template, genInfos, channel){
             for(var f of l_f){
                 try{
                     var cmd= `${genInfos.zip_bin} -ur ${destination} ${f}`
-                    child_process.execSync(cmd, {timeout: 8000});
+                    child_process.execSync(cmd, {timeout: 16000});
                 } catch(error){
                     hereLog(`[rast_func] error invoking ziping command \`${cmd}\`!\n\t${error}`)
                     b= false;
@@ -302,7 +302,7 @@ async function _generateTop8(template, genInfos, channel){
 
         let post_generate= generateModule.post_generate
         var z_b= false;
-        if( !(zb=( Boolean(post_generate) && post_generate(genInfos.destination_dir,zip_func, newfiles_to_delete) )) ){
+        if( !(z_b=( Boolean(post_generate) && post_generate(genInfos.destination_dir,zip_func, newfiles_to_delete) )) ){
             hereLog(`[rast_func] unable to generate final archive!`)
         }
 
