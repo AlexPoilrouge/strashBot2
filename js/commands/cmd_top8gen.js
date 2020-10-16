@@ -433,7 +433,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                         r[i]= __rosterCharNameProcess(roster_opt)
                     }
                 }
-                return r.filter(char => {return Boolean(char)})
+                return r
             }
 
             var top8Tab= [];
@@ -471,7 +471,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 svg_bin: utils.settings.get(message.guild, "vector_to_raster_exe"),
                 zip_bin: utils.settings.get(message.guild, "zip_exe"),
 
-                http_addr: utils.settings.get(message.guild, "http_zip_dl_dir_addr"),
+                http_addr: utils.settings.get(guild, "http_zip_dl_dir_addr"),
             }
             hereLog(`genInfos be like:\n${JSON.stringify(genInfos)}`)
 
