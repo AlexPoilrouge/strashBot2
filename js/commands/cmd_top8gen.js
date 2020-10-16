@@ -335,7 +335,7 @@ function __rosterCharNameProcess(str){
             __loadFightersObj()
         }
 
-        if(!Boolean(fightersOBJ)){
+        if(Boolean(fightersOBJ)){
             let keys= Object.keys(fightersOBJ);
             for (var key of keys){
                 var fighter= fightersOBJ[key]
@@ -451,7 +451,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                     if(Boolean(c)) return c;
                     else if(p_info.roster[idx]) return p_info.roster[idx]
                     else return undefined;
-                }).filter((c) => {return Boolean(c)})
+                }).filter((c) => {return (Boolean(c) && c!=="0")})
 
                 top8Tab.push(
                     {
