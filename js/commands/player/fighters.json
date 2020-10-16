@@ -253,7 +253,7 @@
 	},
 	"bowser_jr" : {
 		"number": "58",
-		"regex": "^((bo?wse?r)|(ko+p+a))[\\s\\_\\-\\.]*(ju?n?i?o?r)[\\s\\_\\-\\.]*$"
+		"regex": "^(((bo?wse?r)|(ko+p+a))[\\s\\_\\-\\.]*(ju?n?i?o?r)[\\s\\_\\-\\.]*)|(lar+[yi])|(m[o0]rt[o0]n?)|(w[ea]+n?d[yi]e?)|(l[ea]m+[yi])|(ig+[yi])|(lud[wv][iy]g+)$"
 	},
 	"duo_duck_hunt" : {
 		"number": "59",
@@ -334,5 +334,9 @@
 	"min_min" : {
 		"number": "76",
 		"regex": "^(m((ine?)|(axe?))[\\s\\_\\-\\.]*)+$"
+	},
+	"steve" : {
+		"number": "77",
+		"regex": "^(st[eiy]*[vf](en?)?)|(ale*x)|([zs][oe]?u?[mn]b[iy]*e?)|((sl)?[ea]nde?u?r(m[ae]*n)|(son))$"
 	}
 }

@@ -197,7 +197,7 @@ function listTemplates(){
 }
 
 
-function _generateTop8(template, genInfos, channel){
+async function _generateTop8(template, genInfos, channel){
     let generateModule= undefined;
     let generateSVG= undefined;
     try{
@@ -236,8 +236,14 @@ function _generateTop8(template, genInfos, channel){
     }
 
     let genResults= undefined
+    var newfiles_to_delete= []
     try{
-        genResults= generateSVG(genInfos, rasterizeFunc);
+        genResults= ( await (generateSVG(genInfos, rasterizeFunc, (msg) => {
+                if(Boolean(msg)){
+                    channel.send(msg)
+                }
+            } 
+        )) );
     } catch(error){
         hereLog(`Error within the 'generate' method…\n\t${error}`)
         genResults= undefined
@@ -247,31 +253,37 @@ function _generateTop8(template, genInfos, channel){
         unload()
         return false
     }
-    else if(!Boolean(genResults.is_success)){
-        var msg= `❌ Internal error while generating: method failed`
-
-        for(var attr of ['preparation', 'read', 'generation']){
-            if(Boolean(genResults[attr]))
-                msg+= `\t- \`${attr}\` issue\n`
-        }
-        if(Boolean(genResults.ressource_copy.char_img)){
-            msg+= `\t- \`ressource copy - character image\` issue\n`
-        }
-        if(Boolean(genResults.ressource_copy.base_img)){
-            msg+= `\t- \`ressource copy - character image\` issue\n`
-        }
-
-        channel.send(msg)
-
-        unload()
-        return false
-    }
-    else if(!Boolean(genResults.out_svg) || !fs.existsSync(genResults.out_svg)){
-        channel.send(`❌ Final svg generation failed…`)
-        unload()
-        return false
-    }
     else{
+        if(Boolean(genResult.newfiles)){
+            newfiles_to_delete= genResults.newfiles;
+        }
+        
+        var b_svg= true;
+        if(!Boolean(genResults.is_success)){
+            var msg= `❌ Internal error while generating: method failed`
+
+            for(var attr of ['preparation', 'read', 'generation']){
+                if(Boolean(genResults[attr]))
+                    msg+= `\t- \`${attr}\` issue\n`
+            }
+            if(Boolean(genResults.ressource_copy.char_img)){
+                msg+= `\t- \`ressource copy - character image\` issue\n`
+            }
+            if(Boolean(genResults.ressource_copy.base_img)){
+                msg+= `\t- \`ressource copy - character image\` issue\n`
+            }
+
+            channel.send(msg)
+
+            unload()
+            b_svg= false
+        }
+        else if(!Boolean(genResults.out_svg) || !fs.existsSync(genResults.out_svg)){
+            channel.send(`❌ Final svg generation failed…`)
+            unload()
+            b_svg= false
+        }
+        
         let zip_func= (files, destination) => {
             var b= true;
             var l_f= (Array.isArray(files))? files : [ files ];
@@ -290,20 +302,21 @@ function _generateTop8(template, genInfos, channel){
         var post_generate= generateModule.post_generate
         var z_b= false;
         if(!(z_b=(Boolean(post_generate)) ||
-            !post_generate(genInfos.destination_dir,zip_func))
+            !post_generate(genInfos.destination_dir,zip_func, newfiles_to_delete))
         ){
             hereLog(`[rast_func] unable to generate final archive!`)
         }
 
-        channel.send(
-            ((b_z)?`Source at: <${utils.settings.get(guild, "http_zip_dl_dir_addr")}/top8.zip>`:''),
-            { files : [ `${genInfos.destination_dir}/top8.png` ] }
-        )
+        if(b_svg){
+            channel.send(
+                ((b_z)?`Source at: <${utils.settings.get(guild, "http_zip_dl_dir_addr")}/top8.zip>`:''),
+                { files : [ `${genInfos.destination_dir}/top8.png` ] }
+            )
+        }
 
         unload()
-        return true
+        return b_svg
     }
-
 
 }
 
