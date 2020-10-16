@@ -309,7 +309,7 @@ async function _generateTop8(template, genInfos, channel){
 
         if(b_svg){
             channel.send(
-                ((z_b)?`Source at: <${utils.settings.get(guild, "http_zip_dl_dir_addr")}/top8.zip>`:''),
+                ((z_b)?`Source at: <${genInfos.http_addr}/top8.zip>`:''),
                 { files : [ `${genInfos.destination_dir}/top8.png` ] }
             )
         }
@@ -469,7 +469,9 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 top8: top8Tab,
 
                 svg_bin: utils.settings.get(message.guild, "vector_to_raster_exe"),
-                zip_bin: utils.settings.get(message.guild, "zip_exe")
+                zip_bin: utils.settings.get(message.guild, "zip_exe"),
+
+                http_addr: utils.settings.get(guild, "http_zip_dl_dir_addr"),
             }
             hereLog(`genInfos be like:\n${JSON.stringify(genInfos)}`)
 
