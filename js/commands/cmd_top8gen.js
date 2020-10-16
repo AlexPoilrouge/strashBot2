@@ -86,7 +86,7 @@ class PlayerDB{
 
         var res= {name: playerName, team: "", roster: []};
 
-        var tmp= ( await (this._db.__getQuery("SELECT * FROM players WHERE name LIKE \'%?%\'", [playerName.toLowerCase()])))
+        var tmp= ( await (this._db.__getQuery('SELECT * FROM players WHERE name LIKE "%?%"', [playerName.toLowerCase()])))
         if(Boolean(tmp)){
             res.name= (Boolean(tmp.roster))?tmp.name:playerName
             res.team= (Boolean(tmp.team))?tmp.team:""
@@ -254,7 +254,7 @@ async function _generateTop8(template, genInfos, channel){
         return false
     }
     else{
-        if(Boolean(genResult.newfiles)){
+        if(Boolean(genResults.newfiles)){
             newfiles_to_delete= genResults.newfiles;
         }
         
