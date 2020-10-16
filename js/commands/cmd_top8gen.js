@@ -309,7 +309,7 @@ async function _generateTop8(template, genInfos, channel){
 
         if(b_svg){
             channel.send(
-                ((b_z)?`Source at: <${utils.settings.get(guild, "http_zip_dl_dir_addr")}/top8.zip>`:''),
+                ((z_b)?`Source at: <${utils.settings.get(guild, "http_zip_dl_dir_addr")}/top8.zip>`:''),
                 { files : [ `${genInfos.destination_dir}/top8.png` ] }
             )
         }
