@@ -364,25 +364,11 @@ async function _evaluateArgsOptions(args, options, guild, user){
         '5a': {roster:[]}, '5b': {roster:[]}, '7a': {roster:[]}, '7b': {roster:[]}
     }
 
-    if(args.length<=0 || !listTemplates().includes(args[0])){
-        rep.errors['template']= `invalid template "${args[0]}"`
-    }
-    else{
-        test_infos['template']= args[0]
-    }
-
     let optionValue= (name) =>{
         var opt= undefined;
-        return (Boolean(opt=options.find(o => {return o.name===option_name})))?
+        return (Boolean(opt=options.find(o => {return o.name===name})))?
                     opt.value
                 :   undefined;
-    }
-
-    if(!Boolean(options) || !Boolean(option_value('title'))){
-        rep.errors['title']= "Top8 title not set"
-    }
-    else{
-        test_infos['title']= option_value('title')
     }
 
     for(var p of Object.keys(test_infos)){
@@ -413,18 +399,18 @@ async function _evaluateArgsOptions(args, options, guild, user){
             test_infos[p]['twitter']= option_value;
         }
 
-        var tmp= `${p}-team`
+        var tmp= `top${p}-team`
         if(!Boolean(player_infos) || !Boolean(player_infos.team)){
-            rep.warnings[tmp]= `No team found for player ${p} ${p} ${f_pname} in DataBase`
+            rep.warnings[tmp]= `No team found for player ${p} ${f_pname} in DataBase`
         }
         else{
-            rep.infos[option_name]= `Player ${p} ${f_pname} team set to ${player_infos.team}`
-            test_infos[p]['team']= tmp
+            rep.infos[tmp]= `Player ${p} ${f_pname} team set to ${player_infos.team}`
+            test_infos[p]['team']= player_infos.team
         }
 
-        tmp= `${p}-roster`
+        tmp= `top${p}-roster`
         if(!Boolean(player_infos) || !Boolean(player_infos.roster) || player_infos.roster.length<=0){
-            rep.warnings[tmp]= `No character roster found for  player ${p} ${p} ${f_pname} in DataBase`
+            rep.warnings[tmp]= `No character roster found for  player ${p} ${f_pname} in DataBase`
         }
         else{
             rep.infos[tmp]= `Player ${p} ${f_pname} character roster found in database`
@@ -447,9 +433,25 @@ async function _evaluateArgsOptions(args, options, guild, user){
             }
         }
         if(Boolean(test_infos[p]) && Boolean(test_infos[p].roster)){
-            test_infos[p].roster.filter(c => {return Boolean(c);})
+            test_infos[p].roster.filter(c => {return Boolean(c) && !Boolean(c.match(/^0+([\s\.][0-9]{1,2})$/));})
         }
 
+    }
+
+    if(args.length<=0 || !listTemplates().includes(args[0])){
+        rep.errors['template']= `invalid template "${args[0]}"`
+    }
+    else{
+        test_infos['template']= args[0]
+        rep.infos['title']= test_infos['template']
+    }
+
+    if(!Boolean(options) || !Boolean(optionValue('title'))){
+        rep.errors['title']= "Top8 title not set"
+    }
+    else{
+        test_infos['title']= optionValue('title')
+        rep.infos['title']= test_infos['title']
     }
 
     var msg= `[${guild.name}] --- options test:\n`
@@ -467,7 +469,7 @@ async function _evaluateArgsOptions(args, options, guild, user){
     if(Boolean(rep) && Boolean(rep.warnings) && (warn_k=Object.keys(rep.warnings)).length>0){
         msg+= `*${warn_k.length} Warnings* generated:\n`
         for(var warn of warn_k){
-            msg+= `❌ \t__${warn}__: ${rep.warnings[warn]}\n`
+            msg+= `⚠️ \t__${warn}__: ${rep.warnings[warn]}\n`
         }
         msg+=`\n`
     }
@@ -476,7 +478,7 @@ async function _evaluateArgsOptions(args, options, guild, user){
     if(Boolean(rep) && Boolean(rep.infos) && (info_k=Object.keys(rep.infos)).length>0){
         msg+= `*${info_k.length} infos* displayed:\n`
         for(var info of info_k){
-            msg+= `❌ \t__${info}__: ${rep.infos[info]}\n`
+            msg+= `🔷 \t__${info}__: ${rep.infos[info]}\n`
         }
     }
 
@@ -485,18 +487,18 @@ async function _evaluateArgsOptions(args, options, guild, user){
         return false;
     }
 
-    user.send(msg);
+    user.send(msg, {split:true});
 
     var msg2= `[${guild.name}] --- options test -- __Summary__:\n`
 
     msg2+= `\t__Title__: ${(Boolean(test_infos['title']))?test_infos['title']:'❌'}\n`
     msg2+= `\t__Template__: ${(Boolean(test_infos['template']))?test_infos['template']:'❌'}\n`
-    for(var p of Object.keys(test_infos)){
+    for(var p of ['1','2','3','4','5a','5b','7a','7b']){
         msg2+= `\t*Player ${p}:*\n`
         msg2+= `\t\t__Name__: ${(Boolean(test_infos[p]['name']))?`*${test_infos[p]['name']}*`:'❌'}`
         msg2+= `\t\t__Team__: ${(Boolean(test_infos[p]['team']))?`*${test_infos[p]['team']}*`:'-'}`
-        msg2+= `\t\t__Twitter__: ${(Boolean(test_infos[p]['twitter']))?`*${test_infos[p]['twitter']}*`:'-'}`
-        msg2+= `\t\t__Roster__:`
+        msg2+= `\t\t__Twitter__: ${(Boolean(test_infos[p]['twitter']))?`*${test_infos[p]['twitter']}*`:'-'}\n`
+        msg2+= `\t\t__Roster__:\n`
         if(Boolean(test_infos[p]['roster']) && test_infos[p]['roster'].length>0){
             for(var i=1; i<=4; ++i){
                 var ch_input= undefined
@@ -508,38 +510,44 @@ async function _evaluateArgsOptions(args, options, guild, user){
                     }
                     var ch_key= undefined
                     var ch_keys= Object.keys(fightersOBJ)
-                    if(Boolean(ch_match=ch_input.match(/^([1-9]?[0-9][ae]?)([\s\.][0-9]{1,2})?$/))){
-                        if(!Boolean(ch_key=ch_keys.find(k => {return fightersOBJ[k].number===ch_match[1]}))){
+                    hereLog(`[evArgOpt](1)  p=${p} ; i=${i} ; ch_input=${ch_input}"`)
+                    if(Boolean(ch_match=ch_input.match(/^([1-9]?[0-9][ae]?)([\s\.]([0-9]{1,2}))?$/))){
+                        hereLog(`[evArgOpt](1) p=${p} ; i=${i} ; ch_match=${JSON.stringify(ch_match)}`)
+                        if(Boolean(ch_key=ch_keys.find(k => {return fightersOBJ[k].number===ch_match[1]}))){
                             character= {name: ch_key}
-                            if(Boolean(ch_match[2])){
-                                character['skin']= ch_match[2];
+                            if(Boolean(ch_match[3])){
+                                character['skin']= ch_match[3];
                             }
                         }
+                        hereLog(`[evArgOpt](1) >>> ch_key=${ch_key}; character=${JSON.stringify(character)}`)
                     }
-                    else if(Boolean(ch_match=ch_input.match(/^.+([\s\.][0-9]{1,2})?$/))){
-                        if(Boolean(ch_key=ch_keys.find(k => {return Boolean(ch_match[1].match(RegExp(fightersOBJ[k].regex)))}))){
+                    else if(Boolean(ch_match=ch_input.match(/^((.+)[\s\.]([0-9]{1,2}))|(.+)$/))){
+                        hereLog(`[evArgOpt](2) p=${p} ; i=${i} ; ch_match=${JSON.stringify(ch_match)}`)
+                        var n_match= (Boolean(ch_match[2]))?ch_match[2]:ch_match[4]
+                        if(Boolean(ch_key=ch_keys.find(k => {return Boolean(n_match.match(RegExp(fightersOBJ[k].regex)))}))){
                             character= {name: ch_key}
-                            if(Boolean(ch_match[2])){
-                                character['skin']= ch_match[2];
+                            if(Boolean(ch_match[3])){
+                                character['skin']= ch_match[3];
                             }
                         }
+                        hereLog(`[evArgOpt](2) >>> ch_key=${ch_key}; character=${JSON.stringify(character)}`)
                     }
 
                     if(!Boolean(character) || !Boolean(character.name)){
-                        msg2+= `\t\t\tIdentified character: *${character.name}${(Boolean(character.skin))?`* (skin ${character.skin})`:"*"}\n`
+                        msg2+= `\t\t\t❌ Failed to identify character "*${ch_input}*"\n`
                     }
                     else{
-                        msg2+= `\t\t\t❌ Failed to identify character "*${ch_input}*"\n`
+                        msg2+= `\t\t\tIdentified character: *${character.name}${(Boolean(character.skin))?`* (skin ${character.skin})`:"*"}\n`
                     }
                 }
             }
         }
         else{
-            msg2+= '❌'
+            msg2+= '\t\t\t❌\n'
         }
-
-        user.send(msg2);
     }
+
+    user.send(msg2, {split:true});
 
     return true;
 }
@@ -564,6 +572,8 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
     let message= cmdObj.msg_obj;
 
     var args= cmdObj.args;
+
+    hereLog(`So... args[0] is ${args[0]}... and 'args[0].match(/^groups?$/)' returns ${JSON.stringify(args[0].match(/^groups?$/))}`)
 
     if(command==="top8"){
         if(Boolean(args[0]) && args[0].match(/^te?m?pl?a?te?s?$/)){
@@ -603,8 +613,8 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
             else{
                 var role_id= utils.settings.get(message.guild, "top8role")
-                if(Boolean(role_id) && Boolean(role=message.guild.cache.get(role_id))){
-                    message.author.send(`[${message.guild.name}] Role for \`!top8\` command is set to "${role}"`);
+                if(Boolean(role_id) && Boolean(role=message.guild.roles.cache.get(role_id))){
+                    message.author.send(`[${message.guild.name}] Role for \`!top8\` command is set to "${role.name}"`);
                     return true
                 }
                 else{
@@ -623,7 +633,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
             let argsOpt= my_utils.commandArgsOptionsExtract(args);
 
-            return (await _evaluateArgsOptions(argsOpt.args, argsOpt.options, message.guild, user));
+            return (await _evaluateArgsOptions(argsOpt.args.slice(1), argsOpt.options, message.guild, message.author));
         }
         else{
             var role_id= utils.settings.get(message.guild, "top8role")

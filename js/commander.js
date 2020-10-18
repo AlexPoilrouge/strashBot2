@@ -528,11 +528,11 @@ class Commander{
                         __sleep(500);
                     }
                     var l_guilds= []
-                    this._worker.bot.guilds.cache.each( (g) => {
+                    this._worker.bot.guilds.cache.each( await (async (g) => {
                         if(Boolean(g) && Boolean(await (g.members.fetch(cmdObj.msg_obj.author.id)))){
                             l_guilds.push(g)
                         }
-                    })
+                    }) )
                     b= await l_cmd.funcDM(cmdObj, this._getClearanceLevel(cmdObj.msg_obj), l_guilds);
                 }
                 else{
@@ -654,7 +654,7 @@ class Commander{
 
     _getClearanceLevel(message){
         if(!Boolean(message.guild)){
-            return ((this._isMaster(member.user))? DEFINES.CLEARANCE_LEVEL.MASTER_ID : DEFINES.CLEARANCE_LEVEL.NONE)
+            return ((this._isMaster(message.author))? DEFINES.CLEARANCE_LEVEL.MASTER_ID : DEFINES.CLEARANCE_LEVEL.NONE)
         }
         else{
             return (this._getMemberClearanceLevel(message.member) |
