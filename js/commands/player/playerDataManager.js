@@ -270,7 +270,7 @@ class PlayerDataManager{
                 b_success= true
                 try{
                     //var cmd= `convert -background none ${svg_file} -resize 50% ${png_file}`
-                    var cmd= `inkscape ${svg_file} --export-width=213 --export-png=${png_file}`
+                    var cmd= `inkscape ${svg_file} --export-width=213 --export-filename=${png_file}`
                     child_process.execSync(cmd, {timeout: 16000});
                 }
                 catch(err){

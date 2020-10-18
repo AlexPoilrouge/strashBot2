@@ -475,7 +475,7 @@ function cmd_help(cmdObj, clearanceLvl){
         );
     cmdObj.msg_obj.author.send(
         "========\n\n"+
-        `__**player** & **roster** command___:\n\n`+
+        `__**player** & **roster** command__:\n\n`+
         ((clearanceLvl<CLEARANCE_LEVEL.ADMIN)? "": ("**Admins only:**\n\n"+
             `\t\`!${prt_cmd} command-channel #channelmention\`\n\n`+
             `\tset which channel gets to be the *designated channel* where users can post \`!player\` & \`!roster\` commands\n\n`+

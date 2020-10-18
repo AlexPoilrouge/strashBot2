@@ -88,7 +88,7 @@ class PlayerDB{
 
         var tmp= ( await (this._db.__getQuery(`SELECT * FROM players WHERE name LIKE '%${playerName.toLowerCase()}%'`)))
         if(Boolean(tmp)){
-            res.name= (Boolean(tmp.roster))?tmp.name:playerName
+            res.name= (Boolean(tmp.name))?tmp.name:playerName
             res.team= (Boolean(tmp.team))?tmp.team:""
             res.roster= [tmp.roster_1,tmp.roster_2,tmp.roster_3,tmp.roster_4]
             for(var i=1; i<=4; ++i){
@@ -287,10 +287,13 @@ async function _generateTop8(template, genInfos, channel){
         let zip_func= (files, destination) => {
             hereLog(`[zip_func] entering zipping func (files=${files}, dest=${destination})`);
             var b= true;
+            var abs_dest= path.resolve(destination)
             var l_f= (Array.isArray(files))? files : [ files ];
             for(var f of l_f){
+                var abs_f= path.resolve(f)
+                var rel_z_f= path.relative(path.dirname(abs_f),path.dirname(abs_dest))
                 try{
-                    var cmd= `${genInfos.zip_bin} -ur ${destination} ${f}`
+                    var cmd= `cd ${abs_dest}; ${genInfos.zip_bin} -ur ${destination} ${rel_z_f}`
                     child_process.execSync(cmd, {timeout: 16000});
                 } catch(error){
                     hereLog(`[rast_func] error invoking ziping command \`${cmd}\`!\n\t${error}`)
@@ -353,6 +356,194 @@ function __rosterCharNameProcess(str){
     }
 }
 
+async function _evaluateArgsOptions(args, options, guild, user){
+    var rep= {errors:{}, warnings:{}, infos:{}}
+
+    var test_infos={
+        '1': {roster:[]}, '2': {roster:[]}, '3': {roster:[]}, '4': {roster:[]}, 
+        '5a': {roster:[]}, '5b': {roster:[]}, '7a': {roster:[]}, '7b': {roster:[]}
+    }
+
+    if(args.length<=0 || !listTemplates().includes(args[0])){
+        rep.errors['template']= `invalid template "${args[0]}"`
+    }
+    else{
+        test_infos['template']= args[0]
+    }
+
+    let optionValue= (name) =>{
+        var opt= undefined;
+        return (Boolean(opt=options.find(o => {return o.name===option_name})))?
+                    opt.value
+                :   undefined;
+    }
+
+    if(!Boolean(options) || !Boolean(option_value('title'))){
+        rep.errors['title']= "Top8 title not set"
+    }
+    else{
+        test_infos['title']= option_value('title')
+    }
+
+    for(var p of Object.keys(test_infos)){
+        var option_name=`top${p}-name`;
+        var option_value= undefined;
+        var player_infos= undefined;
+
+        if(!Boolean(option_name) || !Boolean(option_value=optionValue(option_name))){
+            rep.errors[option_name]= `No name for player ${p}`
+        }
+        else{
+            var p_db= undefined;
+            if(Boolean(p_db=playerDBs[guild.id])){
+                player_infos= (await p_db.getPlayerInfos(option_value))
+                rep.infos[option_name]= `Player ${p} name is: "${player_infos.name}"`
+                test_infos[p]['name']= player_infos.name;
+            }
+        }
+        
+        var f_pname= (Boolean(test_infos[p]['name']))?`"${test_infos[p]['name']}"`:"";
+
+        option_name= `top${p}-twitter`;
+        if(!Boolean(option_name) || !Boolean(option_value=optionValue(option_name))){
+            rep.warnings[option_name]= `No twitter set for player ${p} ${f_pname}`
+        }
+        else{
+            rep.infos[option_name]= `Player ${p} ${f_pname} twitter set to ${option_value}`
+            test_infos[p]['twitter']= option_value;
+        }
+
+        var tmp= `${p}-team`
+        if(!Boolean(player_infos) || !Boolean(player_infos.team)){
+            rep.warnings[tmp]= `No team found for player ${p} ${p} ${f_pname} in DataBase`
+        }
+        else{
+            rep.infos[option_name]= `Player ${p} ${f_pname} team set to ${player_infos.team}`
+            test_infos[p]['team']= tmp
+        }
+
+        tmp= `${p}-roster`
+        if(!Boolean(player_infos) || !Boolean(player_infos.roster) || player_infos.roster.length<=0){
+            rep.warnings[tmp]= `No character roster found for  player ${p} ${p} ${f_pname} in DataBase`
+        }
+        else{
+            rep.infos[tmp]= `Player ${p} ${f_pname} character roster found in database`
+            test_infos[p]['roster']= player_infos.roster
+        }
+
+        for(var i=1; i<=4; ++i){
+            option_name= `top${p}-char${i}`
+            option_value= optionValue(option_name)
+
+            if(Boolean(option_value)){
+                if(Boolean(player_infos) && Boolean(player_infos.roster) && Boolean(player_infos.roster[i-1])){
+                    rep.infos[option_name]= `Player ${p} ${f_pname} character ${i} for roster overwritten by option \`${option_name}\``
+                    test_infos[p].roster[i-1]= option_value
+                }
+                else{
+                    rep.infos[option_name]= `Player ${p} ${f_pname} character ${i} set by option \`${option_name}\``
+                    test_infos[p].roster[i-1]= option_value
+                }
+            }
+        }
+        if(Boolean(test_infos[p]) && Boolean(test_infos[p].roster)){
+            test_infos[p].roster.filter(c => {return Boolean(c);})
+        }
+
+    }
+
+    var msg= `[${guild.name}] --- options test:\n`
+
+    var err_k= undefined;
+    if(Boolean(rep) && Boolean(rep.errors) && (err_k=Object.keys(rep.errors)).length>0){
+        msg+= `*${err_k.length} Errors* found:\n`
+        for(var err of err_k){
+            msg+= `❌ \t__${err}__: ${rep.errors[err_k]}\n`
+        }
+        msg+=`\n`
+    }
+
+    var warn_k= undefined;
+    if(Boolean(rep) && Boolean(rep.warnings) && (warn_k=Object.keys(rep.warnings)).length>0){
+        msg+= `*${warn_k.length} Warnings* generated:\n`
+        for(var warn of warn_k){
+            msg+= `❌ \t__${warn}__: ${rep.warnings[warn]}\n`
+        }
+        msg+=`\n`
+    }
+
+    var info_k= undefined;
+    if(Boolean(rep) && Boolean(rep.infos) && (info_k=Object.keys(rep.infos)).length>0){
+        msg+= `*${info_k.length} infos* displayed:\n`
+        for(var info of info_k){
+            msg+= `❌ \t__${info}__: ${rep.infos[info]}\n`
+        }
+    }
+
+    if(!(Boolean(rep))){
+        msg+= `❌ Internal error: options test failed! ❌`
+        return false;
+    }
+
+    user.send(msg);
+
+    var msg2= `[${guild.name}] --- options test -- __Summary__:\n`
+
+    msg2+= `\t__Title__: ${(Boolean(test_infos['title']))?test_infos['title']:'❌'}\n`
+    msg2+= `\t__Template__: ${(Boolean(test_infos['template']))?test_infos['template']:'❌'}\n`
+    for(var p of Object.keys(test_infos)){
+        msg2+= `\t*Player ${p}:*\n`
+        msg2+= `\t\t__Name__: ${(Boolean(test_infos[p]['name']))?`*${test_infos[p]['name']}*`:'❌'}`
+        msg2+= `\t\t__Team__: ${(Boolean(test_infos[p]['team']))?`*${test_infos[p]['team']}*`:'-'}`
+        msg2+= `\t\t__Twitter__: ${(Boolean(test_infos[p]['twitter']))?`*${test_infos[p]['twitter']}*`:'-'}`
+        msg2+= `\t\t__Roster__:`
+        if(Boolean(test_infos[p]['roster']) && test_infos[p]['roster'].length>0){
+            for(var i=1; i<=4; ++i){
+                var ch_input= undefined
+                if(Boolean(ch_input=test_infos[p].roster[i-1])){
+                    var character= undefined;
+                    var ch_match= undefined;
+                    if(!Boolean(fightersOBJ)){
+                        __loadFightersObj()
+                    }
+                    var ch_key= undefined
+                    var ch_keys= Object.keys(fightersOBJ)
+                    if(Boolean(ch_match=ch_input.match(/^([1-9]?[0-9][ae]?)([\s\.][0-9]{1,2})?$/))){
+                        if(!Boolean(ch_key=ch_keys.find(k => {return fightersOBJ[k].number===ch_match[1]}))){
+                            character= {name: ch_key}
+                            if(Boolean(ch_match[2])){
+                                character['skin']= ch_match[2];
+                            }
+                        }
+                    }
+                    else if(Boolean(ch_match=ch_input.match(/^.+([\s\.][0-9]{1,2})?$/))){
+                        if(Boolean(ch_key=ch_keys.find(k => {return Boolean(ch_match[1].match(RegExp(fightersOBJ[k].regex)))}))){
+                            character= {name: ch_key}
+                            if(Boolean(ch_match[2])){
+                                character['skin']= ch_match[2];
+                            }
+                        }
+                    }
+
+                    if(!Boolean(character) || !Boolean(character.name)){
+                        msg2+= `\t\t\tIdentified character: *${character.name}${(Boolean(character.skin))?`* (skin ${character.skin})`:"*"}\n`
+                    }
+                    else{
+                        msg2+= `\t\t\t❌ Failed to identify character "*${ch_input}*"\n`
+                    }
+                }
+            }
+        }
+        else{
+            msg2+= '❌'
+        }
+
+        user.send(msg2);
+    }
+
+    return true;
+}
+
 
 //this function is called when a command registered by this module
 //(see end of this file) has been called in a guild.
@@ -374,11 +565,8 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
     var args= cmdObj.args;
 
-    hereLog("...")
     if(command==="top8"){
-        hereLog("a")
-        if(args[0].match(/^te?m?pl?a?te?s?$/)){
-            hereLog("b")
+        if(Boolean(args[0]) && args[0].match(/^te?m?pl?a?te?s?$/)){
             var templates= listTemplates();
 
             if(templates.length===0){
@@ -394,7 +582,57 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
             return true
         }
+        else if(Boolean(args[0]) && args[0].match(/^groups?$/)){
+            if(clearanceLvl<CLEARANCE_LEVEL.CONTROL_CHANNEL){
+                return false;
+            }
+
+            if(Boolean(args[1]) && args[1].match(/^(del(ete)?)|(re?mo?ve?)$/)){
+                utils.settings.remove(message.guild, "top8role")
+
+                message.author.send(`[${message.guild.name}] Role for command \`!top8gen\` removed.`)
+
+                return true
+            }
+
+            var role= undefined;
+            if(Boolean(message.mentions) && Boolean(message.mentions.roles) && Boolean(role=message.mentions.roles.first())){
+                utils.settings.set(message.guild, "top8role", role.id)
+
+                return true;
+            }
+            else{
+                var role_id= utils.settings.get(message.guild, "top8role")
+                if(Boolean(role_id) && Boolean(role=message.guild.cache.get(role_id))){
+                    message.author.send(`[${message.guild.name}] Role for \`!top8\` command is set to "${role}"`);
+                    return true
+                }
+                else{
+                    message.author.send(`[${message.guild.name}] No role is set for \`!top8\` command`);
+                    return true
+                }
+            }
+        }
+        else if(Boolean(args[0]) && args[0].match(/^test(ing)?$/)){
+            var role_id= utils.settings.get(message.guild, "top8role")
+            if(clearanceLvl<CLEARANCE_LEVEL.CONTROL_CHANNEL &&
+                    !(Boolean(role_id) && Boolean(message.member.roles.get(role_id)))
+            ){
+                return false;
+            }
+
+            let argsOpt= my_utils.commandArgsOptionsExtract(args);
+
+            return (await _evaluateArgsOptions(argsOpt.args, argsOpt.options, message.guild, user));
+        }
         else{
+            var role_id= utils.settings.get(message.guild, "top8role")
+            if(clearanceLvl<CLEARANCE_LEVEL.CONTROL_CHANNEL &&
+                    !(Boolean(role_id) && Boolean(message.member.roles.get(role_id)))
+            ){
+                return false;
+            }
+
             let argsOpt= my_utils.commandArgsOptionsExtract(args);
 
             hereLog(`argsOpt be like: ${JSON.stringify(argsOpt)}`)
@@ -436,6 +674,14 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 return r
             }
 
+            let processTwitter= (str) => {
+                var r= (str.includes('/'))?
+                            ( (str.endsWith('/'))? str.split('/').slice(-2,-1)
+                                :   str.split('/').slice(-1) )
+                        :   str;
+                return (r.startsWith('@'))? str : ('@' + str)
+            }
+
             var top8Tab= [];
             for(var i=1; i<=8; ++i){
                 var n= (i===5)?'5a':(i===6)?'5b':(i===7)?'7a':(i===8)?'7b':`${i}`
@@ -456,7 +702,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 top8Tab.push(
                     {
                         name: p_name,
-                        twitter: getOpt(`top${n}-twitter`,'-'),
+                        twitter: processTwitter(getOpt(`top${n}-twitter`,'-')),
                         roster: p_roster
                     }
                 )
@@ -481,7 +727,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
     }
 
     if(args[0]==="help"){
-        return cmd_help(cmdObj, utils)
+        return cmd_help(cmdObj, clearanceLvl)
     }
 
     return false
@@ -491,7 +737,50 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
 //this function is called when a 'help' command has been called in a
 //guild, regarding one of the commands registered by this module.
-function cmd_help(cmdObj, clearanceLvl){}
+function cmd_help(cmdObj, clearanceLvl){
+    var prt_cmd= "top8"
+
+    cmdObj.msg_obj.author.send(
+        "========\n\n"+
+        `__**top8** command__:\n\n`+
+        ((clearanceLvl<CLEARANCE_LEVEL.ADMIN)? "": ("**Admins only:**\n\n"+
+            `\t\`!${prt_cmd} group #role-mention\`\n\n`+
+            `\tsets which role (additionally to Admins) can have its members use the \`!top8\` command\n\n`+
+            `\t\`!${prt_cmd} group\`\n\n`+
+            `\ttells which is the designated group\n\n`+
+            `\t\`!${prt_cmd} group remove\`\n\n`+
+            `\tremove the previously set role\n\n`
+        )) +
+        `---\n\t\`!${prt_cmd} template\`\n\n`+
+        `\tlists all top8 templates available\n\n`+
+        `---\n**Following commands only availabe to members of designated group** (see \`!${prt_cmd} group\`):\n\n`+
+        `\t\`!${prt_cmd} <template> [options…]\`\n\n`+
+        `\tgenerates top8 from a given template (get available templates list with \`!${prt_cmd} template\`)\n\n`+
+        `\t\`!${prt_cmd} test <template> [options…]\`\n\n`+
+        `\tThe goal of the commands is to test out parameters and options to ensure their validity before making an actual`+
+        `call to the \`!top8\` command.`
+    );
+    cmdObj.msg_obj.author.send(
+        `-\nAvailable **options** are:\n`+
+        `\t\`?title=""\`\n\t\`?top1-name="" ?top1-twitter="" ?top1-char1="" ?top1-char2="" ?top1-char3="" ?top1-char4=""\`\n`+
+        `\t\`?top2-name="" ?top2-twitter="" ?top2-char1="" ?top2-char2="" ?top2-char3="" ?top2-char4=""\`\n`+
+        `\t\`?top3-name="" ?top3-twitter="" ?top3-char1="" ?top3-char2="" ?top3-char3="" ?top3-char4=""\`\n`+
+        `\t\`?top4-name="" ?top4-twitter="" ?top4-char1="" ?top4-char2="" ?top4-char3="" ?top4-char4=""\`\n`+
+        `\t\`?top5a-name="" ?top5a-twitter="" ?top5a-char1="" ?top5a-char2="" ?top5a-char3="" ?top5a-char4=""\`\n`+
+        `\t\`?top5b-name="" ?top5b-twitter="" ?top5b-char1="" ?top5b-char2="" ?top5b-char3="" ?top5b-char4=""\`\n`+
+        `\t\`?top7a-name="" ?top7a-twitter="" ?top7a-char1="" ?top7a-char2="" ?top7a-char3="" ?top7a-char4=""\`\n`+
+        `\t\`?top7b-name="" ?top7b-twitter="" ?top7b-char1="" ?top7b-char2="" ?top7b-char3="" ?top7b-char4=""\`\n\n`+
+        `\tWith:\n`+
+        `\t\`?title\` setting the name of the top8 graph\n`+
+        `\t\`?topX-name\` setting the name the X-th player\n`+
+        `\t\`?topX-twitter\` setting the twitter ref of the X-th player\n`+
+        `\t\`?topX-charY\` setting the Y-th character in the X-th player roster; can be character name of number followed by skin number (from 0 to 8)\n`+
+        `\t⚠️ X is the player number among the following list: [1, 2, 3, 4, 5a, 5b, 7a, 7b]\n; Y is number from 1 to 4; all option values must be encase in quotation marks \`"\`\n`+
+        `\t__Example:__\n`+
+        `\t\t\`!top8 scarletarena ?title="2nd edition" ?top1-name="Fire" ?top1-twitter="@firezard" ?top1-char1="incineroar" ?top1-char2="charizard"`+
+        `?top2-name="Hegdgeon" ?top2-twitter="@hedgeon" ?top2-char1="sonic" ?top2-char2="falco"\`\n`
+    )
+}
 
 
 
