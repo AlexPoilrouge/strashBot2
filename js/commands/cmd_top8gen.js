@@ -510,19 +510,15 @@ async function _evaluateArgsOptions(args, options, guild, user){
                     }
                     var ch_key= undefined
                     var ch_keys= Object.keys(fightersOBJ)
-                    hereLog(`[evArgOpt](1)  p=${p} ; i=${i} ; ch_input=${ch_input}"`)
                     if(Boolean(ch_match=ch_input.match(/^([1-9]?[0-9][ae]?)([\s\.]([0-9]{1,2}))?$/))){
-                        hereLog(`[evArgOpt](1) p=${p} ; i=${i} ; ch_match=${JSON.stringify(ch_match)}`)
                         if(Boolean(ch_key=ch_keys.find(k => {return fightersOBJ[k].number===ch_match[1]}))){
                             character= {name: ch_key}
                             if(Boolean(ch_match[3])){
                                 character['skin']= ch_match[3];
                             }
                         }
-                        hereLog(`[evArgOpt](1) >>> ch_key=${ch_key}; character=${JSON.stringify(character)}`)
                     }
                     else if(Boolean(ch_match=ch_input.match(/^((.+)[\s\.]([0-9]{1,2}))|(.+)$/))){
-                        hereLog(`[evArgOpt](2) p=${p} ; i=${i} ; ch_match=${JSON.stringify(ch_match)}`)
                         var n_match= (Boolean(ch_match[2]))?ch_match[2]:ch_match[4]
                         if(Boolean(ch_key=ch_keys.find(k => {return Boolean(n_match.match(RegExp(fightersOBJ[k].regex)))}))){
                             character= {name: ch_key}
@@ -530,7 +526,6 @@ async function _evaluateArgsOptions(args, options, guild, user){
                                 character['skin']= ch_match[3];
                             }
                         }
-                        hereLog(`[evArgOpt](2) >>> ch_key=${ch_key}; character=${JSON.stringify(character)}`)
                     }
 
                     if(!Boolean(character) || !Boolean(character.name)){
@@ -572,8 +567,6 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
     let message= cmdObj.msg_obj;
 
     var args= cmdObj.args;
-
-    hereLog(`So... args[0] is ${args[0]}... and 'args[0].match(/^groups?$/)' returns ${JSON.stringify(args[0].match(/^groups?$/))}`)
 
     if(command==="top8"){
         if(Boolean(args[0]) && args[0].match(/^te?m?pl?a?te?s?$/)){
@@ -644,8 +637,6 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
 
             let argsOpt= my_utils.commandArgsOptionsExtract(args);
-
-            hereLog(`argsOpt be like: ${JSON.stringify(argsOpt)}`)
 
             let template= argsOpt.args[0]
             if(!Boolean(template)){
@@ -729,7 +720,6 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
                 http_addr: utils.settings.get(message.guild, "http_zip_dl_dir_addr"),
             }
-            hereLog(`genInfos be like:\n${JSON.stringify(genInfos)}`)
 
             return _generateTop8(template, genInfos, message.channel);
 
