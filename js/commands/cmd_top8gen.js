@@ -409,6 +409,9 @@ async function _evaluateArgsOptions(args, options, guild, user){
         }
 
         tmp= `top${p}-roster`
+        if(Boolean(player_infos) && Boolean(player_infos.roster)){
+            player_infos.roster.filter(c => {return Boolean(c) && !Boolean(c.match(/^0+([\s\.][0-9]{1,2})?$/));})
+        }
         if(!Boolean(player_infos) || !Boolean(player_infos.roster) || player_infos.roster.length<=0){
             rep.warnings[tmp]= `No character roster found for  player ${p} ${f_pname} in DataBase`
         }
@@ -433,7 +436,7 @@ async function _evaluateArgsOptions(args, options, guild, user){
             }
         }
         if(Boolean(test_infos[p]) && Boolean(test_infos[p].roster)){
-            test_infos[p].roster.filter(c => {return Boolean(c) && !Boolean(c.match(/^0+([\s\.][0-9]{1,2})$/));})
+            test_infos[p].roster.filter(c => {return Boolean(c) && !Boolean(c.match(/^0+([\s\.][0-9]{1,2})?$/));})
         }
 
     }
