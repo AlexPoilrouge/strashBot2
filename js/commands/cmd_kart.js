@@ -119,7 +119,7 @@ function _initAddonsConfig(){
     try{
         // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.init))?cmd:"false";
         var cmd= __kartCmd(kart_settings.config_commands.init)
-        child_process.execSync(cmd, {timeout: 16000});
+        child_process.execSync(cmd, {timeout: 32000});
         b= true;
     }
     catch(err){
@@ -134,7 +134,7 @@ function _updateAddonsConfig(){
     try{
         // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.update))?cmd:"false";
         var cmd= __kartCmd(kart_settings.config_commands.update)
-        child_process.execSync(cmd, {timeout: 16000});
+        child_process.execSync(cmd, {timeout: 32000});
         b= true;
     }
     catch(err){
@@ -169,7 +169,7 @@ function _removeAddonsConfig(arg){
     try{
         // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.remove))?cmd:"false";
         var cmd= __kartCmd(kart_settings.config_commands.remove)
-        str= child_process.execSync(cmd+` ${arg}`, {timeout: 16000}).toString();
+        str= child_process.execSync(cmd+` ${arg}`, {timeout: 32000}).toString();
         r=true;
     }
     catch(err){
@@ -616,7 +616,7 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
             var b=false;
             try{
                 var cmd= __kartCmd(kart_settings.config_commands.keep);
-                str= child_process.execSync(cmd+` ${args[1]}`, {timeout: 16000}).toString();
+                str= child_process.execSync(cmd+` ${args[1]}`, {timeout: 32000}).toString();
                 b=true;
             }
             catch(err){
@@ -814,7 +814,7 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
         var str= undefined
         try{
             var cmd= __kartCmd(kart_settings.config_commands.get_config);
-            str= child_process.execSync(cmd, {timeout: 16000}).toString();
+            str= child_process.execSync(cmd, {timeout: 32000}).toString();
         }
         catch(err){
             hereLog("Error while keeping addons: "+err);
@@ -1103,7 +1103,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
         if(!Boolean(mapName)){
             var str= undefined
             try{
-                str= child_process.execSync(cmd, {timeout: 16000}).toString();
+                str= child_process.execSync(cmd, {timeout: 32000}).toString();
             }
             catch(err){
                 hereLog("Error while fetchin map times: "+err);
@@ -1139,7 +1139,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
         else{
             var str= undefined
             try{
-                str= child_process.execSync(cmd+` ${mapName}`, {timeout: 16000}).toString();
+                str= child_process.execSync(cmd+` ${mapName}`, {timeout: 32000}).toString();
             }
             catch(err){
                 hereLog("Error while fetchin map times: "+err);
@@ -1272,7 +1272,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
                 var str= undefined
                 try{
                     var cmd= __kartCmd(kart_settings.config_commands.add_times);
-                    str= child_process.execSync(cmd+` ${filepath} ${message.author.id}`, {timeout: 16000}).toString();
+                    str= child_process.execSync(cmd+` ${filepath} ${message.author.id}`, {timeout: 32000}).toString();
                 }
                 catch(err){
                     hereLog("Error while adding time: "+err);
@@ -1307,7 +1307,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
         var str= undefined
         try{
             var cmd= __kartCmd(kart_settings.config_commands.get_times);
-            str= child_process.execSync(cmd+` ${mapname}`, {timeout: 16000}).toString();
+            str= child_process.execSync(cmd+` ${mapname}`, {timeout: 32000}).toString();
         }
         catch(err){
             hereLog("Error while fetching time: "+err);
@@ -1369,7 +1369,7 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
         var str= undefined
         try{
             var cmd= __kartCmd(kart_settings.config_commands.remove_times);
-            str= child_process.execSync(cmd+` ${message.author.id} ${mapname}`, {timeout: 16000}).toString();
+            str= child_process.execSync(cmd+` ${message.author.id} ${mapname}`, {timeout: 32000}).toString();
         }
         catch(err){
             hereLog("Error while removing time: "+err);
