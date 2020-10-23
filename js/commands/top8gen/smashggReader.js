@@ -269,29 +269,5 @@ const GetSmashGGToken= () =>{
     return r.token
 }
 
-
-// // TEST
-// (async ()=>{
-//     var request= new SGG_GQLQuery(INSERT_TOKEN_HERE, `${__dirname}/smashgg/GetEvent_query.gql`)
-//     request.setVariables({
-//         "slug": "scarlet-arena-4"
-//       })
-
-//     var tourney= undefined;
-//     try{
-//         tourney= await request.make();
-//     } catch(err){
-//         hereLog(`[test] got error ${err}`)
-//         tourney= undefined;
-//     }
-//     console.log(`Yeah ${JSON.stringify(tourney)}`)
-
-//     let reader= new SmashGG_Top8Reader(INSERT_TOKEN_HERE, "https://smash.gg/tournament/scarlet-arena-4");
-//     console.log(`Looking for top8Standing:\n\t${JSON.stringify(await reader._getTop8Standing())}`)
-//     console.log(`top8? ${JSON.stringify(await reader.getTop8())}`)
-
-//     console.log(`token? ${GetSmashGGToken()}`)
-// })()
-
 module.exports.SmashGG_Top8Reader= SmashGG_Top8Reader
 module.exports.GetSmashGGToken= GetSmashGGToken
