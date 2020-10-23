@@ -1,3 +1,8 @@
+/***
+ * Thanks to Seb "Firezard", for his help with this part
+ ***/
+
+
 const https = require('https')
 const fs= require('fs')
 const path= require('path')

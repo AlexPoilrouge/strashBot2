@@ -5,6 +5,8 @@ const child_process= require("child_process");
 
 const my_utils= require('../utils.js')
 
+const smashGG= require('./top8gen/smashggReader.js') 
+
 
 const Top8Gen_data_dir= `${__dirname}/top8gen`
 const Generate_destination_path= `${__dirname}/../../html`
@@ -356,6 +358,44 @@ function __rosterCharNameProcess(str){
     }
 }
 
+async function _fetchSmashGGInfos(url){
+    let smggr= new smashGG.SmashGG_Top8Reader(smashGG.GetSmashGGToken(), url)
+
+    var r= undefined;
+    try{
+        r= (await smggr.getTop8())
+    } catch(err){
+        hereLog(`[FetchSmashGGInfos] failed to fetch infos from \`${url}\`:\n\t${err.message}`)
+        r= undefined;
+    }
+
+    if(!Boolean(r)){
+        return undefined;
+    }
+    else{
+        var i=0;
+        var r_obj= {}
+
+        for(var n of r){
+            if(Boolean(n) && n.placement>=1 && n.placement<=7){
+                var m= {}
+                m['name']= n.name
+                m['team']= n.team
+                m['twitter']= n.twitter
+                if([5,7].includes(n.placement)){
+                    r_obj[`${n.placement}${(i===0)?'a':'b'}`]= m
+                    ++i
+                }
+                else{
+                    r_obj[`${n.placement}`]
+                }
+            }
+        }
+
+        return r_obj;
+    }
+}
+
 async function _evaluateArgsOptions(args, options, guild, user){
     var rep= {errors:{}, warnings:{}, infos:{}}
 
@@ -371,13 +411,35 @@ async function _evaluateArgsOptions(args, options, guild, user){
                 :   undefined;
     }
 
+    var sgg_infos= undefined;
+    if(Boolean(args[1])){
+        sgg_infos= (await _fetchSmashGGInfos(args[1]))
+
+        if(!Boolean(sgg_infos)){
+            rep.errors[`smashgg`]= `Couldn't read infos from SmashGG '${args[1]}'`
+        }
+        else{
+            rep.infos[`smashgg`]= `Read infos from SmashGG '${args[1]}'`
+        }
+    }
+    else{
+        rep.warnings[`smashgg`]= `No SmashGG provided`
+    }
+
     for(var p of Object.keys(test_infos)){
         var option_name=`top${p}-name`;
         var option_value= undefined;
         var player_infos= undefined;
 
         if(!Boolean(option_name) || !Boolean(option_value=optionValue(option_name))){
-            rep.errors[option_name]= `No name for player ${p}`
+            if(Boolean(sgg_infos) && Boolean(sgg_infos[p]) && Boolean(sgg_infos[p].name)){
+                player_infos= (await p_db.getPlayerInfos(sgg_infos[p].name))
+                rep.infos[`smashgg${p}-name`]= `Player ${p} name is: "${sgg_infos[p].name}"`
+                test_infos[p]['name']= player_infos.name;
+            }
+            else{
+                rep.errors[option_name]= `No name for player ${p}`
+            }
         }
         else{
             var p_db= undefined;
@@ -392,7 +454,13 @@ async function _evaluateArgsOptions(args, options, guild, user){
 
         option_name= `top${p}-twitter`;
         if(!Boolean(option_name) || !Boolean(option_value=optionValue(option_name))){
-            rep.warnings[option_name]= `No twitter set for player ${p} ${f_pname}`
+            if(Boolean(sgg_infos) && Boolean(sgg_infos[p]) && Boolean(sgg_infos[p].twitter)){
+                rep.infos[`smashgg${p}-twitter`]= `Player ${p} ${f_pname} twitter set to ${sgg_infos[p].twitter}`
+                test_infos[p]['twitter']= sgg_infos[p].twitter;
+            }
+            else{
+                rep.warnings[option_name]= `No twitter set for player ${p} ${f_pname}`
+            }
         }
         else{
             rep.infos[option_name]= `Player ${p} ${f_pname} twitter set to ${option_value}`
@@ -401,7 +469,13 @@ async function _evaluateArgsOptions(args, options, guild, user){
 
         var tmp= `top${p}-team`
         if(!Boolean(player_infos) || !Boolean(player_infos.team)){
-            rep.warnings[tmp]= `No team found for player ${p} ${f_pname} in DataBase`
+            if(Boolean(sgg_infos) && Boolean(sgg_infos[p]) && Boolean(sgg_infos[p].team)){
+                rep.infos[`smashgg${p}-team`]= `Player ${p} ${f_pname} team set to ${sgg_infos[p].team}`
+                test_infos[p]['team']= sgg_infos[p].team               
+            }
+            else{
+                rep.warnings[tmp]= `No team found for player ${p} ${f_pname} in DataBase`
+            }
         }
         else{
             rep.infos[tmp]= `Player ${p} ${f_pname} team set to ${player_infos.team}`
