@@ -620,7 +620,9 @@ async function _evaluateArgsOptions(args, options, guild, user){
                     }
 
                     if(!Boolean(character) || !Boolean(character.name)){
-                        msg2+= `\t\t\t❌ Failed to identify character "*${ch_input}*"\n`
+                        if(ch_input!=="0"){
+                            msg2+= `\t\t\t❌ Failed to identify character "*${ch_input}*"\n`
+                        }
                     }
                     else{
                         msg2+= `\t\t\tIdentified character: *${character.name}${(Boolean(character.skin))?`* (skin ${character.skin})`:"*"}\n`
@@ -753,9 +755,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
             var smashGGInfos= {}
             if(Boolean(argsOpt.args[1])){
-                let sgg_reader= new smashGG.SmashGG_Top8Reader(smashGG.GetSmashGGToken(), argsOpt.args[1])
-
-                if(!Boolean(sgg_reader) || !Boolean(smashGGInfos=(await sgg_reader.getTop8()))){
+                if(!Boolean(smashGGInfos=(await _fetchSmashGGInfos(argsOpt.args[1])))){
                     message.channel.send(`⚠️ Couldn't read infos from smashGG tourney \`${argsOpt.args[1]}\``)
                     smashGGInfos={}
                 }
