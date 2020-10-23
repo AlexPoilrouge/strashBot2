@@ -240,7 +240,7 @@ class SmashGG_Top8Reader{
     }
 }
 
-const SmashGGInfosFile= `${__dirname}/smashgg/infos.json`
+const SmashGGInfosFile= `${__dirname}/smashgg/smashgg_infos.json`
 
 const GetSmashGGToken= () =>{
     try{
