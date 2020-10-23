@@ -381,16 +381,18 @@ async function _fetchSmashGGInfos(url){
                 var m= {}
                 m['name']= n.name
                 m['team']= n.team
-                m['twitter']= n.twitter
+                m['twitter']= (Boolean(n.twitter) && !n.twitter.startsWith('@'))?('@'+n.twitter):n.twitter
                 if([5,7].includes(n.placement)){
                     r_obj[`${n.placement}${(i===0)?'a':'b'}`]= m
-                    ++i
+                    i= (i+1)%2
                 }
                 else{
-                    r_obj[`${n.placement}`]
+                    r_obj[`${n.placement}`]= m
                 }
             }
         }
+
+        hereLog(`[FetchSmashGGInfos] returning r_obj:\n\t${JSON.stringify(r_obj)}`)
 
         return r_obj;
     }
@@ -426,6 +428,7 @@ async function _evaluateArgsOptions(args, options, guild, user){
         rep.warnings[`smashgg`]= `No SmashGG provided`
     }
 
+    var p_db= playerDBs[guild.id];
     for(var p of Object.keys(test_infos)){
         var option_name=`top${p}-name`;
         var option_value= undefined;
@@ -433,20 +436,29 @@ async function _evaluateArgsOptions(args, options, guild, user){
 
         if(!Boolean(option_name) || !Boolean(option_value=optionValue(option_name))){
             if(Boolean(sgg_infos) && Boolean(sgg_infos[p]) && Boolean(sgg_infos[p].name)){
-                player_infos= (await p_db.getPlayerInfos(sgg_infos[p].name))
-                rep.infos[`smashgg${p}-name`]= `Player ${p} name is: "${sgg_infos[p].name}"`
-                test_infos[p]['name']= player_infos.name;
+                if(Boolean(p_db)){
+                    player_infos= (await p_db.getPlayerInfos(sgg_infos[p].name))
+                    rep.infos[option_name]= `Player ${p} name is: "${player_infos.name}"`
+                    test_infos[p]['name']= player_infos.name;
+                }
+                else{
+                    rep.infos[`smashgg${p}-name`]= `Player ${p} name is: "${sgg_infos[p].name}"`
+                    test_infos[p]['name']= player_infos.name;
+                }
             }
             else{
-                rep.errors[option_name]= `No name for player ${p}`
+                rep.errors[option_name]= `No name for player ${p}; Use option \`?${option_name}="name"\` to add it manually`
             }
         }
         else{
-            var p_db= undefined;
-            if(Boolean(p_db=playerDBs[guild.id])){
+            if(Boolean(p_db)){
                 player_infos= (await p_db.getPlayerInfos(option_value))
                 rep.infos[option_name]= `Player ${p} name is: "${player_infos.name}"`
                 test_infos[p]['name']= player_infos.name;
+            }
+            else{
+                rep.infos[option_name]= `Player ${p} name is: "${option_value}"`
+                test_infos[p]['name']= option_value;
             }
         }
         
@@ -459,7 +471,7 @@ async function _evaluateArgsOptions(args, options, guild, user){
                 test_infos[p]['twitter']= sgg_infos[p].twitter;
             }
             else{
-                rep.warnings[option_name]= `No twitter set for player ${p} ${f_pname}`
+                rep.warnings[option_name]= `No twitter set for player ${p} ${f_pname}; Use option \`?${option_name}="@twitter"\` to add it manually`
             }
         }
         else{
@@ -474,7 +486,7 @@ async function _evaluateArgsOptions(args, options, guild, user){
                 test_infos[p]['team']= sgg_infos[p].team               
             }
             else{
-                rep.warnings[tmp]= `No team found for player ${p} ${f_pname} in DataBase`
+                rep.warnings[tmp]= `No team found for player ${p} ${f_pname} in DataBase; Use option \`?${tmp}="team"\` to add it manually`
             }
         }
         else{
@@ -487,7 +499,8 @@ async function _evaluateArgsOptions(args, options, guild, user){
             player_infos.roster.filter(c => {return Boolean(c) && !Boolean(c.match(/^0+([\s\.][0-9]{1,2})?$/));})
         }
         if(!Boolean(player_infos) || !Boolean(player_infos.roster) || player_infos.roster.length<=0){
-            rep.warnings[tmp]= `No character roster found for  player ${p} ${f_pname} in DataBase`
+            rep.warnings[tmp]= `No character roster found for  player ${p} ${f_pname} in DataBase; `+
+                            `Use options \`?top${p}-charX="character"\` (with X between 1 and 4) to add them manually`
         }
         else{
             rep.infos[tmp]= `Player ${p} ${f_pname} character roster found in database`
@@ -516,15 +529,15 @@ async function _evaluateArgsOptions(args, options, guild, user){
     }
 
     if(args.length<=0 || !listTemplates().includes(args[0])){
-        rep.errors['template']= `invalid template "${args[0]}"`
+        rep.errors['template']= `invalid template "${args[0]}"; Check tempates list with command \`!top8 templates\``
     }
     else{
         test_infos['template']= args[0]
-        rep.infos['title']= test_infos['template']
+        rep.infos['template']= test_infos['template']
     }
 
     if(!Boolean(options) || !Boolean(optionValue('title'))){
-        rep.errors['title']= "Top8 title not set"
+        rep.errors['title']= `Top8 title not set; Use option \`?title="title"\` to set it`
     }
     else{
         test_infos['title']= optionValue('title')
