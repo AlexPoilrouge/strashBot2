@@ -792,7 +792,11 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             var top8Tab= [];
             for(var i=1; i<=8; ++i){
                 var n= (i===5)?'5a':(i===6)?'5b':(i===7)?'7a':(i===8)?'7b':`${i}`
-                var p_name= (Boolean(smashGGInfos[`${n}`]) && Boolean(smashGGInfos[`${n}`].name))?(smashGGInfos[`${n}`].name):(getOpt(`top${n}-name`,'-'))
+                var p_name= (Boolean(getOpt(`top${n}-name`,undefined)))?
+                                getOpt(`top${n}-name`,undefined)
+                            :   (Boolean(smashGGInfos[`${n}`]) && Boolean(smashGGInfos[`${n}`].name))?
+                                    smashGGInfos[`${n}`].name
+                                :   '-';
                 var p_info= undefined;
                 var p_db= undefined;
                 if(Boolean(p_db=playerDBs[message.guild.id])){
