@@ -5,6 +5,8 @@ const child_process= require("child_process");
 
 const my_utils= require('../utils.js')
 
+const smashGG= require('./top8gen/smashggReader.js') 
+
 
 const Top8Gen_data_dir= `${__dirname}/top8gen`
 const Generate_destination_path= `${__dirname}/../../html`
@@ -356,6 +358,46 @@ function __rosterCharNameProcess(str){
     }
 }
 
+async function _fetchSmashGGInfos(url){
+    let smggr= new smashGG.SmashGG_Top8Reader(smashGG.GetSmashGGToken(), url)
+
+    var r= undefined;
+    try{
+        r= (await smggr.getTop8())
+    } catch(err){
+        hereLog(`[FetchSmashGGInfos] failed to fetch infos from \`${url}\`:\n\t${err.message}`)
+        r= undefined;
+    }
+
+    if(!Boolean(r)){
+        return undefined;
+    }
+    else{
+        var i=0;
+        var r_obj= {}
+
+        for(var n of r){
+            if(Boolean(n) && n.placement>=1 && n.placement<=7){
+                var m= {}
+                m['name']= n.name
+                m['team']= n.team
+                m['twitter']= (Boolean(n.twitter) && !n.twitter.startsWith('@'))?('@'+n.twitter):n.twitter
+                if([5,7].includes(n.placement)){
+                    r_obj[`${n.placement}${(i===0)?'a':'b'}`]= m
+                    i= (i+1)%2
+                }
+                else{
+                    r_obj[`${n.placement}`]= m
+                }
+            }
+        }
+
+        hereLog(`[FetchSmashGGInfos] returning r_obj:\n\t${JSON.stringify(r_obj)}`)
+
+        return r_obj;
+    }
+}
+
 async function _evaluateArgsOptions(args, options, guild, user){
     var rep= {errors:{}, warnings:{}, infos:{}}
 
@@ -371,20 +413,52 @@ async function _evaluateArgsOptions(args, options, guild, user){
                 :   undefined;
     }
 
+    var sgg_infos= undefined;
+    if(Boolean(args[1])){
+        sgg_infos= (await _fetchSmashGGInfos(args[1]))
+
+        if(!Boolean(sgg_infos)){
+            rep.errors[`smashgg`]= `Couldn't read infos from SmashGG '${args[1]}'`
+        }
+        else{
+            rep.infos[`smashgg`]= `Read infos from SmashGG '${args[1]}'`
+        }
+    }
+    else{
+        rep.warnings[`smashgg`]= `No SmashGG provided`
+    }
+
+    var p_db= playerDBs[guild.id];
     for(var p of Object.keys(test_infos)){
         var option_name=`top${p}-name`;
         var option_value= undefined;
         var player_infos= undefined;
 
         if(!Boolean(option_name) || !Boolean(option_value=optionValue(option_name))){
-            rep.errors[option_name]= `No name for player ${p}`
+            if(Boolean(sgg_infos) && Boolean(sgg_infos[p]) && Boolean(sgg_infos[p].name)){
+                if(Boolean(p_db)){
+                    player_infos= (await p_db.getPlayerInfos(sgg_infos[p].name))
+                    rep.infos[option_name]= `Player ${p} name is: "${player_infos.name}"`
+                    test_infos[p]['name']= player_infos.name;
+                }
+                else{
+                    rep.infos[`smashgg${p}-name`]= `Player ${p} name is: "${sgg_infos[p].name}"`
+                    test_infos[p]['name']= player_infos.name;
+                }
+            }
+            else{
+                rep.errors[option_name]= `No name for player ${p}; Use option \`?${option_name}="name"\` to add it manually`
+            }
         }
         else{
-            var p_db= undefined;
-            if(Boolean(p_db=playerDBs[guild.id])){
+            if(Boolean(p_db)){
                 player_infos= (await p_db.getPlayerInfos(option_value))
                 rep.infos[option_name]= `Player ${p} name is: "${player_infos.name}"`
                 test_infos[p]['name']= player_infos.name;
+            }
+            else{
+                rep.infos[option_name]= `Player ${p} name is: "${option_value}"`
+                test_infos[p]['name']= option_value;
             }
         }
         
@@ -392,28 +466,42 @@ async function _evaluateArgsOptions(args, options, guild, user){
 
         option_name= `top${p}-twitter`;
         if(!Boolean(option_name) || !Boolean(option_value=optionValue(option_name))){
-            rep.warnings[option_name]= `No twitter set for player ${p} ${f_pname}`
+            if(Boolean(sgg_infos) && Boolean(sgg_infos[p]) && Boolean(sgg_infos[p].twitter)){
+                rep.infos[`smashgg${p}-twitter`]= `Player ${p} ${f_pname} twitter set to ${sgg_infos[p].twitter}`
+                test_infos[p]['twitter']= sgg_infos[p].twitter;
+            }
+            else{
+                rep.warnings[option_name]= `No twitter set for player ${p} ${f_pname}; Use option \`?${option_name}="@twitter"\` to add it manually`
+            }
         }
         else{
             rep.infos[option_name]= `Player ${p} ${f_pname} twitter set to ${option_value}`
             test_infos[p]['twitter']= option_value;
         }
 
-        var tmp= `top${p}-team`
+        option_name= `top${p}-team`
+        if(Boolean(option_value=optionValue(option_name))) player_infos.team= option_value;
         if(!Boolean(player_infos) || !Boolean(player_infos.team)){
-            rep.warnings[tmp]= `No team found for player ${p} ${f_pname} in DataBase`
+            if(Boolean(sgg_infos) && Boolean(sgg_infos[p]) && Boolean(sgg_infos[p].team)){
+                rep.infos[`smashgg${p}-team`]= `Player ${p} ${f_pname} team set to ${sgg_infos[p].team}`
+                test_infos[p]['team']= sgg_infos[p].team               
+            }
+            else{
+                rep.warnings[option_name]= `No team found for player ${p} ${f_pname} in DataBase; Use option \`?${tmp}="team"\` to add it manually`
+            }
         }
         else{
-            rep.infos[tmp]= `Player ${p} ${f_pname} team set to ${player_infos.team}`
+            rep.infos[option_name]= `Player ${p} ${f_pname} team set to ${player_infos.team}`
             test_infos[p]['team']= player_infos.team
         }
 
-        tmp= `top${p}-roster`
+        var tmp= `top${p}-roster`
         if(Boolean(player_infos) && Boolean(player_infos.roster)){
             player_infos.roster.filter(c => {return Boolean(c) && !Boolean(c.match(/^0+([\s\.][0-9]{1,2})?$/));})
         }
         if(!Boolean(player_infos) || !Boolean(player_infos.roster) || player_infos.roster.length<=0){
-            rep.warnings[tmp]= `No character roster found for  player ${p} ${f_pname} in DataBase`
+            rep.warnings[tmp]= `No character roster found for  player ${p} ${f_pname} in DataBase; `+
+                            `Use options \`?top${p}-charX="character"\` (with X between 1 and 4) to add them manually`
         }
         else{
             rep.infos[tmp]= `Player ${p} ${f_pname} character roster found in database`
@@ -442,15 +530,15 @@ async function _evaluateArgsOptions(args, options, guild, user){
     }
 
     if(args.length<=0 || !listTemplates().includes(args[0])){
-        rep.errors['template']= `invalid template "${args[0]}"`
+        rep.errors['template']= `invalid template "${args[0]}"; Check tempates list with command \`!top8 templates\``
     }
     else{
         test_infos['template']= args[0]
-        rep.infos['title']= test_infos['template']
+        rep.infos['template']= test_infos['template']
     }
 
     if(!Boolean(options) || !Boolean(optionValue('title'))){
-        rep.errors['title']= "Top8 title not set"
+        rep.errors['title']= `Top8 title not set; Use option \`?title="title"\` to set it`
     }
     else{
         test_infos['title']= optionValue('title')
@@ -571,6 +659,10 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
     var args= cmdObj.args;
 
+    if(args[0]==="help"){
+        return cmd_help(cmdObj, clearanceLvl)
+    }
+
     if(command==="top8"){
         if(Boolean(args[0]) && args[0].match(/^te?m?pl?a?te?s?$/)){
             var templates= listTemplates();
@@ -659,6 +751,18 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 return false;
             }
 
+            var smashGGInfos= {}
+            if(Boolean(argsOpt.args[1])){
+                let sgg_reader= new smashGG.SmashGG_Top8Reader(smashGG.GetSmashGGToken(), argsOpt.args[1])
+
+                if(!Boolean(sgg_reader) || !Boolean(smashGGInfos=(await sgg_reader.getTop8()))){
+                    message.channel.send(`⚠️ Couldn't read infos from smashGG tourney \`${argsOpt.args[1]}\``)
+                }
+                else{
+                    smashGGInfos= {}
+                }
+            }
+
             let getOpt= (optName, defaultVal) =>{
                 var option= undefined;
                 var ret= (Boolean(option=(argsOpt.options.find(o => {return o.name===optName}))))?
@@ -679,6 +783,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
 
             let processTwitter= (str) => {
+                if(!Boolean(str)) return str;
                 var r= (str.includes('/'))?
                             ( (str.endsWith('/'))? str.split('/').slice(-2,-1)
                                 :   str.split('/').slice(-1) )
@@ -689,7 +794,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             var top8Tab= [];
             for(var i=1; i<=8; ++i){
                 var n= (i===5)?'5a':(i===6)?'5b':(i===7)?'7a':(i===8)?'7b':`${i}`
-                var p_name= getOpt(`top${n}-name`,'-')
+                var p_name= (Boolean(smashGGInfos[`${n}`]) && Boolean(smashGGInfos[`${n}`].name))?(smashGGInfos[`${n}`].name):(getOpt(`top${n}-name`,'-'))
                 var p_info= undefined;
                 var p_db= undefined;
                 if(Boolean(p_db=playerDBs[message.guild.id])){
@@ -706,7 +811,12 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 top8Tab.push(
                     {
                         name: p_name,
-                        twitter: processTwitter(getOpt(`top${n}-twitter`,'-')),
+                        team:   ( (Boolean(smashGGInfos[`${n}`]) && Boolean(smashGGInfos[`${n}`].team))?
+                                    smashGGInfos[`${n}`].team
+                                :   processTwitter(getOpt(`top${n}-team`,undefined)) ),
+                        twitter: ( (Boolean(smashGGInfos[`${n}`]) && Boolean(smashGGInfos[`${n}`].twitter))?
+                                    smashGGInfos[`${n}`].twitter
+                                :   processTwitter(getOpt(`top${n}-twitter`,'-')) ),
                         roster: p_roster
                     }
                 )
@@ -727,10 +837,6 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             return _generateTop8(template, genInfos, message.channel);
 
         }
-    }
-
-    if(args[0]==="help"){
-        return cmd_help(cmdObj, clearanceLvl)
     }
 
     return false
@@ -757,32 +863,39 @@ function cmd_help(cmdObj, clearanceLvl){
         `---\n\t\`!${prt_cmd} template\`\n\n`+
         `\tlists all top8 templates available\n\n`+
         `---\n**Following commands only availabe to members of designated group** (see \`!${prt_cmd} group\`):\n\n`+
-        `\t\`!${prt_cmd} <template> [options…]\`\n\n`+
-        `\tgenerates top8 from a given template (get available templates list with \`!${prt_cmd} template\`)\n\n`+
-        `\t\`!${prt_cmd} test <template> [options…]\`\n\n`+
+        `\t\`!${prt_cmd} <template> [smashggUrl] [options…]\`\n\n`+
+        `\tgenerates top8 from a given template (get available templates list with \`!${prt_cmd} template\`)\n`+
+        `\tIf a smashgg Url is provided, then top8 data will be fetch from this smash.gg tournament.\n\n`+
+        `\t⚠️ This assumes that the tournament is completed, and that the provided smash.gg Url points to a '*Singles' event.\n`+
+        `\t\t__Example:__ \`!${prt_cmd}\` template <https://smash.gg/tournament/scarlet-arena-4/event/singles> ?title="4th edition"`+
+        `\t\`!${prt_cmd} test <template> [smashggUrl] [options…]\`\n\n`+
         `\tThe goal of the commands is to test out parameters and options to ensure their validity before making an actual`+
-        `call to the \`!top8\` command.`
-    );
-    cmdObj.msg_obj.author.send(
+        `call to the \`!top8\` command.\n` +
         `-\nAvailable **options** are:\n`+
-        `\t\`?title=""\`\n\t\`?top1-name="" ?top1-twitter="" ?top1-char1="" ?top1-char2="" ?top1-char3="" ?top1-char4=""\`\n`+
-        `\t\`?top2-name="" ?top2-twitter="" ?top2-char1="" ?top2-char2="" ?top2-char3="" ?top2-char4=""\`\n`+
-        `\t\`?top3-name="" ?top3-twitter="" ?top3-char1="" ?top3-char2="" ?top3-char3="" ?top3-char4=""\`\n`+
-        `\t\`?top4-name="" ?top4-twitter="" ?top4-char1="" ?top4-char2="" ?top4-char3="" ?top4-char4=""\`\n`+
-        `\t\`?top5a-name="" ?top5a-twitter="" ?top5a-char1="" ?top5a-char2="" ?top5a-char3="" ?top5a-char4=""\`\n`+
-        `\t\`?top5b-name="" ?top5b-twitter="" ?top5b-char1="" ?top5b-char2="" ?top5b-char3="" ?top5b-char4=""\`\n`+
-        `\t\`?top7a-name="" ?top7a-twitter="" ?top7a-char1="" ?top7a-char2="" ?top7a-char3="" ?top7a-char4=""\`\n`+
-        `\t\`?top7b-name="" ?top7b-twitter="" ?top7b-char1="" ?top7b-char2="" ?top7b-char3="" ?top7b-char4=""\`\n\n`+
+        `\t\`?title=""\`\n\t\`?top1-name="" ?top1-twitter="" ?top1-team="" ?top1-char1="" ?top1-char2="" ?top1-char3="" ?top1-char4=""\`\n`+
+        `\t\`?top2-name="" ?top2-twitter="" ?top2-team=""  ?top2-char1="" ?top2-char2="" ?top2-char3="" ?top2-char4=""\`\n`+
+        `\t\`?top3-name="" ?top3-twitter="" ?top3-team=""  ?top3-char1="" ?top3-char2="" ?top3-char3="" ?top3-char4=""\`\n`+
+        `\t\`?top4-name="" ?top4-twitter="" ?top4-team=""  ?top4-char1="" ?top4-char2="" ?top4-char3="" ?top4-char4=""\`\n`+
+        `\t\`?top5a-name="" ?top5a-twitter="" ?top5a-team=""  ?top5a-char1="" ?top5a-char2="" ?top5a-char3="" ?top5a-char4=""\`\n`+
+        `\t\`?top5b-name="" ?top5b-twitter="" ?top5b-team=""  ?top5b-char1="" ?top5b-char2="" ?top5b-char3="" ?top5b-char4=""\`\n`+
+        `\t\`?top7a-name="" ?top7a-twitter="" ?top7a-team=""  ?top7a-char1="" ?top7a-char2="" ?top7a-char3="" ?top7a-char4=""\`\n`+
+        `\t\`?top7b-name="" ?top7b-twitter="" ?top7b-team=""  ?top7b-char1="" ?top7b-char2="" ?top7b-char3="" ?top7b-char4=""\`\n\n`+
         `\tWith:\n`+
         `\t\`?title\` setting the name of the top8 graph\n`+
         `\t\`?topX-name\` setting the name the X-th player\n`+
         `\t\`?topX-twitter\` setting the twitter ref of the X-th player\n`+
+        `\t\`?topX-team\` setting the team/structure shortened name of the X-th player\n`+
         `\t\`?topX-charY\` setting the Y-th character in the X-th player roster; can be character name of number followed by skin number (from 0 to 8)\n`+
-        `\t⚠️ X is the player number among the following list: [1, 2, 3, 4, 5a, 5b, 7a, 7b]\n; Y is number from 1 to 4; all option values must be encase in quotation marks \`"\`\n`+
+        `\t⚠️ X is the player number among the following list: [1, 2, 3, 4, 5a, 5b, 7a, 7b]; Y is number from 1 to 4; all option values must be encase in quotation marks \`"\`\n`+
         `\t__Example:__\n`+
-        `\t\t\`!top8 scarletarena ?title="2nd edition" ?top1-name="Fire" ?top1-twitter="@firezard" ?top1-char1="incineroar" ?top1-char2="charizard"`+
-        `?top2-name="Hegdgeon" ?top2-twitter="@hedgeon" ?top2-char1="sonic" ?top2-char2="falco"\`\n`
+        `\t\t\`!${prt_cmd} scarletarena ?title="2nd edition" ?top1-name="Fire" ?top1-twitter="@firezard" ?top1-char1="incineroar" ?top1-char2="charizard"`+
+        `?top2-name="Hegdgeon" ?top2-twitter="@hedgeon" ?top2-char1="sonic" ?top2-char2="falco"\`\n`+
+        `\t⚠️ In case of overlapping/conflicting data, the data provided by the *options* is prioritized over the data provided by the *DataBase*, which itself is`+
+        `prioritized over the data provided by the *smash.gg tournament*.`,
+        {split: true}
     )
+
+    return true;
 }
 
 

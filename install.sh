@@ -140,6 +140,9 @@ install ./bot_main.js ./README.md ./package.json ./version.txt "${ROOT_DIR}/${ST
 mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}/js/commands/data"
 install extras/kart.json "${ROOT_DIR}/${STRASHBOT_DIR}/js/commands/data"
 
+mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}/js/commands/top8gen/smashgg"
+install extras/smashgg_infos.json "${ROOT_DIR}/${STRASHBOT_DIR}/js/commands/top8gen/smashgg"
+
 if "${SYSTEMD_INSTALL}"; then
     mkdir -p "${ROOT_DIR}/${SERVICE_INSTALL_PATH}"
     install extras/strashbot.service "${ROOT_DIR}/${SERVICE_INSTALL_PATH}" -m 644
