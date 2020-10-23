@@ -479,22 +479,23 @@ async function _evaluateArgsOptions(args, options, guild, user){
             test_infos[p]['twitter']= option_value;
         }
 
-        var tmp= `top${p}-team`
+        option_name= `top${p}-team`
+        if(Boolean(option_value=optionValue(option_name))) player_infos.team= option_value;
         if(!Boolean(player_infos) || !Boolean(player_infos.team)){
             if(Boolean(sgg_infos) && Boolean(sgg_infos[p]) && Boolean(sgg_infos[p].team)){
                 rep.infos[`smashgg${p}-team`]= `Player ${p} ${f_pname} team set to ${sgg_infos[p].team}`
                 test_infos[p]['team']= sgg_infos[p].team               
             }
             else{
-                rep.warnings[tmp]= `No team found for player ${p} ${f_pname} in DataBase; Use option \`?${tmp}="team"\` to add it manually`
+                rep.warnings[option_name]= `No team found for player ${p} ${f_pname} in DataBase; Use option \`?${tmp}="team"\` to add it manually`
             }
         }
         else{
-            rep.infos[tmp]= `Player ${p} ${f_pname} team set to ${player_infos.team}`
+            rep.infos[option_name]= `Player ${p} ${f_pname} team set to ${player_infos.team}`
             test_infos[p]['team']= player_infos.team
         }
 
-        tmp= `top${p}-roster`
+        var tmp= `top${p}-roster`
         if(Boolean(player_infos) && Boolean(player_infos.roster)){
             player_infos.roster.filter(c => {return Boolean(c) && !Boolean(c.match(/^0+([\s\.][0-9]{1,2})?$/));})
         }
@@ -657,6 +658,10 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
     let message= cmdObj.msg_obj;
 
     var args= cmdObj.args;
+
+    if(args[0]==="help"){
+        return cmd_help(cmdObj, clearanceLvl)
+    }
 
     if(command==="top8"){
         if(Boolean(args[0]) && args[0].match(/^te?m?pl?a?te?s?$/)){
@@ -834,10 +839,6 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         }
     }
 
-    if(args[0]==="help"){
-        return cmd_help(cmdObj, clearanceLvl)
-    }
-
     return false
 }
 
@@ -866,7 +867,7 @@ function cmd_help(cmdObj, clearanceLvl){
         `\tgenerates top8 from a given template (get available templates list with \`!${prt_cmd} template\`)\n`+
         `\tIf a smashgg Url is provided, then top8 data will be fetch from this smash.gg tournament.\n\n`+
         `\t⚠️ This assumes that the tournament is completed, and that the provided smash.gg Url points to a '*Singles' event.\n`+
-        `\t\t__Example:__ \`!${prt_cmd}\` template https://smash.gg/tournament/scarlet-arena-4/event/singles ?title="4th edition"`+
+        `\t\t__Example:__ \`!${prt_cmd}\` template <https://smash.gg/tournament/scarlet-arena-4/event/singles> ?title="4th edition"`+
         `\t\`!${prt_cmd} test <template> [smashggUrl] [options…]\`\n\n`+
         `\tThe goal of the commands is to test out parameters and options to ensure their validity before making an actual`+
         `call to the \`!top8\` command.\n` +
@@ -885,13 +886,13 @@ function cmd_help(cmdObj, clearanceLvl){
         `\t\`?topX-twitter\` setting the twitter ref of the X-th player\n`+
         `\t\`?topX-team\` setting the team/structure shortened name of the X-th player\n`+
         `\t\`?topX-charY\` setting the Y-th character in the X-th player roster; can be character name of number followed by skin number (from 0 to 8)\n`+
-        `\t⚠️ X is the player number among the following list: [1, 2, 3, 4, 5a, 5b, 7a, 7b]\n; Y is number from 1 to 4; all option values must be encase in quotation marks \`"\`\n`+
+        `\t⚠️ X is the player number among the following list: [1, 2, 3, 4, 5a, 5b, 7a, 7b]; Y is number from 1 to 4; all option values must be encase in quotation marks \`"\`\n`+
         `\t__Example:__\n`+
         `\t\t\`!${prt_cmd} scarletarena ?title="2nd edition" ?top1-name="Fire" ?top1-twitter="@firezard" ?top1-char1="incineroar" ?top1-char2="charizard"`+
         `?top2-name="Hegdgeon" ?top2-twitter="@hedgeon" ?top2-char1="sonic" ?top2-char2="falco"\`\n`+
-        `\t⚠️ In case of overlapping/conflicting data, the data provided by the *options* is prioritizd over the data provided by the *DataBase*, which itself is`+
+        `\t⚠️ In case of overlapping/conflicting data, the data provided by the *options* is prioritized over the data provided by the *DataBase*, which itself is`+
         `prioritized over the data provided by the *smash.gg tournament*.`,
-        {recursive: true}
+        {split: true}
     )
 }
 
