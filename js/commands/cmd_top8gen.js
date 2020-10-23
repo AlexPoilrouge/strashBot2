@@ -293,7 +293,7 @@ async function _generateTop8(template, genInfos, channel){
             var l_f= (Array.isArray(files))? files : [ files ];
             for(var f of l_f){
                 var abs_f= path.resolve(f)
-                var rel_z_f= path.relative(path.dirname(abs_f),path.dirname(abs_dest))
+                var rel_z_f= path.relative(path.dirname(abs_dest), abs_f)
                 try{
                     var cmd= `cd ${path.dirname(abs_dest)}; ${genInfos.zip_bin} -ur ${destination} ${rel_z_f}`
                     child_process.execSync(cmd, {timeout: 16000});
