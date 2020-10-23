@@ -813,7 +813,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                         name: p_name,
                         team:   ( (Boolean(smashGGInfos[`${n}`]) && Boolean(smashGGInfos[`${n}`].team))?
                                     smashGGInfos[`${n}`].team
-                                :   processTwitter(getOpt(`top${n}-team`,undefined)) ),
+                                :   getOpt(`top${n}-team`,undefined) ),
                         twitter: ( (Boolean(smashGGInfos[`${n}`]) && Boolean(smashGGInfos[`${n}`].twitter))?
                                     smashGGInfos[`${n}`].twitter
                                 :   processTwitter(getOpt(`top${n}-twitter`,'-')) ),
@@ -833,6 +833,8 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
                 http_addr: utils.settings.get(message.guild, "http_zip_dl_dir_addr"),
             }
+
+            hereLog(`genInfos be like: ${JSON.stringify(genInfos)}`)
 
             return _generateTop8(template, genInfos, message.channel);
 
