@@ -893,6 +893,8 @@ function cmd_help(cmdObj, clearanceLvl){
         `prioritized over the data provided by the *smash.gg tournament*.`,
         {recursive: true}
     )
+
+    return true;
 }
 
 
