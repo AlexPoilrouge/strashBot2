@@ -757,9 +757,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
                 if(!Boolean(sgg_reader) || !Boolean(smashGGInfos=(await sgg_reader.getTop8()))){
                     message.channel.send(`⚠️ Couldn't read infos from smashGG tourney \`${argsOpt.args[1]}\``)
-                }
-                else{
-                    smashGGInfos= {}
+                    smashGGInfos={}
                 }
             }
 
