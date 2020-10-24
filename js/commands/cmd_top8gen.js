@@ -392,8 +392,6 @@ async function _fetchSmashGGInfos(url){
             }
         }
 
-        hereLog(`[FetchSmashGGInfos] returning r_obj:\n\t${JSON.stringify(r_obj)}`)
-
         return r_obj;
     }
 }
@@ -840,8 +838,6 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
                 http_addr: utils.settings.get(message.guild, "http_zip_dl_dir_addr"),
             }
-
-            hereLog(`genInfos be like: ${JSON.stringify(genInfos)}`)
 
             return _generateTop8(template, genInfos, message.channel);
 
