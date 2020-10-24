@@ -198,29 +198,40 @@ function listTemplates(){
     return list.map(dir => {return path.basename(dir)})
 }
 
+function __loadTemplate(templateName){
+    if(!Boolean(templateName)) return undefined;
+    var module= undefined;
+    try{
+        module= require(`${__dirname}/top8gen/templates/${templateName}/generate.js`)
+    } catch(error){
+        hereLog(`Unable to load '${templateName}' generate.js module…\n\t${error}`)
+        module= undefined;
+    }
+    return module;
+}
+
+function __unloadTemplate(templateName){
+    if(Boolean(templateName)){
+        try{
+            var name= require.resolve(`${__dirname}/top8gen/templates/${templateName}/generate.js`)
+            delete require.cache[name]
+        } catch(error){
+            hereLog(`Unable to unload '${templateName}' generate.js module…\n\t${error}`)
+        }
+    }
+}
+
 
 async function _generateTop8(template, genInfos, channel){
     let generateModule= undefined;
     let generateSVG= undefined;
-    try{
-        generateModule= require(`${__dirname}/top8gen/templates/${template}/generate.js`)
+    if(Boolean(generateModule=__loadTemplate(template))){
         generateSVG= generateModule.generateSVG
-    } catch(error){
-        hereLog(`Unable to load '${template}' generate.js module…\n\t${error}`)
-    }
-
-    let unload= () => {
-        try{
-            var name= require.resolve(`${__dirname}/top8gen/templates/${template}/generate.js`)
-            delete require.cache[name]
-        } catch(error){
-            hereLog(`Unable to unload '${template}' generate.js module…\n\t${error}`)
-        }
     }
 
     if(!Boolean(generateSVG)){
         channel.send(`❌ Internal error. (can't access generating method)`)
-        unload()
+        __unloadTemplate(template)
         return false
     }
 
@@ -252,7 +263,7 @@ async function _generateTop8(template, genInfos, channel){
     }
     if(!Boolean(genResults)){
         channel.send(`❌ Internal error with generating method…`)
-        unload()
+        __unloadTemplate(template)
         return false
     }
     else{
@@ -277,12 +288,12 @@ async function _generateTop8(template, genInfos, channel){
 
             channel.send(msg)
 
-            unload()
+            __unloadTemplate(template)
             b_svg= false
         }
         else if(!Boolean(genResults.out_svg) || !fs.existsSync(genResults.out_svg)){
             channel.send(`❌ Final svg generation failed…`)
-            unload()
+            __unloadTemplate(template)
             b_svg= false
         }
         
@@ -319,7 +330,7 @@ async function _generateTop8(template, genInfos, channel){
             )
         }
 
-        unload()
+        __unloadTemplate(template)
         return b_svg
     }
 
@@ -406,13 +417,6 @@ async function _evaluateArgsOptions(args, options, guild, user){
         '5a': {roster:[]}, '5b': {roster:[]}, '7a': {roster:[]}, '7b': {roster:[]}
     }
 
-    let optionValue= (name) =>{
-        var opt= undefined;
-        return (Boolean(opt=options.find(o => {return o.name===name})))?
-                    opt.value
-                :   undefined;
-    }
-
     var sgg_infos= undefined;
     if(Boolean(args[1])){
         sgg_infos= (await _fetchSmashGGInfos(args[1]))
@@ -434,7 +438,7 @@ async function _evaluateArgsOptions(args, options, guild, user){
         var option_value= undefined;
         var player_infos= undefined;
 
-        if(!Boolean(option_name) || !Boolean(option_value=optionValue(option_name))){
+        if(!Boolean(option_name) || !Boolean(option_value=options[option_name])){
             if(Boolean(sgg_infos) && Boolean(sgg_infos[p]) && Boolean(sgg_infos[p].name)){
                 if(Boolean(p_db)){
                     player_infos= (await p_db.getPlayerInfos(sgg_infos[p].name))
@@ -465,7 +469,7 @@ async function _evaluateArgsOptions(args, options, guild, user){
         var f_pname= (Boolean(test_infos[p]['name']))?`"${test_infos[p]['name']}"`:"";
 
         option_name= `top${p}-twitter`;
-        if(!Boolean(option_name) || !Boolean(option_value=optionValue(option_name))){
+        if(!Boolean(option_name) || !Boolean(option_value=options[option_name])){
             if(Boolean(sgg_infos) && Boolean(sgg_infos[p]) && Boolean(sgg_infos[p].twitter)){
                 rep.infos[`smashgg${p}-twitter`]= `Player ${p} ${f_pname} twitter set to ${sgg_infos[p].twitter}`
                 test_infos[p]['twitter']= sgg_infos[p].twitter;
@@ -480,7 +484,7 @@ async function _evaluateArgsOptions(args, options, guild, user){
         }
 
         option_name= `top${p}-team`
-        if(Boolean(option_value=optionValue(option_name))) player_infos.team= option_value;
+        if(Boolean(option_value=options[option_name])) player_infos.team= option_value;
         if(!Boolean(player_infos) || !Boolean(player_infos.team)){
             if(Boolean(sgg_infos) && Boolean(sgg_infos[p]) && Boolean(sgg_infos[p].team)){
                 rep.infos[`smashgg${p}-team`]= `Player ${p} ${f_pname} team set to ${sgg_infos[p].team}`
@@ -510,7 +514,7 @@ async function _evaluateArgsOptions(args, options, guild, user){
 
         for(var i=1; i<=4; ++i){
             option_name= `top${p}-char${i}`
-            option_value= optionValue(option_name)
+            option_value= options[option_name]
 
             if(Boolean(option_value)){
                 if(Boolean(player_infos) && Boolean(player_infos.roster) && Boolean(player_infos.roster[i-1])){
@@ -537,11 +541,56 @@ async function _evaluateArgsOptions(args, options, guild, user){
         rep.infos['template']= test_infos['template']
     }
 
-    if(!Boolean(options) || !Boolean(optionValue('title'))){
+    if(Boolean(test_infos['template'])){
+        let tmlt= __loadTemplate(test_infos['template'])
+        if(Boolean(tmlt)){
+            var cust_param= tmlt.custom_parameters
+
+            let remove_official_params= l =>{
+                return l.map(c_p =>{
+                    return [/^title$/, /^top(([1-4])|([57][ab]))\-((name)|(team)|(twitter)|(char[1-4]))$/].find(rx => {
+                                return Boolean(c_p.match(rx))
+                    })
+                })
+            }
+            if(Boolean(cust_param)){
+                var l_param= undefined
+                if(Boolean(cust_param.optional) && cust_param.optional.length>0){
+                    l_param= remove_official_params(cust_param.optional)
+                    for(var opt_param of l_param){
+                        if(!Boolean(options[opt_param])){
+                            rep.warnings[opt_param]= `template \"${args[0]}\" asks for parameter "${opt_param}", which was not provided…` 
+                        }
+                        else{
+                            rep.infos[opt_param]= `template \"${args[0]}\" optional parameter "${opt_param}" provided: ${options[opt_param]}`
+                        }
+                    }
+                }
+                if(Boolean(cust_param.required) && cust_param.required.length>0){
+                    l_param= remove_official_params(cust_param.required)
+                    for(var req_param of l_param){
+                        if(!Boolean(options[req_param])){
+                            rep.error[req_param]= `template \"${args[0]}\" requires for parameter "${req_param}", which was not provided…` 
+                        }
+                        else{
+                            rep.infos[req_param]= `template \"${args[0]}\" required parameter "${req_param}" provided: ${options[req_param]}`
+                        }
+                    }
+                }
+            }
+        }
+        else{
+            rep.errors['load_tempate']= `internal error while loading template \`${test_infos['template']}\``
+        }
+        
+        __unloadTemplate(test_infos['template'])
+    }
+
+    if(!Boolean(options) || !Boolean(options['title'])){
         rep.errors['title']= `Top8 title not set; Use option \`?title="title"\` to set it`
     }
     else{
-        test_infos['title']= optionValue('title')
+        test_infos['title']= options['title']
         rep.infos['title']= test_infos['title']
     }
 
@@ -762,11 +811,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
 
             let getOpt= (optName, defaultVal) =>{
-                var option= undefined;
-                var ret= (Boolean(option=(argsOpt.options.find(o => {return o.name===optName}))))?
-                            ((Boolean(option.value))?option.value:defaultVal)
-                        :   defaultVal ;
-                return ret
+                return ((Boolean(argsOpt.options[optName]))?argsOpt.options[optName]:defaultVal)
             }
 
             let getTopRoster= (topNum) => {
@@ -839,6 +884,8 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 zip_bin: utils.settings.get(message.guild, "zip_exe"),
 
                 http_addr: utils.settings.get(message.guild, "http_zip_dl_dir_addr"),
+
+                options: argsOpt.options,
             }
 
             hereLog(`genInfos be like: ${JSON.stringify(genInfos)}`)

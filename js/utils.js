@@ -89,7 +89,7 @@ function commandNameFromFilePath(fpath){
 
 function commandArgsOptionsExtract(args, optionPrefix='?'){
     var i=0;
-    var options= []
+    var options= {}
     var left_args= []
     while(i<args.length){
         var arg= args[i]
@@ -167,7 +167,9 @@ function commandArgsOptionsExtract(args, optionPrefix='?'){
                     (((state & _States.EXPECTING_END_QM) && joined_rest[j-1]==='"')?"":undefined)
                 :   opt_val; 
 
-            options.push(option)
+            if(Boolean(option.value)){
+                options[option.name]= option.value
+            }
 
             var ul=
                 (joined_rest[j-1]===' ' || ((state & _States.EXPECTING_END_QM) && joined_rest[j-1]==='"') )?j-1
