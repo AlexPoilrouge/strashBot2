@@ -774,7 +774,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 for(var i=1; i<=4; ++i){
                     var roster_opt= getOpt(`top${topNum}-char${i}`,undefined)
                     if(Boolean(roster_opt)){
-                        r[i]= __rosterCharNameProcess(roster_opt)
+                        r[i-1]= __rosterCharNameProcess(roster_opt)
                     }
                 }
                 return r
