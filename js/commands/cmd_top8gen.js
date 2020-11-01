@@ -374,7 +374,7 @@ async function _fetchSmashGGInfos(url){
 
     var r= undefined;
     try{
-        r= (await smggr.getTop8())
+        r= (await smggr.getInfos())
     } catch(err){
         hereLog(`[FetchSmashGGInfos] failed to fetch infos from \`${url}\`:\n\t${err.message}`)
         r= undefined;

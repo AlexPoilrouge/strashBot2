@@ -53,6 +53,24 @@ function __kartCmd(command){
             :   "false";
 }
 
+function __clearScores(user=undefined){
+    if(Boolean(kart_settings.config_commands.clear_score)){
+        var cmd= __kartCmd(kart_settings.config_commands.clear_score)
+        try{
+            str=child_process.execSync(`${cmd}${(Boolean(user))?` ${user.id}`:''}`, {timeout: 16000}).toString();
+        }
+        catch(err){
+            hereLog("[auto stop] error while clearing scores on autoStop: "+err.message);
+            return false;
+        }
+
+        return (Boolean(str) && Boolean(str.match(/^(.*)SCORES?_CLEARED$/)))
+    }
+    else{
+        return false;
+    }
+}
+
 function _stopServer(force=false){
     var str=undefined
     try{
@@ -207,6 +225,8 @@ var l_guilds= [];
 
 function _autoStopServer(utils){
     if(_isServerRunning()){
+        __clearScores()
+
         hereLog("[auto stop] stopping server…");
         _stopServer(true);
         
@@ -1396,6 +1416,121 @@ async function _cmd_timetrial(cmdObj, clearanceLvl, utils){
     return false;
 }
 
+async function _cmd_register(cmdObj, clearanceLvl, utils){
+    let message= cmdObj.msg_obj;
+    let sub_cmd= cmdObj.args[0]
+    let args= cmdObj.args.slice(1);
+
+    if(args[0]==='new'){
+        var str= undefined
+        try{
+            var cmd= __kartCmd(kart_settings.config_commands.register);
+            str= child_process.execSync(`${cmd} ${message.author.id}`, {timeout: 16000}).toString();
+        }
+        catch(err){
+            hereLog(`Error while registering user ${message.author}…\n\t${err}`);
+            str= undefined
+        }
+
+        if(Boolean(str) && Boolean(["NEW_MEMBER","CHANGE_MEMBER"].find(e=>{return str.startsWith(e);}))){
+            let _t= str.split(' ')
+            let token= _t[1]
+            let welcome= _t[2].split(':')
+
+            let dirPath= __dirname+`/data/${message.author.id}`;
+            if(!fs.existsSync(dirPath)){
+                fs.mkdir(dirPath,{recursive: true});
+            }
+            let welcomeFilePath= `${dirPath}/strashbot_welcome.cfg`
+            let tokenFilePath= `${dirPath}/strashbot_token_${welcome[1]}.cfg`
+
+            var b_success= true
+            fs.writeFileSync(welcomeFilePath, `strashBot_welcome ${welcome[0]}`, (err)=>{
+                if(err){
+                    hereLog(`[cmd_register][new] couldn't write file '${welcomeFilePath}':\n\t${err.message}`)
+                    b_success= false
+                }
+            })
+            fs.writeFileSync(tokenFilePath, `strashBot_submitToken ${token}`, (err)=>{
+                if(err){
+                    hereLog(`[cmd_register][new] couldn't write file '${welcomeFilePath}':\n\t${err.message}`)
+                    b_success= false
+                }
+            })
+            if(b_success){
+                let r= false
+                try{
+                    r= ( await ( new Promise( (resolve, reject) => { message.author.send(
+                            `[${message.guild.name}] Enregisterment aupès du serveur SRB2Kart réussi!\n`+
+                            `Téléchargez et placez ces 2 fichiers à la racine de votre dossier d'installation srb2kart.`,
+                            {files: [welcomeFilePath, tokenFilePath]}
+                        ).then( msg => {
+                            fs.unlink(welcomeFilePath, (err)=>{
+                                if(err){
+                                    hereLog(`[cmd_register][new] error while getting rid of file ${welcomeFilePath}:\n\t${err.message}`)
+                                }
+                            })
+                            fs.unlink(tokenFilePath, (err)=>{
+                                if(err){
+                                    hereLog(`[cmd_register][new] error while getting rid of file ${welcomeFilePath}:\n\t${err.message}`)
+                                }
+                            })
+                            fs.rmdir(dirPath, {recursive: true}, (err)=>{
+                                if(err){
+                                    hereLog(`[cmd_register][new] error while getting rid of directory ${dirPath}:\n\t${err.message}`)
+                                }
+                            })
+                        }).catch(err=>{
+                            resolve(false);
+                        }).finally(()=>{
+                            resolve(true);
+                        })
+                    } ) ) )
+                } catch(err){
+                    if(err){
+                        hereLog(`[cmd_register][new]error during registeration of ${message.author}:\n\t${err.message}`)
+                        r= false;
+                    }
+                }
+
+                return r;
+            }
+            else{
+                message.author.send(`[${message.guild.name}] command \`!${sub_cmd} new\` failed: internal error`)
+                return false;
+            }
+        }
+    }
+    else{
+        var r= (Boolean(message.mentions.roles) && Boolean(r=message.mentions.users.first()))?
+                    r
+                :   message.author;
+
+        var str= undefined
+        try{
+            var cmd= __kartCmd(kart_settings.config_commands.is_registered);
+            str= child_process.execSync(`${cmd} ${message.author.id}`, {timeout: 16000}).toString();
+        }
+        catch(err){
+            hereLog(`Error while registering user ${message.author}…\n\t${err}`);
+            str= undefined
+        }
+
+        if(!Boolean(str)){
+            message.channel.send("❌ Internal error…")
+            return false
+        }
+
+        message.channel.send(
+            (str==="REGISTERED")?
+                `✅ User ${r} is registered!`
+            :   `❌ User ${r} not registered…`
+        )
+
+        return true;
+    }
+}
+
 function _getServInfos(){
     if(!Boolean(kart_settings) || !Boolean(kart_settings.config_commands)
         || !Boolean(kart_settings.config_commands.serv_info)
@@ -1850,7 +1985,20 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
         }
         else if(['timetrial','timeattack','time','tt', 'ta'].includes(args[0])){
-            return _cmd_timetrial(cmdObj, clearanceLvl, utils);
+            return (await _cmd_timetrial(cmdObj, clearanceLvl, utils));
+        }
+        else if(['register'].includes(args[0])){
+            return (await _cmd_register(cmdObj, clearanceLvl, utils));
+        }
+        else if(Boolean(args[0]) && args[0].match(/^((cle?a?r)|(re?mo?v?e?)|(re?se?t)|(dele?t?e?))[\-\_ ]scores?$/)){
+            if(__clearScores()){
+                message.channel.send("Score storage reset.")
+                return true
+            }
+            else{
+                message.channel.send("❌ Internal error…")
+                return false
+            }
         }
         else if (args[0]==="help"){
             return cmd_help(cmdObj, clearanceLvl)
