@@ -268,9 +268,9 @@ class SmashGG_Top8Reader{
         }
 
         var d= new Date(0)
-        d.setUTCSeconds(ev.obj.data.tournament.startAt)
+        d.setUTCSeconds(ev.data.tournament.startAt)
         return {
-            venueAdress: ev.obj.data.tournament.venueAddress,
+            venueAdress: ev.data.tournament.venueAddress,
             date: d,
             numEntrants: top8Infos.numEntrants,
             top8: top8Infos.top8

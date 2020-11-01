@@ -392,7 +392,7 @@ async function _fetchSmashGGInfos(url){
             top8: {}
         }
 
-        for(var n of r){
+        for(var n of r.top8){
             if(Boolean(n) && n.placement>=1 && n.placement<=7){
                 var m= {}
                 m['name']= n.name

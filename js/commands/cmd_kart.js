@@ -1428,18 +1428,18 @@ async function _cmd_register(cmdObj, clearanceLvl, utils){
             str= child_process.execSync(`${cmd} ${message.author.id}`, {timeout: 16000}).toString();
         }
         catch(err){
-            hereLog(`Error while registering user ${message.author}…\n\t${err}`);
+            hereLog(`[cmd_register][new] Error while registering user ${message.author}…\n\t${err}`);
             str= undefined
         }
 
         if(Boolean(str) && Boolean(["NEW_MEMBER","CHANGE_MEMBER"].find(e=>{return str.startsWith(e);}))){
-            let _t= str.split(' ')
+            let _t= str.replace(/\n/g,'').split(' ')
             let token= _t[1]
             let welcome= _t[2].split(':')
 
             let dirPath= __dirname+`/data/${message.author.id}`;
             if(!fs.existsSync(dirPath)){
-                fs.mkdir(dirPath,{recursive: true});
+                fs.mkdirSync(dirPath,{recursive: true});
             }
             let welcomeFilePath= `${dirPath}/strashbot_welcome.cfg`
             let tokenFilePath= `${dirPath}/strashbot_token_${welcome[1]}.cfg`
@@ -1463,8 +1463,12 @@ async function _cmd_register(cmdObj, clearanceLvl, utils){
                     r= ( await ( new Promise( (resolve, reject) => { message.author.send(
                             `[${message.guild.name}] Enregisterment aupès du serveur SRB2Kart réussi!\n`+
                             `Téléchargez et placez ces 2 fichiers à la racine de votre dossier d'installation srb2kart.`,
-                            {files: [welcomeFilePath, tokenFilePath]}
-                        ).then( msg => {
+                            {   files: [welcomeFilePath, tokenFilePath],
+                                split: true
+                            }
+                        ).catch(err=>{
+                            resolve(false);
+                        }).finally(()=>{
                             fs.unlink(welcomeFilePath, (err)=>{
                                 if(err){
                                     hereLog(`[cmd_register][new] error while getting rid of file ${welcomeFilePath}:\n\t${err.message}`)
@@ -1480,9 +1484,6 @@ async function _cmd_register(cmdObj, clearanceLvl, utils){
                                     hereLog(`[cmd_register][new] error while getting rid of directory ${dirPath}:\n\t${err.message}`)
                                 }
                             })
-                        }).catch(err=>{
-                            resolve(false);
-                        }).finally(()=>{
                             resolve(true);
                         })
                     } ) ) )
@@ -1492,7 +1493,6 @@ async function _cmd_register(cmdObj, clearanceLvl, utils){
                         r= false;
                     }
                 }
-
                 return r;
             }
             else{
