@@ -37,7 +37,10 @@
             "add_times_url":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh ADD_RECORD_URL",
             "get_times":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh RECORD_GET",
             "time_info":"python /home/${STRASHBOT_USER}/${SRB2KART_DIR}/record_lmp_read.py",
-            "remove_times":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh RECORD_RM"
+            "remove_times":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh RECORD_RM",
+            "register":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh REGISTER",
+            "is_registered":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh IS_REGISTERED",
+            "clear_score":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh CLEAR_SCORE"
     },
     "source_url":"${SRB2K_SERV_SOURCE_URL}"
 }

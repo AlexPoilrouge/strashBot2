@@ -112,6 +112,8 @@ class SmashGG_Top8Reader{
         this._tourneySlug= undefined;
         this._eventSlug= undefined;
 
+        this._gotEvents= {timestamp: undefined, obj: undefined}
+
         this.__slug(url);
     }
 
@@ -129,6 +131,12 @@ class SmashGG_Top8Reader{
     }
 
     async _getEventsObj(){
+        if(Boolean(this._gotEvents) && Boolean(this._gotEvents.obj) &&
+            Boolean(this._gotEvents.timestamp) && (this._gotEvents.timestamp-Date.now()<30000))
+        {
+            return this._gotEvents.obj
+        }
+
         if(!Boolean(this._token)){
             hereLog("[SGGReader][top8Event] Error: SmashGG access token not provided")
             return undefined;
@@ -159,6 +167,10 @@ class SmashGG_Top8Reader{
         } catch(err){
             hereLog(`[SGGReader][top8Event] Request returned with error: ${err}`)
             events= undefined;
+        }
+
+        if(Boolean(events)){
+            this._gotEvents= {timestamp: Date.now(), obj: events}
         }
 
         return events;
@@ -214,7 +226,10 @@ class SmashGG_Top8Reader{
         }
 
         return (Boolean(standing))?
-                    getSubObj("data/event/standings",standing)
+                    {   
+                        numEntrants: getSubObj("data/event/numEntrants",standing),
+                        standings: getSubObj("data/event/standings",standing)
+                    }
                 :   undefined;
         ;
     }
@@ -223,20 +238,43 @@ class SmashGG_Top8Reader{
         let standingsQueryRes= (await this._getTop8Standing())
 
         var nodes= undefined;
-        if(!Boolean(standingsQueryRes) || !Boolean(nodes=standingsQueryRes.nodes) || nodes.length<=0){
+        if(!Boolean(standingsQueryRes) || !Boolean(nodes=standingsQueryRes.standings) ||
+            !Boolean(nodes=standingsQueryRes.standings.nodes) || nodes.length<=0)
+        {
             hereLog(`[SGGReader][top8Standing] Error: couldn't access tournament standing…`)
             return undefined
         }
 
         nodes.sort((n1,n2) => {return (n1.placement-n2.placement)})
-        return nodes.map(n => {return {
-            placement: n.placement,
-            name: ((n.entrant.name.includes(" | "))? n.entrant.name.split(" | ")[1]: n.entrant.name),
-            team: ((n.entrant.name.includes(" | "))? n.entrant.name.split(" | ")[0]: undefined),
-            twitter: (Boolean(n.entrant.participants[0].user.authorizations) && Boolean(n.entrant.participants[0].user.authorizations[0]))?
-                        n.entrant.participants[0].user.authorizations[0]['externalUsername']
-                    :   undefined
-        }})
+        return {numEntrants: standingsQueryRes.numEntrants,
+                top8: nodes.map(n => {return {
+                        placement: n.placement,
+                        name: ((n.entrant.name.includes(" | "))? n.entrant.name.split(" | ")[1]: n.entrant.name),
+                        team: ((n.entrant.name.includes(" | "))? n.entrant.name.split(" | ")[0]: undefined),
+                        twitter: (Boolean(n.entrant.participants[0].user.authorizations) && Boolean(n.entrant.participants[0].user.authorizations[0]))?
+                                    n.entrant.participants[0].user.authorizations[0]['externalUsername']
+                                :   undefined
+                    }})
+                }
+    }
+
+    async getInfos(){
+        let ev= (await this._getEventsObj())
+        let top8Infos= (await this.getTop8())
+
+        if(!Boolean(ev) || !Boolean(top8Infos)){
+            hereLog(`[SGGReader][getInfos] error while requesting data`)
+            return undefined;
+        }
+
+        var d= new Date(0)
+        d.setUTCSeconds(ev.data.tournament.startAt)
+        return {
+            venueAdress: ev.data.tournament.venueAddress,
+            date: d,
+            numEntrants: top8Infos.numEntrants,
+            top8: top8Infos.top8
+        }
     }
 }
 
@@ -258,12 +296,12 @@ const GetSmashGGToken= () =>{
             return undefined;
         }
     }catch(err){
-        hereLog(`[GetSmashGGToken] failed at loading infos form file ${SmashGGInfosFile}:\n\t${err.message}`);
+        hereLog(`[GetSmashGGToken] failed at loading infos from file ${SmashGGInfosFile}:\n\t${err.message}`);
         return undefined;
     }
 
     if(!Boolean(r) || !Boolean(r.token)){
-        hereLog(`[GetSmashGGToken] couldn't read token data form file ${SmashGGInfosFile}}`)
+        hereLog(`[GetSmashGGToken] couldn't read token data from file ${SmashGGInfosFile}}`)
     }
 
     return r.token
