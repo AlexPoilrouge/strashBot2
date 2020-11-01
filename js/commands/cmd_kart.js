@@ -1522,7 +1522,7 @@ async function _cmd_register(cmdObj, clearanceLvl, utils){
         }
 
         message.channel.send(
-            (str==="REGISTERED")?
+            (str.startsWith("REGISTERED"))?
                 `✅ User ${r} is registered!`
             :   `❌ User ${r} not registered…`
         )
