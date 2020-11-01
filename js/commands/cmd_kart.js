@@ -1509,7 +1509,7 @@ async function _cmd_register(cmdObj, clearanceLvl, utils){
         var str= undefined
         try{
             var cmd= __kartCmd(kart_settings.config_commands.is_registered);
-            str= child_process.execSync(`${cmd} ${message.author.id}`, {timeout: 16000}).toString();
+            str= child_process.execSync(`${cmd} ${r.id}`, {timeout: 16000}).toString();
         }
         catch(err){
             hereLog(`Error while registering user ${message.author}…\n\t${err}`);
