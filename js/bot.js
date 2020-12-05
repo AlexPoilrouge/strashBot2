@@ -16,7 +16,7 @@ let hereLog= (...args) => {console.log("[bot]", ...args);};
 
 class StrashBot extends Discord.Client{
     constructor(token, worker){
-        super({messageCacheMaxSize: MSG_CACHE});
+        super({messageCacheMaxSize: MSG_CACHE, partials: ['MESSAGE', 'CHANNEL', 'REACTION']});
 
         this._msgCache= MSG_CACHE;
         this._msgCount= 0;
