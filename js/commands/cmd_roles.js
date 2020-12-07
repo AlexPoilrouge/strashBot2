@@ -491,6 +491,57 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
         return true
     }
+    else if(command==="exclusive-roles"){
+        if (args.length<3){
+            message.author.send(`[${command}] Not enough arguments…\n\tformat: !${command} @role1_mention @role2_mention [ @role3_mention … ]`)
+            return false;
+        }
+
+        var roles= []
+        while(args.length>0){
+            var role= undefined
+            if(!Boolean(role=__identifyRoleMention(args[0], message.mentions.roles))){
+                message.author.send(`[${message.guild.name}] \`!${command}\`: "${args[0]}" doesn't seem to be a valid role mention…`)
+                return false;
+            }
+            roles.push(role)
+
+            args.shift()
+        }
+
+        var data_exclusive_roles= utils.settings.get(message.guild, 'exclusive_roles')
+        if(!Boolean(data_exclusive_roles)){
+            data_exclusive_roles= []
+        }
+        data_exclusive_roles.push(roles)
+
+        utils.settings.set(message.guild, 'exclusive_roles', data_exclusive_roles)
+
+        return true
+    }
+    else if(command==="mention-assign-role"){
+        if (args.length<1){
+            message.author.send(`[${command}] Not enough arguments…\n\tformat: !${command} @role_mention`)
+            return false;
+        }
+        
+        var role= undefined
+        if(!Boolean(role=__identifyRoleMention(args[0], message.mentions.roles))){
+            message.author.send(`[${message.guild.name}] \`!${command}\`: "${args[0]}" doesn't seem to be a valid role mention…`)
+            return false;
+        }
+
+        var data_role_mention_assign= utils.settings.get(message.guild, 'role_mention_assign')
+        if(!Boolean(data_role_mention_assign)){
+            data_role_mention_assign= []
+        }
+
+        data_role_mention_assign.push(role.id)
+
+        utils.settings.set(message.guild, 'role_mention_assign', data_role_mention_assign)
+
+        return true
+    }
 
     return false
 }
@@ -603,10 +654,99 @@ async function cmd_event(eventName, utils){
 
         return
     }
+    else if(eventName==="roleDelete"){
+        var role= arguments[2];
+
+        var data_role_mention_assign= utils.settings.get(message.guild, 'role_mention_assign')
+        if(!Boolean(data_role_mention_assign)) return
+        data_role_mention_assign= data_role_mention_assign.filter(r_id =>{ return (r_id!==role.id)})
+        utils.settings.set(message.guild, 'role_mention_assign', data_role_mention_assign)
+
+        var data_exclusive_roles= utils.settings.get(message.guild, 'exclusive_roles')
+        if(!Boolean(data_exclusive_roles)) return
+        data_exclusive_roles= data_exclusive_roles.map(r_t =>{
+            return r_t.filter(r_id =>{return (r_id!==role.id)})
+        }).filter(r_t =>{return (r_t.length>1)} )
+        utils.settings.set(message.guild, 'exclusive_roles', data_exclusive_roles)
+    }
+    else if(eventName==="guildMemberUpdate"){
+        var oldMember= arguments[2];
+        var newMember= arguments[3];
+
+        var addedRoles= newMember.roles.cache.filter(r => {return !oldMember.roles.cache.has(r.id);});
+        var keptRoles= newMember.roles.cache.filter(r => {return oldMember.roles.cache.has(r.id);});
+        var removedRoles= oldMember.roles.cache.filter(r => {return !newMember.roles.cache.has(r.id);});
+
+        if(addedRoles.length>0){
+            var data_exclusive_roles= utils.settings.get(message.guild, 'exclusive_roles')
+            if(!Boolean(data_exclusive_roles)) return
+
+            var roles_to_remove=[]
+            for(var a_r of addedRoles){
+                for(var t_r of data_exclusive_roles){
+                    if(t_r.includes(a_r.id)){
+                        roles_to_remove.concat(
+                            t_r.filter(r_id=>{return (r_id!==a_r.id && keptRoles.some(k_r=>{return k_r.id===r_id}))})
+                        )
+                    }
+                }
+            }
+
+            newMember.roles.remove(roles_to_remove)
+        }
+        if(removedRoles.length>0){
+            var data_msg_react_role= utils.settings.get(message.guild, 'msg_react_role')
+            if(!Boolean(data_msg_react_role)) return
+
+            for(var ch_msg_id in data_msg_react_role){
+                if(!Boolean(ch_msg_id.match(/^[0-9]{15,21}\_[0-9]{15,21}$/))) continue
+                
+                var ch= newMember.guild.channels.get(ch_msg_id.split('_')[0])
+                if(!Boolean(ch)) continue
+
+                let obj= data_msg_react_role[ch_msg_id]
+                ch.fetch(ch_msg_id.split('_')[1]).then(msg => {
+                    for(var em_txt in obj.roles){
+                        var r_id= obj.roles[em_txt]
+                        
+                        if(removedRoles.some(_rid=>{return _rid=r_id})){
+                            msg.reactions.cache.forEach(reaction =>{
+                                let emtxt= em_txt
+                                reaction.fetch().then(r =>{
+                                    if(r.emoji.text===emtxt){
+                                        r.users.remove(newMember.id)
+                                    }
+                                }).catch(err => {
+                                    hereLog(`[removedRoles ev] error fetching reaction for role ${r_id} on message ${msg.id}: ${err.message}`)
+                                })
+                            })
+                        }
+                    }
+                }).catch(err => {
+                    hereLog(`[removedRoles ev] couldn't find message ${ch_msg_id.split('_')[1]}: ${err.message}`)
+                })
+            }
+        }
+    }
     else if(eventName==="message"){
         let message= arguments[2]
 
         if(Boolean(message)){
+            var data_role_mention_assign= utils.settings.get(message.guild, 'role_mention_assign')
+            if( Boolean(message.mentions) && Boolean(message.mentions.roles) 
+                && data_role_mention_assign.some(r_id=>{return message.mentions.roles.has(r_id)})
+            ){
+                var roles_to_add=[]
+                message.mentions.roles.forEach((v,k)=>{
+                    if(data_role_mention_assign.includes(k)){
+                        roles_to_add.push(k)
+                    }
+                })
+
+                message.member.roles.add(roles_to_add)
+            }
+
+
             var answerChannels= undefined
             var ch= undefined
             if(Boolean(answerChannels=utils.setting.get(message.guild, "answerChannels")) &&
