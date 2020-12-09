@@ -12,7 +12,7 @@ const config= require('config');
 
 const MSG_CACHE= 500;
 
-let hereLog= (...args) => {console.log("[bot]", ...args);};
+let hereLog=    (...args) => {console.log("[bot]", ...args);};
 
 class StrashBot extends Discord.Client{
     constructor(token, worker){
@@ -61,13 +61,19 @@ class StrashBot extends Discord.Client{
         });
         
         this.on('messageReactionAdd', (reaction, user) => {
-            if(user.id!==this.user.id && Boolean(this.worker))
-                this.worker.event('messageReactionAdd', reaction, user);
+            if(user.id!==this.user.id && Boolean(this.worker)){
+                if(Boolean(reaction)){
+                    this.worker.event('messageReactionAdd', reaction, user);
+                }
+            }
         });
         
         this.on('messageReactionRemove', (reaction, user) => {
-            if(user.id!==this.user.id  && Boolean(this.worker))
-                this.worker.event('messageReactionRemove', reaction, user);
+            if(user.id!==this.user.id  && Boolean(this.worker)){
+                if(Boolean(reaction)){
+                    this.worker.event('messageReactionRemove', reaction, user);
+                }
+            }
         });
         
         this.on('messageReactionRemoveAll', (message) => {
@@ -97,7 +103,7 @@ class StrashBot extends Discord.Client{
         
         this.on('emojiDelete', (emoji) => {
             if(Boolean(this.worker))
-                this.worker.event('guildMemberUpdate', emoji);
+                this.worker.event('emojiDelete', emoji);
         });
 
         this.on('error', (error)=>{
@@ -157,6 +163,34 @@ class StrashBot extends Discord.Client{
         this.on('close', () => {
             if(Boolean(this.worker))
                 this.removeAllListeners();
+        });
+        //source: https://github.com/AnIdiotsGuide/discordjs-bot-guide/blob/master/coding-guides/raw-events.md
+        this.on('raw', packet => {
+            // We don't want this to run on unrelated packets
+            if (!['MESSAGE_REACTION_ADD', 'MESSAGE_REACTION_REMOVE'].includes(packet.t)) return;
+            // Grab the channel to check the message from
+            const channel = this.channels.cache.get(packet.d.channel_id);
+            // There's no need to emit if the message is cached, because the event will fire anyway for that
+            // if (channel.messages.cache.has(packet.d.message_id)) return;
+            // Since we have confirmed the message is not cached, let's fetch it
+            channel.messages.fetch(packet.d.message_id).then(message => {
+                // Emojis can have identifiers of name:id format, so we have to account for that case as well
+                const emoji = packet.d.emoji.id ? `${packet.d.emoji.name}:${packet.d.emoji.id}` : packet.d.emoji.name;
+                // This gives us the reaction we need to emit the event properly, in top of the message object
+                const reaction = message.reactions.resolve(emoji);
+                // Adds the currently reacting user to the reaction's users collection.
+                // Check which type of event it is before emitting
+                this.users.fetch(packet.d.user_id).then(u =>{
+                    if (reaction) reaction.users.cache.set(packet.d.user_id, this.users.cache.get(packet.d.user_id));
+
+                    if (packet.t === 'MESSAGE_REACTION_ADD') {
+                        this.emit('messageReactionAdd', reaction, u);
+                    }
+                    if (packet.t === 'MESSAGE_REACTION_REMOVE') {
+                        this.emit('messageReactionRemove', reaction, u);
+                    }
+                })
+            });
         });
     }
 

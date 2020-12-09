@@ -7,18 +7,7 @@ const { fstat } = require('fs');
 let hereLog= (...args) => {console.log("[cmd_roles]", ...args);};
 
 
-//CLEARANCE LEVEL:
-// A particular member can have 3 different clearance level:
-//  - CLEARANCE_LEVEL.NONE = 0 = 0b000 - no clearance level
-//  - CLEARANCE_LEVEL.ADMIN_ROLE = 0b010 = 2  - member is recognized admin
-//  - CLEARANCE_LEVEL.MASTER_ID = 0b100 = 4  - member is the bot's master
-// A fourth level exists, used to contextualized a message:
-//  - CLEARANCE_LEVEL.CONTROL_CHANNEL = 1 = 0b001 - posted in context of a 'control channel'
-// Ofc, these level are stackable:
-//  A clearance level of 7:
-//    7 = 1+2+4 = 0b111 = CONTROL_CHANNEL+ADMIN_ROLE+MASTER_ID
-//      is obtained when the master, who here is also an admin, posted a message in a
-//      control channel
+
 const CLEARANCE_LEVEL= require('../defines').CLEARANCE_LEVEL;
 
 
@@ -92,53 +81,8 @@ function __identifyEmoji(str, guild, utils){
     return emojiType;
 }
 
-//when the module is loaded, during the bot's launch,
-//this function is called.
-//  utils is an object provided by the bot, constructed as follow:
-//    utils= {
-//     settings: {
-//        set: function (guild, field, value) ,
-//        get: function (guild, field),
-//        remove: function (guild, field)
-//     },
-//     getMemberClearanceLevel: function(member),
-//     getBotClient: function(),
-//     cache_message_management:{
-//        keepTrackOf: function (msg),
-//        untrack: function (msg),
-//        isTracked: function (msg),
-//     },
-//     getMasterID: function()
-//    }
-//  Where:
-//    'utils.settings.get(guild, field)' is a function you need to call when
-//      you whant to access an saved object (json formatable) in this module's
-//      persitent data.
-//      Example: onlineRole= utils.settings.get(guild, 'online-role');
-//    'utils.settings.set(guild, field, value)' is a function you need to call when
-//      you want to save data (json formatable object) in this module's persistent
-//      data.
-//      Example: utils.settings.set(guild, 'number-of-cats', 5);
-//    'utils.remove(guild, field)' is a function you need to call when you want to remove
-//       a previously saved object of this module's persitent data.
-//       Example: utils.remove(guild, 'online-role');
-//    'utils.getMemberClearanceLevel(member)' is a function you need to call in order to know
-//       the 'clearance level' of a particular guild member. (see below for clearance level)
-//    'utils.getBotClient' return the discord bot client.
-//    'utils.cache_message_management.keepTrackOf(msg)' is a function to want to call when you
-//      want to make sure a message is kept in the cache indefinetely. This is usefull, for
-//      example, when you are tracking reaction on a given message indefinetly, keep it from
-//      eventually being thrown out of the cache, and not recieving any notifications about this
-//      message anymore.
-//    'utils.cache_message_management.untrack(msg)' is a function to call when you no longer need
-//      for a particular message to being kept in cache.
-//    'utils.getMasterID' returns the bot's master's user ID.
 function cmd_init(utils){}
 
-//this function is called, during bot's launch (after 'cmd_init'),
-//once per guild the bot is part of.
-//It is the opprtunity, for example, to verify the data's integrity
-//and coherence with the current state of the guild…
 async function cmd_init_per_guild(utils, guild){
     var data_msg_react_role= utils.settings.get(guild,'msg_react_role')
     if(Boolean(data_msg_react_role)){
@@ -152,6 +96,7 @@ async function cmd_init_per_guild(utils, guild){
                 msg= (await channel.messages.fetch(msg_id))
             }
             catch(err){
+                hereLog(`[cmd_init_per_guild][${guild}] couldn't fetch message ${msg_id}: ${err.message}`)
                 msg= undefined
             }
 
@@ -179,21 +124,6 @@ async function cmd_init_per_guild(utils, guild){
 }
 
 
-
-//this function is called when a command registered by this module
-//(see end of this file) has been called in a guild.
-// 'clearanceLvl' is the clearance level in wich this command has been posted
-// 'cmdObj' is an object provided by the bot, constructed as follow:
-//   cmdObj={
-//      'command',
-//      'args',
-//      'msg_obj'
-//   }
-//  Where:
-//   'cmdObj.command' is the string that constitutes the command called.
-//   'cmdObj.args' is an array containing each remaining words of the command
-//   'cmdObj.msg_obj' is the discord message object associated with the command
-//     (see https://discord.js.org/#/docs/main/stable/class/Message)
 async function cmd_main(cmdObj, clearanceLvl, utils){
     let command= cmdObj.command;
     let message= cmdObj.msg_obj;
@@ -201,7 +131,12 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
     var args= cmdObj.args;
     hereLog(`clrlvl ${clearanceLvl}`)
 
+    if(args[0]==="help"){
+        return cmd_help(cmdObj, clearanceLvl)
+    }
+
     if(clearanceLvl<CLEARANCE_LEVEL.CONTROL_CHANNEL) return false
+
 
     let _message_extract= async (idx=0) =>{
         let id_arg= args[idx]
@@ -231,16 +166,10 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
     if(command==="post-role-message"){
         if(args.length<4){
             message.author.send(`[${message.guild.name}] \`!${command}\` not enought arguments… Expected format:\n\t`
-                                `\`!${command}\ [exclusive] #channel @role :server_emote: message…\``
+                                `\`!${command}\ #channel @role :server_emote: message…\``
             )
 
             return false;
-        }
-
-        var exclusive= false;
-        if(args[0].toLowerCase()==="exclusive"){
-            exclusive= true;
-            args.shift()
         }
 
         var ch= undefined;
@@ -309,7 +238,6 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
         let k= `${new_msg.channel.id}_${new_msg.id}`
         data_msg_react_role[k]= {}
-        data_msg_react_role[k]['exclusive']= exclusive
         data_msg_react_role[k].roles= {}
 
         for(var e_m of l_mentionEmote){
@@ -323,16 +251,10 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
     else if(command==="set-role-message"){
         if(args.length<3){
             message.author.send(`[${message.guild.name}] \`!${command}\` not enought arguments… Expected format:\n\t`
-                                `\`!${command}\ message_id [exclusive] @role :server_emote:\``
+                                `\`!${command}\ message_id @role :server_emote:\``
             )
 
             return false;
-        }
-
-        var exclusive= false;
-        if(args[1].toLowerCase()==="exclusive"){
-            exclusive= true;
-            args.splice(1,1)
         }
 
         var msg= (await (_message_extract()))
@@ -365,13 +287,16 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             args.shift(); args.shift();
         } while(__isRoleMention(args[0], message.mentions.roles))
 
-        var text= args.join(' ');
-        for(var e_m of l_mentionEmote){
-            msg.react(e_m.emote.emoji).then()
-            .catch(err => {
-                hereLog(`[${command}] couldn't react to message:\n\t${err.message}`);
-            })
-        }
+        msg.reactions.removeAll().then().catch(err => {
+            hereLog(`[${command}] couldn't remove all reaction from message:\n\t${err.message}`)
+        }).finally(() => {
+            for(var e_m of l_mentionEmote){
+                msg.react(e_m.emote.emoji).then()
+                .catch(err => {
+                    hereLog(`[${command}] couldn't react to message:\n\t${err.message}`);
+                })
+            }
+        })
 
         var data_msg_react_role= utils.settings.get(message.guild,'msg_react_role')
         if(!Boolean(data_msg_react_role)){
@@ -379,7 +304,6 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         }
         let k= `${msg.channel.id}_${msg.id}`
         data_msg_react_role[k]= {}
-        data_msg_react_role[k]['exclusive']= exclusive
         data_msg_react_role[k].roles= {}
         for(var e_m of l_mentionEmote){
             data_msg_react_role[k].roles[e_m.emote.text]= e_m.role.id
@@ -405,7 +329,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 && Boolean(channel=message.guild.channels.cache.get(k.split('_')[0]))
                 && Boolean(msg=(await (channel.messages.fetch(k.split('_')[1])))))
             {
-                str+= `- <${msg.url}>${(Boolean(obj.exclusive))?" (exclusive)":""} :\n`
+                str+= `─ <${msg.url}>:\n`
 
                 for(var em in obj.roles){
                     var r_id= obj.roles[em]
@@ -477,8 +401,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             return false
         }
 
-        str= `Message <${msg.url}> sets roles in the following fashion `+
-            `${(Boolean(data_msg_react_role[c_id].exclusive))?"(exclusive)":""}:\n`
+        str= `Message <${msg.url}> sets roles in the following fashion:\n`
         for(var em in data_msg_react_role[c_id].roles){
             var r_id= data_msg_react_role[c_id].roles[em]
             var role= message.guild.roles.cache.get(r_id)
@@ -492,7 +415,72 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         return true
     }
     else if(command==="exclusive-roles"){
-        if (args.length<3){
+        var data_exclusive_roles= utils.settings.get(message.guild, 'exclusive_roles')
+        if(!Boolean(data_exclusive_roles)){
+            data_exclusive_roles= []
+        }
+
+        if(args.length<=0){
+            if(data_exclusive_roles.length<=0){
+                message.author.send(`[${command}] No exclusive roles set yet.`)
+            }
+            else{
+                var str= `[${command}] exclusive roles:\n`
+                for(var r_t of data_exclusive_roles){
+                    if(r_t.length>0){
+                        str+=`\t─ `
+                        for(r_id of r_t){
+                            var role= message.guild.roles.cache.get(r_id)
+                            str+= ((!Boolean(role))?"-unknown-; ":`*${role.name}*; `)
+                        }
+                        str+='\n'
+                    }
+                }
+                message.author.send(str, {split:true})
+            }
+
+            return true;
+        }
+
+        if(Boolean(args[0].toLowerCase().match(/^re?mo?v?e?$/))){
+            args.shift()
+            if (args.length<2){
+                message.author.send(`[${command}] Not enough arguments…\n\tformat: !${command} rm @role1_mention @role2_mention [ @role3_mention … ]`)
+                return false;
+            }
+
+            var given_roles=[]
+            while(args.length>0){
+                var role= undefined
+                if(!Boolean(role=__identifyRoleMention(args[0], message.mentions.roles))){
+                    message.author.send(`[${message.guild.name}] \`!${command}\`: "${args[0]}" doesn't seem to be a valid role mention…`)
+                    return false;
+                }
+                given_roles.push(role.id)
+    
+                args.shift()
+            }
+
+            for(var i in data_exclusive_roles){
+                var r_t= data_exclusive_roles[i]
+                var count= 0
+                hereLog(`i=${i}; r_t=${r_t}`)
+                for(var r_id of given_roles){
+                    if(r_t.includes(r_id)) ++count
+                }
+
+                if(count>=2){
+                    data_exclusive_roles[i]= r_t.filter(e => {return !given_roles.includes(e)})
+                }
+            }
+            data_exclusive_roles= data_exclusive_roles.fliter(t => {return t.length>1})
+
+            utils.settings.set(message.guild, 'exclusive_roles', data_exclusive_roles)
+            
+            return true
+        }
+
+        if (args.length<2){
             message.author.send(`[${command}] Not enough arguments…\n\tformat: !${command} @role1_mention @role2_mention [ @role3_mention … ]`)
             return false;
         }
@@ -504,36 +492,67 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 message.author.send(`[${message.guild.name}] \`!${command}\`: "${args[0]}" doesn't seem to be a valid role mention…`)
                 return false;
             }
-            roles.push(role)
+            roles.push(role.id)
 
             args.shift()
         }
 
-        var data_exclusive_roles= utils.settings.get(message.guild, 'exclusive_roles')
-        if(!Boolean(data_exclusive_roles)){
-            data_exclusive_roles= []
+        if(!data_exclusive_roles.some(r_t=>{return roles.every(_r_t=>r_t.includes(_r_t))})){
+            data_exclusive_roles.push([...new Set(roles)])
         }
-        data_exclusive_roles.push(roles)
 
         utils.settings.set(message.guild, 'exclusive_roles', data_exclusive_roles)
 
         return true
     }
     else if(command==="mention-assign-role"){
-        if (args.length<1){
-            message.author.send(`[${command}] Not enough arguments…\n\tformat: !${command} @role_mention`)
-            return false;
+        var data_role_mention_assign= utils.settings.get(message.guild, 'role_mention_assign')
+        if(!Boolean(data_role_mention_assign)){
+            data_role_mention_assign= []
+        }
+
+        if (args.length<=0){
+            if(data_role_mention_assign.length<=0){
+                message.author.send(`[${command}] No auto-assign mention roles set.`)
+
+                return true
+            }
+
+            var str= `[${command}] auto-assign mention roles:\n`
+            for(var r_id of data_role_mention_assign){
+                var role= message.guild.roles.cache.get(r_id)
+                str+= `\t─ ${((!Boolean(r_id))?"-unknown-":`*${role.name}*`)}\n`
+            }
+
+            message.author.send(str, {split:true})
+
+            return true
+        }
+
+        if(Boolean(args[0].toLowerCase().match(/^re?mo?v?e?$/))){
+            args.shift()
+            if (args.length<1){
+                message.author.send(`[${command}] removal - no role mentionned…`)
+                return false;
+            }
+
+            var role= undefined
+            if(!Boolean(role=__identifyRoleMention(args[0], message.mentions.roles))){
+                message.author.send(`[${message.guild.name}] \`!${command}\`: "${args[0]}" doesn't seem to be a valid role mention…`)
+                return false;
+            }
+
+            data_role_mention_assign= data_role_mention_assign.filter(e => {return e!=role.id})
+
+            utils.settings.set(message.guild, 'role_mention_assign',data_role_mention_assign)
+
+            return true
         }
         
         var role= undefined
         if(!Boolean(role=__identifyRoleMention(args[0], message.mentions.roles))){
             message.author.send(`[${message.guild.name}] \`!${command}\`: "${args[0]}" doesn't seem to be a valid role mention…`)
             return false;
-        }
-
-        var data_role_mention_assign= utils.settings.get(message.guild, 'role_mention_assign')
-        if(!Boolean(data_role_mention_assign)){
-            data_role_mention_assign= []
         }
 
         data_role_mention_assign.push(role.id)
@@ -548,36 +567,63 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
 
 
-//this function is called when a 'help' command has been called in a
-//guild, regarding one of the commands registered by this module.
-function cmd_help(cmdObj, clearanceLvl){}
+function cmd_help(cmdObj, clearanceLvl){
+    cmdObj.msg_obj.author.send(
+        "========\n\n"+
+        `__**roles** command__:\n\n`+
+        ((clearanceLvl<CLEARANCE_LEVEL.CONTROL_CHANNEL)? "Forbidden access": ("**Admins only:**\n\n"+
+            `\t\`!post-role-message #channel <[@role :server_emote:] …> message_content\`\n\n`+
+            `\tBot will post a message in the specified channel that will function as role assigner `+
+            `according to the given list of role mention - emoji correspondance.\n`+
+            `\t__Exemple__:\n\t\t\`!post-role-message #target-channel @role1 :smirk: @role2 :smile: `+
+            `the rest is the message content. React :smirk: to get @role1 and :smile: to get @role2.\`\n\n`+
+            `\t\`!edit-role-message message_id_or_url new_message_content\`\n\n`+
+            `\tIf the designated message is a "role assigning" message **post by the bot**, then the message `+
+            `content is edited with new given content\n`+
+            `\t__Exemple__:\n\t\t\`!edit-role-message 123456789087456321 The rest is the new message content\`\n\n`+
+            `\t\`!set-role-message message_id @role :server_emote:\`\n\n`+
+            `\tSet the designated message as a "role assigning" message`+
+            `according to the given list of role mention - emoji correspondance.\n`+
+            `\t__Exemple__:\n\t\t\`!set-role-message 874563210123456789 @roleA :rofl: @roleB :angry\`\n\n`+
+            `\t\`!list-role-messages\`\n\n`+
+            `\tLists all the "role assigning" messages posted so far.`+
+            `\t\`!about-role-message message_id_or_url\`\n\n`+
+            `\tFor a designated "role assigning" message, prints (DM) informations about it.\n\n`+
+            `\t\`!exclusive-roles @role1 @role2 [ @role3 …]\`\n\n`+
+            `\tFor given roles, set these roles as "exclusive" to each other. In other words, `+
+            `assigning one of these roles to a user will cause the other roles to be removed from him after this command.\n\n`+
+            `\t\`!exclusive-roles\`\n\n`+
+            `\tPrints out (DM) roles that are "exclusive" to each other.`+
+            `\t\`!exclusive-roles rm @role1 @role2 [ @role3 …]\`\n\n`+
+            `\tFor given roles, these roles will no longer be "exclusive" to each other.`+
+            `\t\`!mention-assign-role @role\`\n\n`+
+            `\tSets a given role as "assignable on mention". In other words, after this command, `+
+            `whenever this role will be mentionned in user's message, this role will be assigned to said user.`+
+            `\t\`!mention-assign-role\`\n\n`+
+            `\tPrints out (DM) roles that are "assignable on mention".`+
+            `\t\`!mention-assign-role rm @role\`\n\n`+
+            `\tRemoves a given role from the list of "assignable on mention" roles.`
+        )), {split:true}
+    )
+
+    return true
+}
 
 
-
-//this function is called when an event has been recieved by the bot's client.
-//See https://discord.js.org/#/docs/main/stable/class/Client for the event list).
 async function cmd_event(eventName, utils){
-    let _roleMemberManage= (role, user, message, t_emote_roles, op='a', exclusive=false) =>{
+    let _roleMemberManage= (role, user, message, op='a') =>{
         message.guild.members.fetch(user).then(member => {
             if(op==='r'){
                 member.roles.remove(role)
             }
             else{
-                if(exclusive){
-                    var r= undefined
-                    for(var r_id of t_emote_roles){
-                        if(Boolean(r=member.roles.cache.get(r_id))){
-                            member.roles.remove(r)
-                        }
-                    }
-                }
-
                 member.roles.add(role)
             }
         })
     }
-
+    hereLog(`ev ${eventName}`)
     if(eventName==="messageReactionAdd"){
+        hereLog("reactionadd")
         var reaction= arguments[2]
         var user= arguments[3];
 
@@ -595,13 +641,15 @@ async function cmd_event(eventName, utils){
         var message= reaction.message
         var data_msg_react_role= utils.settings.get(message.guild, 'msg_react_role')
         let ch_msg_id= `${message.channel.id}_${message.id}`
+        hereLog(`[reactionAdd] ${ch_msg_id}; ${reaction.emoji.toString()}`)
         var r_em= undefined, r_id= undefined, role= undefined
         if(Boolean(data_msg_react_role) && Boolean(r_em=data_msg_react_role[ch_msg_id])
-            && Boolean(r_id=r_em.roles[emoji.text] && Boolean(role=message.guild.roles.cache.get(r_id)))
+            && Boolean(r_id=r_em.roles[reaction.emoji.toString()]) && Boolean(role=message.guild.roles.cache.get(r_id))
         ){
-            var exclusive= Boolean(r_em.exclusive)
-            _roleMemberManage(role,user,message,r_em.roles,'a',exclusive)
+            _roleMemberManage(role,user,message,'a')
         }
+        hereLog(`[reactionAdd] ${r_em}; ${r_id}; ${role}`)
+        hereLog(`[reactionAdd] ${JSON.stringify(r_em)}`)
 
         return
     }
@@ -625,15 +673,17 @@ async function cmd_event(eventName, utils){
         let ch_msg_id= `${message.channel.id}_${message.id}`
         var r_em= undefined, r_id= undefined, role= undefined
         if(Boolean(data_msg_react_role) && Boolean(r_em=data_msg_react_role[ch_msg_id])
-            && Boolean(r_id=r_em.roles[emoji.text] && Boolean(role=message.guild.roles.cache.get(r_id)))
+            && Boolean(r_id=r_em.roles[reaction.emoji.toString()]) && Boolean(role=message.guild.roles.cache.get(r_id))
         ){
-            _roleMemberManage(role,user,message,r_em.roles,'r')
+            _roleMemberManage(role,user,message,'r')
         }
 
         return
     }
     else if(eventName==="messageDelete"){
         var message= arguments[2];
+        var data_msg_react_role= utils.settings.get(message.guild, 'msg_react_role')
+        if(!(Object.keys(data_msg_react_role).some(k=>{return k.endsWith(`_${message.id}`)}))) return
 
         if(message.partial){
             try{
@@ -645,7 +695,6 @@ async function cmd_event(eventName, utils){
         }
 
         var k= `${message.channel.id}_${message.id}`
-        var data_msg_react_role= utils.settings.get(message.guild, 'msg_react_role')
         if(Boolean(data_msg_react_role[k])){
             delete data_msg_react_role[k]
         }
@@ -657,63 +706,105 @@ async function cmd_event(eventName, utils){
     else if(eventName==="roleDelete"){
         var role= arguments[2];
 
-        var data_role_mention_assign= utils.settings.get(message.guild, 'role_mention_assign')
+        var data_role_mention_assign= utils.settings.get(role.guild, 'role_mention_assign')
         if(!Boolean(data_role_mention_assign)) return
         data_role_mention_assign= data_role_mention_assign.filter(r_id =>{ return (r_id!==role.id)})
-        utils.settings.set(message.guild, 'role_mention_assign', data_role_mention_assign)
+        utils.settings.set(role.guild, 'role_mention_assign', data_role_mention_assign)
 
-        var data_exclusive_roles= utils.settings.get(message.guild, 'exclusive_roles')
+        var data_exclusive_roles= utils.settings.get(role.guild, 'exclusive_roles')
         if(!Boolean(data_exclusive_roles)) return
         data_exclusive_roles= data_exclusive_roles.map(r_t =>{
             return r_t.filter(r_id =>{return (r_id!==role.id)})
         }).filter(r_t =>{return (r_t.length>1)} )
-        utils.settings.set(message.guild, 'exclusive_roles', data_exclusive_roles)
+        utils.settings.set(role.guild, 'exclusive_roles', data_exclusive_roles)
+
+        var data_msg_react_role= utils.settings.get(role.guild, 'msg_react_role')
+        if(!Boolean(data_msg_react_role)) return
+        for(var ch_msg_id in data_msg_react_role){
+            if(!Boolean(ch_msg_id.match(/^[0-9]{15,21}\_[0-9]{15,21}$/))) continue
+            
+            var ch= role.guild.channels.cache.get(ch_msg_id.split('_')[0])
+            if(!Boolean(ch)) continue
+
+            let obj= data_msg_react_role[ch_msg_id]
+            ch.messages.fetch(ch_msg_id.split('_')[1]).then(msg => {
+                for(var em_txt in obj.roles){
+                    var r_id= obj.roles[em_txt]
+                    
+                    if(r_id===role.id){
+                        msg.reactions.cache.forEach(reaction =>{
+                            let emtxt= em_txt
+                            reaction.fetch().then(r =>{
+                                if(r.emoji.toString()===emtxt){
+                                    r.remove().then().catch(err =>{
+                                        hereLog(`[removedRoles ev] error trying to remove reaction ${r} on message ${msg}:\n\t${err.message}`)
+                                    })
+                                }
+                            }).catch(err => {
+                                hereLog(`[removedRoles ev] error fetching reaction for role ${r_id} on message ${msg}:\n\t${err.message}`)
+                            })
+                        })
+                    }
+                }
+            }).catch(err => {
+                hereLog(`[removedRoles ev] couldn't find message ${ch_msg_id.split('_')[1]}:\n\t${err.message}`)
+            })
+        }
     }
     else if(eventName==="guildMemberUpdate"){
         var oldMember= arguments[2];
         var newMember= arguments[3];
 
-        var addedRoles= newMember.roles.cache.filter(r => {return !oldMember.roles.cache.has(r.id);});
-        var keptRoles= newMember.roles.cache.filter(r => {return oldMember.roles.cache.has(r.id);});
-        var removedRoles= oldMember.roles.cache.filter(r => {return !newMember.roles.cache.has(r.id);});
+
+        if(newMember.id===utils.getBotClient().user.id) return
+
+        var addedRoles= [...newMember.roles.cache.filter(r => {return !oldMember.roles.cache.has(r.id);}).keys()];
+        var keptRoles= [...newMember.roles.cache.filter(r => {return oldMember.roles.cache.has(r.id);}).keys()];
+        var removedRoles= [...oldMember.roles.cache.filter(r => {return !newMember.roles.cache.has(r.id);}).keys()];
+            
+        hereLog(`[member update]addedROles ${addedRoles}`)
+        hereLog(`[member update]keptRoles ${keptRoles}`)
+        hereLog(`[member update]removedRoles ${removedRoles}`)
 
         if(addedRoles.length>0){
-            var data_exclusive_roles= utils.settings.get(message.guild, 'exclusive_roles')
+            var data_exclusive_roles= utils.settings.get(newMember.guild, 'exclusive_roles')
             if(!Boolean(data_exclusive_roles)) return
 
             var roles_to_remove=[]
             for(var a_r of addedRoles){
                 for(var t_r of data_exclusive_roles){
-                    if(t_r.includes(a_r.id)){
-                        roles_to_remove.concat(
-                            t_r.filter(r_id=>{return (r_id!==a_r.id && keptRoles.some(k_r=>{return k_r.id===r_id}))})
+                    if(t_r.includes(a_r)){
+                        roles_to_remove= roles_to_remove.concat(
+                            t_r.filter(r_id=>{return ((r_id!==a_r) && (keptRoles.includes(r_id)))})
                         )
                     }
                 }
             }
 
-            newMember.roles.remove(roles_to_remove)
+            if(roles_to_remove.length>0){
+                newMember.roles.remove(roles_to_remove)
+            }
         }
         if(removedRoles.length>0){
-            var data_msg_react_role= utils.settings.get(message.guild, 'msg_react_role')
+            var data_msg_react_role= utils.settings.get(newMember.guild, 'msg_react_role')
             if(!Boolean(data_msg_react_role)) return
 
             for(var ch_msg_id in data_msg_react_role){
                 if(!Boolean(ch_msg_id.match(/^[0-9]{15,21}\_[0-9]{15,21}$/))) continue
                 
-                var ch= newMember.guild.channels.get(ch_msg_id.split('_')[0])
+                var ch= newMember.guild.channels.cache.get(ch_msg_id.split('_')[0])
                 if(!Boolean(ch)) continue
 
                 let obj= data_msg_react_role[ch_msg_id]
-                ch.fetch(ch_msg_id.split('_')[1]).then(msg => {
+                ch.messages.fetch(ch_msg_id.split('_')[1]).then(msg => {
                     for(var em_txt in obj.roles){
                         var r_id= obj.roles[em_txt]
                         
-                        if(removedRoles.some(_rid=>{return _rid=r_id})){
+                        if(removedRoles.includes(r_id)){
                             msg.reactions.cache.forEach(reaction =>{
                                 let emtxt= em_txt
                                 reaction.fetch().then(r =>{
-                                    if(r.emoji.text===emtxt){
+                                    if(r.emoji.toString()===emtxt){
                                         r.users.remove(newMember.id)
                                     }
                                 }).catch(err => {
@@ -731,9 +822,11 @@ async function cmd_event(eventName, utils){
     else if(eventName==="message"){
         let message= arguments[2]
 
+        if(message.author.id===utils.getBotClient().user.id) return
+            
         if(Boolean(message)){
             var data_role_mention_assign= utils.settings.get(message.guild, 'role_mention_assign')
-            if( Boolean(message.mentions) && Boolean(message.mentions.roles) 
+            if( Boolean(message.mentions) && Boolean(message.mentions.roles) && Boolean(data_role_mention_assign)
                 && data_role_mention_assign.some(r_id=>{return message.mentions.roles.has(r_id)})
             ){
                 var roles_to_add=[]
@@ -749,7 +842,7 @@ async function cmd_event(eventName, utils){
 
             var answerChannels= undefined
             var ch= undefined
-            if(Boolean(answerChannels=utils.setting.get(message.guild, "answerChannels")) &&
+            if(Boolean(answerChannels=utils.settings.get(message.guild, "answerChannels")) &&
                 Boolean(ch=answerChannels.find(id => {return (id===message.channel.id)}))
             ){
                 if(Math.floor(Math.random()*256)===128){
@@ -784,14 +877,11 @@ async function cmd_event(eventName, utils){
 
 
 
-//this function is called when the bot leaves a guild
 function cmd_guild_clear(guild){}
 
 
 
-//the module then needs to register these function for export
-//  set 'module.exports.name' to a the name of a command this module wants to register.
-//  it can registers several commands by providing an array of strings.
-module.exports.name= ["post-role-message","edit-role-message","list-role-messages","about-role-message","set-role-message"];
-//  all the functions previously presented needs to be register is a grouped object, as the following:
+module.exports.name= ["post-role-message","edit-role-message","list-role-messages","about-role-message",
+                        "set-role-message","exclusive-roles","mention-assign-role"];
+                        
 module.exports.command= {init: cmd_init, init_per_guild: cmd_init_per_guild, main: cmd_main, help: cmd_help, event: cmd_event, clear_guild: cmd_guild_clear};

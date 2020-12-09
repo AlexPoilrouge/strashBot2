@@ -618,6 +618,7 @@ class Commander{
     onEvent(eventName){
         this.loaded_commands.forEach(lCmd =>{
             if(lCmd.event){
+                // hereLog(`(${lCmd.name}).eventName(${eventName}, ${[...Array.from(arguments).slice(1)]})`)
                 lCmd.event(eventName, ...Array.from(arguments).slice(1));
             }
         });
