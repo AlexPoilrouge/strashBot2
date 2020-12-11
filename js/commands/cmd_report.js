@@ -633,6 +633,225 @@ async function _reportCmdPlayer(guild, utils){
     return report_str;
 }
 
+async function _reportCmdRoles(guild, utils){
+    var report_str= `<h4>cmd roles:</h4>\n`
+
+    report_str+=`<h5>Reaction messages:</h5>`
+
+    var data_msg_react_role= utils.settings.get(guild,'msg_react_role','roles')
+
+    var msg=""
+    if(!Boolean(data_msg_react_role) || Object.keys(data_msg_react_role).length<0){
+        var _msg= `No react-message set… (${data_msg_react_role})`
+        problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+        msg+= _msg
+    }
+    else{
+        msg+= `<ul>\n`
+        for(var ch_msg_id in data_msg_react_role){
+            var match= undefined, obj= undefined
+            if(!Boolean(match=ch_msg_id.match(/([0-9]{15,21})[\/\_\-\\\:\.\s]([0-9]{15,21})$/))){
+                var _msg= `Invalid channel_message ID (${ch_msg_id})`
+                problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
+                msg+= _msg
+            }
+            else{
+                msg+= `<li>`
+                var ch_id= match[1], msg_id= match[2]
+                var channel= undefined, m= undefined
+                if(!Boolean(channel=guild.channels.cache.get(ch_id))){
+                    var _msg= `Invalid channel id (not found): ${ch_id}`
+                    problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+                    msg+= _msg
+                }
+                else if(!Boolean(m=(await (channel.messages.fetch(msg_id))))){
+                    var _msg= `Invalid message id (not found): ${msg_id} (channel: ${ch_id})`
+                    problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+                    msg+= _msg
+                }
+                else if(!Boolean(obj=data_msg_react_role[ch_msg_id])){
+                    var _msg= `Invalid data for message ${msg_id} on channel ${ch_id}`
+                    problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+                    msg+= _msg
+                }
+                else{
+                    msg+= `[message ${msg_id} on channel <em>${channel.name}</em>]: `
+                    if(!Boolean(obj.roles)){
+                        var _msg= `Invalid role data for react message ${msg_id} on channel ${ch_id}`
+                        problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+                        msg+= _msg
+                    }
+                    else if(obj.roles<=0){
+                        var _msg= `No role data for react message ${msg_id} on channel ${ch_id}`
+                        problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+                        msg+= _msg
+                    }
+                    else{
+                        if(Boolean(obj.give_only)){
+                            msg+= `<b>give_only</b>`
+                        }
+                        msg+= `<ul>`
+                        for(var em_txt in obj.roles){
+                            msg+= `<li>`
+                            let simpleEmojiRegex= /(?:[\u2700-\u27bf]|(?:\ud83c[\udde6-\uddff]){2}|[\ud800-\udbff][\udc00-\udfff]|[\u0023-\u0039]\ufe0f?\u20e3|\u3299|\u3297|\u303d|\u3030|\u24c2|\ud83c[\udd70-\udd71]|\ud83c[\udd7e-\udd7f]|\ud83c\udd8e|\ud83c[\udd91-\udd9a]|\ud83c[\udde6-\uddff]|\ud83c[\ude01-\ude02]|\ud83c\ude1a|\ud83c\ude2f|\ud83c[\ude32-\ude3a]|\ud83c[\ude50-\ude51]|\u203c|\u2049|[\u25aa-\u25ab]|\u25b6|\u25c0|[\u25fb-\u25fe]|\u00a9|\u00ae|\u2122|\u2139|\ud83c\udc04|[\u2600-\u26FF]|\u2b05|\u2b06|\u2b07|\u2b1b|\u2b1c|\u2b50|\u2b55|\u231a|\u231b|\u2328|\u23cf|[\u23e9-\u23f3]|[\u23f8-\u23fa]|\ud83c\udccf|\u2934|\u2935|[\u2190-\u21ff])/g;
+                            if(!Boolean(em_txt.match(simpleEmojiRegex)) && !Boolean(guild.emojis.resolve(em_txt))){
+                                var _msg= `Invalid role giving emoji ${em_txt} for react message ${msg_id} on channel ${ch_id}`
+                                problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+                                msg+= _msg
+                            }
+                            else{
+                                var r_id= obj.roles[em_txt]
+                                var role= undefined
+                                if(!Boolean(role=guild.roles.cache.get(r_id))){
+                                    var _msg= `Invalid role ${r_id} for react message ${msg_id} on channel ${ch_id}`
+                                    problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+                                    msg+= _msg
+                                }
+                                else{
+                                    msg+= `${em_txt} -> @${role.name}`
+                                }
+                            }
+                            msg+= `</li>`
+                        }
+                        msg+= `</ul>`
+                    }
+                }
+                msg+=`</li>\n`
+            }
+            msg+=`</ul>`
+        }
+    }
+    report_str+= `${msg}<br/>\n`
+
+
+    report_str+= `<h5>exclusive roles:</h5>`
+    var data_exclusive_roles=  utils.settings.get(guild, 'exclusive_roles', 'roles')
+    msg=""
+    if(!Boolean(data_exclusive_roles) || data_exclusive_roles.length<=0){
+        var _msg= "No exclusive roles set"
+        problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
+        msg+= _msg
+    }
+    else{
+        msg+=`<ul>\n`
+        for(var r_t of data_exclusive_roles){
+            msg+=`<li>`
+            if(!Boolean(r_t) || r_t.length<=0){
+                var _msg= "Empty exclusive role data"
+                problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+                msg+= _msg
+            }
+            else{
+                for(var r_id of r_t){
+                    var role= undefined
+                    if(!Boolean(r_id) || !Boolean(role=guild.roles.cache.get(r_id))){
+                        var _msg= `Invalid role (${r_id})`
+                        problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+                        msg+= _msg
+                    }
+                    else{
+                        msg+= `*@${role.name}*`
+                    }
+                    msg+=`; `
+                }
+            }
+            msg+=`</li>\n`
+        }
+        msg+=`</ul>\n`
+    }
+    report_str+= `${msg}<br/>\n`
+
+
+    report_str+= `<h5>Assign on mention:</h5>`
+    var data_role_mention_assign= utils.settings.get(guild, 'role_mention_assign', 'role')
+    msg= ""
+    if(!Boolean(data_role_mention_assign) || data_role_mention_assign.length<=0){
+        var _msg= "No assignable-on-mention role is set"
+        problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
+        msg+= _msg
+    }
+    else{
+        for(var r_id of data_role_mention_assign){
+            var role= undefined
+            if(!Boolean(r_id) || !Boolean(role=guild.roles.cache.get(r_id))){
+                var _msg= `Invalid role (${r_id}`
+                problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+                msg+= _msg
+            }
+            else{
+                msg+= `*@${role.name}*; `
+            }
+        }
+    }
+    report_str+= `${msg}<br/>\n`
+
+
+    report_str+= `<h5>Assign on post:</h5>`
+    var data_role_post_assign= utils.settings.get(guild, 'role_post_assign','role')
+    msg= ""
+    if(!Boolean(data_role_post_assign) || Object.keys(data_role_post_assign).length<=0){
+        var _msg= `No assignable-on-post role is set`
+        problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
+        msg+= _msg
+    }
+    else{
+        msg+= `<ul>\n`
+        for(var ch_id in data_role_post_assign){
+            msg+= `<li>\n`
+            var channel= undefined
+            if(!Boolean(ch_id) || !Boolean(channel=guild.channels.cache.get(ch_id))){
+                var _msg= `Invalid channel (${ch_id})`
+                problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+                msg+= _msg
+            }
+            else{
+                msg+= `<b>On channel ${channel.name}</b>:`
+                var chanObj= data_role_post_assign[ch_id]
+                if(!Boolean(chanObj)){
+                    var _msg= `Invalid assignable-on-post data`
+                    problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+                    msg+= _msg
+                }
+                else{
+                    msg+=`<ul>`
+                    for(var r_id in chanObj){
+                        var role= undefined
+                        if(!Boolean(r_id) || !Boolean(role=guild.roles.cache.get(r_id))){
+                            var _msg= `Invalid assignable-on-post role (${r_id})`
+                            problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+                            msg+= _msg
+                        }
+                        else{
+                            msg+= `get role *${role.name}*`
+                            var unless= undefined
+                            if(Boolean(unless) & unless.length>=0){
+                                msg+= `, unless has roles: `
+                                for(var ur_id of unless){
+                                    var u_role= undefined
+                                    if(!Boolean(ur_id) || !Boolean(role=guild.roles.cache.get(ur_id))){
+                                        var _msg= `Invalid unless role (${r_id})`
+                                        problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+                                        msg+= _msg
+                                    }
+                                    else{
+                                        _msg+= `*@${u_role.name}; `
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    msg+=`</ul>`
+                }
+            }
+            msg+= `</li>\n`
+        }
+        msg+= `</ul>\n`
+    }
+    report_str+= `${msg}<br/>\n`
+
+    return report_str
+}
+
 async function _runReportGuild(guild, utils, sendToUser= undefined){
     var report_fileName= `report_${guild.name.replace(' ','_')}_${Date.now()}.html`;
     var html_path= `data/${report_fileName}`;
@@ -675,6 +894,10 @@ async function _runReportGuild(guild, utils, sendToUser= undefined){
     report_str+= `<br/>\n`
 
     report_str+= await _reportCmdPlayer(guild, utils);
+    
+    report_str+= `<br/>\n`
+
+    report_str+= await _reportCmdRoles(guild, utils);
     
     report_str+= `<br/>\n`
 

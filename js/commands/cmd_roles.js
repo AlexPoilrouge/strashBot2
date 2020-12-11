@@ -119,8 +119,53 @@ async function cmd_init_per_guild(utils, guild){
                     })
                 }
             }
+            else{
+                delete data_msg_react_role[ch_msg_id]
+            }
+        }
+
+        utils.settings.set(guild, 'msg_react_role', data_msg_react_role)
+    }
+
+    var data_exclusive_roles=  utils.settings.get(guild, 'exclusive_roles')
+    if(Boolean(data_exclusive_roles)){
+        for(var i in data_msg_react_role){
+            var r_t= data_msg_react_role[i]
+
+            data_msg_react_role[i]= r_t.filter(r_id => {return Boolean(guild.roles.cache.get(r_id))})
+        }
+
+        utils.settings.set(guild, 'exclusive_roles', data_exclusive_roles)
+    }
+
+    var data_role_mention_assign= utils.settings.get(guild, 'role_mention_assign')
+    if(Boolean(data_role_mention_assign)){
+        data_role_mention_assign= data_role_mention_assign.filter(r_id => {return Boolean(guild.roles.cache.get(r_id))})
+
+        utils.settings.set(guild, 'role_mention_assign', data_role_mention_assign)
+    }
+
+    var data_role_post_assign= utils.settings.get(guild, 'role_post_assign')
+    if(Boolean(data_role_post_assign)){
+        for(var ch_id in data_role_post_assign){
+            var chanObj= undefined
+            if(!Boolean(ch_id) || !Boolean(guild.channels.cache.get(ch_id)) || !Boolean(chanObj=data_role_post_assign[ch_id])){
+                delete data_role_post_assign[ch_id]
+            }
+            else{
+                for(var r_id in chanObj){
+                    var unless= undefined
+                    if(!Boolean(r_id) || !Boolean(guild.roles.cache.roles.get(r_id)) || !Boolean(unless= chanObj[r_id]) || unless.length<=0){
+                        delete chanObj[r_id]
+                    }
+                    else{
+                        chanObj[r_id]= unless.filter(ur_id => {return Boolean(guild.roles.cache.roles.get(ur_id))})
+                    }
+                }
+            }
         }
     }
+    utils.settings.set(guild, 'role_post_assign', data_role_post_assign)
 }
 
 
@@ -207,6 +252,9 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             args.shift(); args.shift();
         } while(__isRoleMention(args[0], message.mentions.roles))
 
+        var give_only= false
+        if(give_only=(args[0].toLowerCase()==="give_only")) args.shift()
+
         if(args.length<=0){
             message.author.send(`[${message.guild.name}] \`!${command}\`: can't post an empty message.`)
 
@@ -239,6 +287,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         let k= `${new_msg.channel.id}_${new_msg.id}`
         data_msg_react_role[k]= {}
         data_msg_react_role[k].roles= {}
+        data_msg_react_role[k].give_only= give_only
 
         for(var e_m of l_mentionEmote){
             data_msg_react_role[k].roles[e_m.emote.text]= e_m.role.id
@@ -287,6 +336,9 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             args.shift(); args.shift();
         } while(__isRoleMention(args[0], message.mentions.roles))
 
+        var give_only= false
+        if(give_only=(args[0].toLowerCase()==="give_only")) args.shift()
+
         msg.reactions.removeAll().then().catch(err => {
             hereLog(`[${command}] couldn't remove all reaction from message:\n\t${err.message}`)
         }).finally(() => {
@@ -305,6 +357,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         let k= `${msg.channel.id}_${msg.id}`
         data_msg_react_role[k]= {}
         data_msg_react_role[k].roles= {}
+        data_msg_react_role[k].give_only= give_only
         for(var e_m of l_mentionEmote){
             data_msg_react_role[k].roles[e_m.emote.text]= e_m.role.id
         }
@@ -542,7 +595,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 return false;
             }
 
-            data_role_mention_assign= data_role_mention_assign.filter(e => {return e!=role.id})
+            data_role_mention_assign= data_role_mention_assign.filter(e => {return e!==role.id})
 
             utils.settings.set(message.guild, 'role_mention_assign',data_role_mention_assign)
 
@@ -561,6 +614,104 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
         return true
     }
+    else if(command==="post-assign-role"){
+        var data_role_post_assign= utils.settings.get(message.guild, 'role_post_assign')
+        if(!Boolean(data_role_post_assign)){
+            data_role_post_assign= {}
+        }
+
+        if(args.length<=1){
+            message.author.send(`[${command}] not enough arguments…`)
+            return false
+        }
+
+        if(Boolean(args[0].toLowerCase().match(/^re?mo?v?e?$/))){
+            args.shift()
+            if (args.length<1){
+                message.author.send(`[${command}] removal - no mention…`)
+                return false;
+            }
+
+            var role= undefined, channel= undefined
+            if(Boolean(channel=__identifyChannel(args[0], message.mentions.channels))){
+                args.shift()
+            }
+            if(Boolean(role=__identifyRoleMention(args[0], message.mentions.roles))){
+                args.shift()
+            }
+            if(!Boolean(role) && !Boolean(channels)){
+                message.author.send(`[${message.guild.name}] \`!${command}\`: "${args[0]}" doesn't seem to be a valid mention…`)
+                return false;
+            }
+
+            var chanObj= undefined
+            if(Boolean(channel) && Boolean(chanObj=data_role_post_assign[channel.id])){
+                if(Boolean(role)){
+                    delete data_role_post_assign[channel.id][role.id]
+                }
+                else{
+                    delete data_role_post_assign[channel.id]
+                }
+            }
+            else if(Boolean(role)){
+                var del_ch_id=[]
+                for(var ch_id of Object.keys(data_role_post_assign)){
+                    var chanObj= data_role_post_assign[ch_id]
+                    delete data_role_post_assign[ch_id][role.id]
+                    if(Object.keys(data_role_post_assign[channel.id]).length<=0){
+                        del_ch_id.push(channel.id)
+                    }
+                    
+                }
+                for(var ch_id of del_ch_id){
+                    delete data_role_post_assign[ch_id]
+                }
+            }
+
+            utils.settings.set(message.guild, 'role_post_assign', data_role_post_assign)
+
+            return true
+        }
+
+        var channel= undefined, role= undefined
+        if(!Boolean(channel=__identifyChannel(args[0], message.mentions.channels))){
+            message.author.send(`[${message.guild.name}] \`!${command}\`: "${args[0]}" doesn't seem to be a valid channel mention…`)
+            return false;
+        }
+        args.shift()
+        if(!Boolean(role=__identifyRoleMention(args[0], message.mentions.roles))){
+            message.author.send(`[${message.guild.name}] \`!${command}\`: "${args[0]}" doesn't seem to be a valid role mention…`)
+            return false;
+        }
+        args.shift()
+
+        var unlessRoles= []
+        if(args.length>=2 && Boolean(args[0].toLowerCase()==="unless")){
+            args.shift()
+            while(args.length>0){
+                var u_role= undefined
+                if(!Boolean(u_role=__identifyRoleMention(args[0], message.mentions.roles))){
+                    message.author.send(`[${message.guild.name}] \`!${command}\`: "${args[0]}" doesn't seem to be a valid unless role mention…`)
+                    return false;
+                }
+                unlessRoles.push(u_role)
+                args.shift()
+            }
+        }
+
+        var chanObj= undefined
+        if(Boolean(chanObj=data_role_post_assign[channel.id])){
+            data_role_post_assign[channel.id][role.id]= unlessRoles
+        }
+        else{
+            data_role_post_assign[channel.id]= {}
+            data_role_post_assign[channel.id][role.id]= unlessRoles
+        }
+
+        utils.settings.set(message.guild, 'role_post_assign', data_role_post_assign)
+
+        return true
+    }
 
     return false
 }
@@ -572,19 +723,21 @@ function cmd_help(cmdObj, clearanceLvl){
         "========\n\n"+
         `__**roles** command__:\n\n`+
         ((clearanceLvl<CLEARANCE_LEVEL.CONTROL_CHANNEL)? "Forbidden access": ("**Admins only:**\n\n"+
-            `\t\`!post-role-message #channel <[@role :server_emote:] …> message_content\`\n\n`+
+            `\t\`!post-role-message #channel [<@role :server_emote:> …] [give_only] message_content\`\n\n`+
             `\tBot will post a message in the specified channel that will function as role assigner `+
             `according to the given list of role mention - emoji correspondance.\n`+
+            `\t(\`give_only\` is an optional parameter, that, if given, indicates that users can't remove role by removing `+
+            `reactions.\n`+
             `\t__Exemple__:\n\t\t\`!post-role-message #target-channel @role1 :smirk: @role2 :smile: `+
             `the rest is the message content. React :smirk: to get @role1 and :smile: to get @role2.\`\n\n`+
             `\t\`!edit-role-message message_id_or_url new_message_content\`\n\n`+
             `\tIf the designated message is a "role assigning" message **post by the bot**, then the message `+
             `content is edited with new given content\n`+
             `\t__Exemple__:\n\t\t\`!edit-role-message 123456789087456321 The rest is the new message content\`\n\n`+
-            `\t\`!set-role-message message_id @role :server_emote:\`\n\n`+
+            `\t\`!set-role-message message_id [<@role :server_emote:> …] [give_only]\`\n\n`+
             `\tSet the designated message as a "role assigning" message`+
             `according to the given list of role mention - emoji correspondance.\n`+
-            `\t__Exemple__:\n\t\t\`!set-role-message 874563210123456789 @roleA :rofl: @roleB :angry\`\n\n`+
+            `\t__Exemple__:\n\t\t\`!set-role-message 874563210123456789 @roleA :rofl: @roleB :angry: give_only\`\n\n`+
             `\t\`!list-role-messages\`\n\n`+
             `\tLists all the "role assigning" messages posted so far.`+
             `\t\`!about-role-message message_id_or_url\`\n\n`+
@@ -602,7 +755,11 @@ function cmd_help(cmdObj, clearanceLvl){
             `\t\`!mention-assign-role\`\n\n`+
             `\tPrints out (DM) roles that are "assignable on mention".`+
             `\t\`!mention-assign-role rm @role\`\n\n`+
-            `\tRemoves a given role from the list of "assignable on mention" roles.`
+            `\tRemoves a given role from the list of "assignable on mention" roles.\n\n`+
+            `\t\`!post-assign-role #channel-mention @role-mention [ unless @role1 [@role2 …] ]\`\n\n`+
+            `\tSets up the fact that when a user will post to a given channel, the mentionned role will be assigned to him. `+
+            `That is unless the \`unless\` parameter is given followed by other role mentions, in which case a user posting in `+
+            `said channel will not be affected said first role if he already belong to one of these other roles.`
         )), {split:true}
     )
 
@@ -621,7 +778,7 @@ async function cmd_event(eventName, utils){
             }
         })
     }
-    hereLog(`ev ${eventName}`)
+    
     if(eventName==="messageReactionAdd"){
         hereLog("reactionadd")
         var reaction= arguments[2]
@@ -672,7 +829,7 @@ async function cmd_event(eventName, utils){
         var data_msg_react_role= utils.settings.get(message.guild, 'msg_react_role')
         let ch_msg_id= `${message.channel.id}_${message.id}`
         var r_em= undefined, r_id= undefined, role= undefined
-        if(Boolean(data_msg_react_role) && Boolean(r_em=data_msg_react_role[ch_msg_id])
+        if(Boolean(data_msg_react_role) && Boolean(r_em=data_msg_react_role[ch_msg_id]) && !Boolean(r_em.roles.give_only)
             && Boolean(r_id=r_em.roles[reaction.emoji.toString()]) && Boolean(role=message.guild.roles.cache.get(r_id))
         ){
             _roleMemberManage(role,user,message,'r')
@@ -717,6 +874,21 @@ async function cmd_event(eventName, utils){
             return r_t.filter(r_id =>{return (r_id!==role.id)})
         }).filter(r_t =>{return (r_t.length>1)} )
         utils.settings.set(role.guild, 'exclusive_roles', data_exclusive_roles)
+
+        var data_role_post_assign= utils.settings.get(role.guild, 'role_post_assign')
+        if(!Boolean(data_role_post_assign)) return
+        var del_ch_id= []
+        for(var ch_id of Object.keys(data_role_post_assign)){
+            var chanObj= data_role_post_assign[ch_id]
+            delete data_role_post_assign[ch_id][role.id]
+            if(Object.keys(data_role_post_assign[channel.id]).length<=0){
+                del_ch_id.push(channel.id)
+            }
+        }
+        for(var ch_id of del_ch_id){
+            delete data_role_post_assign[ch_id]
+        }
+        utils.settings.set(role.guild, 'role_post_assign', data_role_post_assign)
 
         var data_msg_react_role= utils.settings.get(role.guild, 'msg_react_role')
         if(!Boolean(data_msg_react_role)) return
@@ -839,6 +1011,21 @@ async function cmd_event(eventName, utils){
                 message.member.roles.add(roles_to_add)
             }
 
+            var data_role_post_assign= utils.settings.get(message.guild, 'role_post_assign')
+            var chanObj= undefined
+            if(Boolean(data_role_mention_assign) && Boolean(chanObj=data_role_post_assign[message.channel.id])){
+                var roles_to_add=[]
+                for(var r_id of Object.keys(chanObj)){
+                    var unless= chanObj[r_id]
+                    var r= undefined
+                    if(!(Boolean(unless) && unless.includes(r_id)) && !Boolean(r=message.guild.roles.cache.get(r_id))){
+                        roles_to_add.push(r)
+                    }
+
+                    message.member.roles.add(roles_to_add)
+                }
+            }
+
 
             var answerChannels= undefined
             var ch= undefined
@@ -882,6 +1069,6 @@ function cmd_guild_clear(guild){}
 
 
 module.exports.name= ["post-role-message","edit-role-message","list-role-messages","about-role-message",
-                        "set-role-message","exclusive-roles","mention-assign-role"];
+                        "set-role-message","exclusive-roles","mention-assign-role","post-assign-role"];
                         
 module.exports.command= {init: cmd_init, init_per_guild: cmd_init_per_guild, main: cmd_main, help: cmd_help, event: cmd_event, clear_guild: cmd_guild_clear};
