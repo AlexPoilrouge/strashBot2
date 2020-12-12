@@ -694,7 +694,9 @@ async function _reportCmdRoles(guild, utils){
                         for(var em_txt in obj.roles){
                             msg+= `<li>`
                             let simpleEmojiRegex= /(?:[\u2700-\u27bf]|(?:\ud83c[\udde6-\uddff]){2}|[\ud800-\udbff][\udc00-\udfff]|[\u0023-\u0039]\ufe0f?\u20e3|\u3299|\u3297|\u303d|\u3030|\u24c2|\ud83c[\udd70-\udd71]|\ud83c[\udd7e-\udd7f]|\ud83c\udd8e|\ud83c[\udd91-\udd9a]|\ud83c[\udde6-\uddff]|\ud83c[\ude01-\ude02]|\ud83c\ude1a|\ud83c\ude2f|\ud83c[\ude32-\ude3a]|\ud83c[\ude50-\ude51]|\u203c|\u2049|[\u25aa-\u25ab]|\u25b6|\u25c0|[\u25fb-\u25fe]|\u00a9|\u00ae|\u2122|\u2139|\ud83c\udc04|[\u2600-\u26FF]|\u2b05|\u2b06|\u2b07|\u2b1b|\u2b1c|\u2b50|\u2b55|\u231a|\u231b|\u2328|\u23cf|[\u23e9-\u23f3]|[\u23f8-\u23fa]|\ud83c\udccf|\u2934|\u2935|[\u2190-\u21ff])/g;
-                            if(!Boolean(em_txt.match(simpleEmojiRegex)) && !Boolean(guild.emojis.resolve(em_txt))){
+                            if(!Boolean(em_txt.match(simpleEmojiRegex)) &&
+                                !Boolean([...guild.emojis.cache.values()].find( e => {return e.toString()===em_txt})))
+                            {
                                 var _msg= `Invalid role giving emoji ${em_txt} for react message ${msg_id} on channel ${ch_id}`
                                 problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
                                 msg+= _msg
@@ -708,7 +710,7 @@ async function _reportCmdRoles(guild, utils){
                                     msg+= _msg
                                 }
                                 else{
-                                    msg+= `${em_txt} -> @${role.name}`
+                                    msg+= `${em_txt} -> <em>@${role.name}</em>`
                                 }
                             }
                             msg+= `</li>`
@@ -750,7 +752,7 @@ async function _reportCmdRoles(guild, utils){
                         msg+= _msg
                     }
                     else{
-                        msg+= `*@${role.name}*`
+                        msg+= `<em>@${role.name}</em>`
                     }
                     msg+=`; `
                 }
@@ -763,7 +765,7 @@ async function _reportCmdRoles(guild, utils){
 
 
     report_str+= `<h5>Assign on mention:</h5>`
-    var data_role_mention_assign= utils.settings.get(guild, 'role_mention_assign', 'role')
+    var data_role_mention_assign= utils.settings.get(guild, 'role_mention_assign', 'roles')
     msg= ""
     if(!Boolean(data_role_mention_assign) || data_role_mention_assign.length<=0){
         var _msg= "No assignable-on-mention role is set"
@@ -779,7 +781,7 @@ async function _reportCmdRoles(guild, utils){
                 msg+= _msg
             }
             else{
-                msg+= `*@${role.name}*; `
+                msg+= `<em>@${role.name}</em>; `
             }
         }
     }
@@ -787,7 +789,7 @@ async function _reportCmdRoles(guild, utils){
 
 
     report_str+= `<h5>Assign on post:</h5>`
-    var data_role_post_assign= utils.settings.get(guild, 'role_post_assign','role')
+    var data_role_post_assign= utils.settings.get(guild, 'role_post_assign','roles')
     msg= ""
     if(!Boolean(data_role_post_assign) || Object.keys(data_role_post_assign).length<=0){
         var _msg= `No assignable-on-post role is set`
@@ -822,19 +824,19 @@ async function _reportCmdRoles(guild, utils){
                             msg+= _msg
                         }
                         else{
-                            msg+= `get role *${role.name}*`
+                            msg+= `get role <em>@${role.name}</em>`
                             var unless= undefined
-                            if(Boolean(unless) & unless.length>=0){
+                            if(Boolean(unless=chanObj[r_id]) & unless.length>=0){
                                 msg+= `, unless has roles: `
                                 for(var ur_id of unless){
                                     var u_role= undefined
-                                    if(!Boolean(ur_id) || !Boolean(role=guild.roles.cache.get(ur_id))){
+                                    if(!Boolean(ur_id) || !Boolean(u_role=guild.roles.cache.get(ur_id))){
                                         var _msg= `Invalid unless role (${r_id})`
                                         problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
                                         msg+= _msg
                                     }
                                     else{
-                                        _msg+= `*@${u_role.name}; `
+                                        msg+= `<em>@${u_role.name}</em>; `
                                     }
                                 }
                             }
