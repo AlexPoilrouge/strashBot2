@@ -684,7 +684,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             if(Boolean(role=__identifyRoleMention(args[0], message.mentions.roles))){
                 args.shift()
             }
-            if(!Boolean(role) && !Boolean(channels)){
+            if(!Boolean(role) && !Boolean(channel)){
                 message.author.send(`[${message.guild.name}] \`!${command}\`: "${args[0]}" doesn't seem to be a valid mention…`)
                 return false;
             }
