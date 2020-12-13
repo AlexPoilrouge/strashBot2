@@ -826,7 +826,7 @@ async function _reportCmdRoles(guild, utils){
                         else{
                             msg+= `get role <em>@${role.name}</em>`
                             var rObj= undefined, min= undefined
-                            if(Boolean(rObj=chanObj[r_id]) && rObj.min>0){
+                            if(Boolean(rObj=chanObj[r_id]) && (min=rObj.min)>0){
                                 msg+=`, min= ${min}`
                             }
                             var unless= undefined
