@@ -154,8 +154,8 @@ async function cmd_init_per_guild(utils, guild){
             }
             else{
                 for(var r_id in chanObj){
-                    var unless= undefined
-                    if(!Boolean(r_id) || !Boolean(guild.roles.cache.get(r_id)) || !Boolean(unless= chanObj[r_id]) || unless.length<=0){
+                    var unless= undefined, rObj= undefined
+                    if(!Boolean(r_id) || !Boolean(guild.roles.cache.get(r_id)) || !Boolean(rObj=chanObj[r_id]) || !Boolean(unless=rObj.unless) || unless.length<=0){
                         delete chanObj[r_id]
                     }
                     else{
@@ -638,11 +638,15 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                     str+= `\t─ on channel *#${channel.name}* assign on post:\n`
         
                     for(var r_id in chanObj){
-                        var role= undefined
+                        var role= undefined, rObj= undefined
                         if(Boolean(r_id) && Boolean(role=message.guild.roles.cache.get(r_id))){
                             str+= `\t\t─ *@${role.name}*`
+                            var min= undefined
+                            if(Boolean(rObj=chanObj[r_id]) && Boolean(min=rObj.min) && Boolean(min>0)){
+                                str+= `, min= ${min}`
+                            }
                             var unless= undefined
-                            if(Boolean(unless=chanObj[r_id]) && unless.length>0){
+                            if(Boolean(rObj) && Boolean(unless=rObj.unless) && unless.length>0){
                                 str+= `, unless:\n`
                                 for(var u_r_id of unless){
                                     var u_role= undefined
@@ -726,6 +730,17 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         }
         args.shift()
 
+        _b= true
+        var min= undefined
+        if(args.length>=2 && Boolean(args[0].toLowerCase()==="min-length")){
+            args.shift()
+            min= Number(args[0])
+            if(Number.isNaN(min)){
+                message.author.send(`[${command}] \`min-length\` must be followed by a number`)
+                return false
+            }
+            args.shift();
+        }
         var unlessRoles= []
         if(args.length>=2 && Boolean(args[0].toLowerCase()==="unless")){
             args.shift()
@@ -740,13 +755,10 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
         }
 
-        var chanObj= undefined
-        if(Boolean(chanObj=data_role_post_assign[channel.id])){
-            data_role_post_assign[channel.id][role.id]= unlessRoles
-        }
-        else{
-            data_role_post_assign[channel.id]= {}
-            data_role_post_assign[channel.id][role.id]= unlessRoles
+        data_role_post_assign[channel.id]= {}
+        data_role_post_assign[channel.id][role.id]= {unless: unlessRoles}
+        if(min>0){
+            data_role_post_assign[channel.id][role.id].min= min
         }
 
         utils.settings.set(message.guild, 'role_post_assign', data_role_post_assign)
@@ -797,10 +809,12 @@ function cmd_help(cmdObj, clearanceLvl){
             `\tPrints out (DM) roles that are "assignable on mention".`+
             `\t\`!mention-assign-role rm @role\`\n\n`+
             `\tRemoves a given role from the list of "assignable on mention" roles.\n\n`+
-            `\t\`!post-assign-role #channel-mention @role-mention [ unless @role1 [@role2 …] ]\`\n\n`+
+            `\t\`!post-assign-role #channel-mention @role-mention [ min-length NUMBER ] [ unless @role1 [@role2 …] ]\`\n\n`+
             `\tSets up the fact that when a user will post to a given channel, the mentionned role will be assigned to him. `+
-            `That is unless the \`unless\` parameter is given followed by other role mentions, in which case a user posting in `+
-            `said channel will not be affected said first role if he already belong to one of these other roles.`
+            `That is unless the \`unless\` argument is given followed by other role mentions, in which case a user posting in `+
+            `said channel will not be affected said first role if he already belong to one of these other roles.`+
+            `Also, if the \`min-length\` argument is given, followed by a number N, the role affectation happens only if `+
+            `the posted message is at least N characters long.`
         )), {split:true}
     )
 
@@ -1049,7 +1063,10 @@ async function cmd_event(eventName, utils){
                     }
                 })
 
-                message.member.roles.add(roles_to_add)
+
+                if(roles_to_add.length>0){
+                    message.member.roles.add(roles_to_add)
+                }
             }
 
             var data_role_post_assign= utils.settings.get(message.guild, 'role_post_assign')
@@ -1057,12 +1074,24 @@ async function cmd_event(eventName, utils){
             if(Boolean(data_role_post_assign) && Boolean(chanObj=data_role_post_assign[message.channel.id])){
                 var roles_to_add=[]
                 for(var r_id of Object.keys(chanObj)){
-                    var unless= chanObj[r_id]
+                    var rObj= chanObj[r_id]
+                    var unless= (Boolean(rObj))?rObj.unless:undefined;
+                    var min= (Boolean(rObj))?rObj.min:undefined;
                     var r= undefined
                     if(!( Boolean(unless) && unless.find(u_r_id =>{return Boolean(message.member.roles.cache.get(u_r_id))}) )
                         && Boolean(r=message.guild.roles.cache.get(r_id)))
                     {
-                        roles_to_add.push(r)
+                        if(!(min>0 && message.content.length<min)){
+                            roles_to_add.push(r)
+                            message.react('😌').then().catch(err=>{
+                                hereLog(`[message ev][role-post-assign] couldn't react 😌 to message ${message}:\n\t${err.message}`)
+                            })
+                        }
+                        else{
+                            message.react('🙄').then().catch(err=>{
+                                hereLog(`[message ev][role-post-assign] couldn't react 🙄 to message ${message}:\n\t${err.message}`)
+                            })
+                        }
                     }
 
                     if(roles_to_add.length>0){

@@ -825,13 +825,17 @@ async function _reportCmdRoles(guild, utils){
                         }
                         else{
                             msg+= `get role <em>@${role.name}</em>`
+                            var rObj= undefined, min= undefined
+                            if(Boolean(rObj=chanObj[r_id]) && rObj.min>0){
+                                msg+=`, min= ${min}`
+                            }
                             var unless= undefined
-                            if(Boolean(unless=chanObj[r_id]) & unless.length>=0){
+                            if(Boolean(rObj) && Boolean(unless=rObj.unless) && unless.length>=0){
                                 msg+= `, unless has roles: `
                                 for(var ur_id of unless){
                                     var u_role= undefined
                                     if(!Boolean(ur_id) || !Boolean(u_role=guild.roles.cache.get(ur_id))){
-                                        var _msg= `Invalid unless role (${r_id})`
+                                        var _msg= `Invalid unless-role (${r_id})`
                                         problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
                                         msg+= _msg
                                     }
