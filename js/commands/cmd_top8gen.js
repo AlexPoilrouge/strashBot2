@@ -408,8 +408,6 @@ async function _fetchSmashGGInfos(url){
             }
         }
 
-        hereLog(`[FetchSmashGGInfos] returning r_obj:\n\t${JSON.stringify(r_obj)}`)
-
         return r_obj;
     }
 }
@@ -869,7 +867,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 for(var i=1; i<=4; ++i){
                     var roster_opt= getOpt(`top${topNum}-char${i}`,undefined)
                     if(Boolean(roster_opt)){
-                        r[i]= __rosterCharNameProcess(roster_opt)
+                        r[i-1]= __rosterCharNameProcess(roster_opt)
                     }
                 }
                 return r
@@ -951,8 +949,6 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 options: argsOpt.options,
             }
 
-            hereLog(`genInfos be like: ${JSON.stringify(genInfos)}`)
-
             return _generateTop8(template, genInfos, message.channel);
 
         }
@@ -984,9 +980,10 @@ function cmd_help(cmdObj, clearanceLvl){
         `---\n**Following commands only availabe to members of designated group** (see \`!${prt_cmd} group\`):\n\n`+
         `\t\`!${prt_cmd} <template> [smashggUrl] [options…]\`\n\n`+
         `\tgenerates top8 from a given template (get available templates list with \`!${prt_cmd} template\`)\n`+
+        `\tFor character roster informations about players, the data is lookup in the database of the guild (see \`!player\` & \`!roster\` commands)\n`+
         `\tIf a smashgg Url is provided, then top8 data will be fetch from this smash.gg tournament.\n\n`+
         `\t⚠️ This assumes that the tournament is completed, and that the provided smash.gg Url points to a '*Singles' event.\n`+
-        `\t\t__Example:__ \`!${prt_cmd}\` template <https://smash.gg/tournament/scarlet-arena-4/event/singles> ?title="4th edition"`+
+        `\t\t__Example:__ \`!${prt_cmd} template https://smash.gg/tournament/scarlet-arena-4/event/singles ?title="4th edition"\n\n`+
         `\t\`!${prt_cmd} test <template> [smashggUrl] [options…]\`\n\n`+
         `\tThe goal of the commands is to test out parameters and options to ensure their validity before making an actual`+
         `call to the \`!top8\` command.\n` +
