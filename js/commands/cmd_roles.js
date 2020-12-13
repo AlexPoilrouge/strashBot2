@@ -337,7 +337,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         } while(__isRoleMention(args[0], message.mentions.roles))
 
         var give_only= false
-        if(give_only=(args[0].toLowerCase()==="give_only")) args.shift()
+        if(give_only=(Boolean(args[0]) && args[0].toLowerCase()==="give_only")) args.shift()
 
         msg.reactions.removeAll().then().catch(err => {
             hereLog(`[${command}] couldn't remove all reaction from message:\n\t${err.message}`)
