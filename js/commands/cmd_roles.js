@@ -159,7 +159,7 @@ async function cmd_init_per_guild(utils, guild){
                         delete chanObj[r_id]
                     }
                     else{
-                        chanObj[r_id]= unless.filter(ur_id => {return Boolean(guild.roles.cache.get(ur_id))})
+                        chanObj[r_id].unless= unless.filter(ur_id => {return Boolean(guild.roles.cache.get(ur_id))})
                     }
                 }
             }
