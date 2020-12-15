@@ -478,7 +478,7 @@ class Commander{
                 var ch_id= cmdObj.args[1];
 
                 var guild= undefined, channel= undefined;
-                if(cmdObj.args.length<2){
+                if(cmdObj.args.length<3){
                     cmdObj.msg_obj.author.send("Format: `!post-message <guild_id> <channel_id> <message text…>`");
                     b= false;
                 }
@@ -491,7 +491,22 @@ class Commander{
                     b= false;
                 }
                 else{
-                    channel.send(cmdObj.args.slice(2).join(' ')).catch(err => {hereLog(err);})
+                    var str= cmdObj.args.slice(2).join(' ')
+                    var emojis= str.match(/(:\S+:)/g)
+                    if(Boolean(emojis) && Array.isArray(emojis)){
+                        emojis= [...new Set(emojis)]
+                        var g_emojis= [...guild.emojis.cache.values()]
+                        for(var emote of emojis){
+                            var emoji= undefined
+                            if(Boolean(emote) && Boolean(emote.length>2) &&
+                                Boolean(emoji=g_emojis.find(e => {return (e.name===emote.substring(1,emote.length-1))}))
+                            ){
+                                str= str.replace(emote, emoji.toString())
+                            }
+                        }
+                    }
+
+                    channel.send(str).catch(err => {hereLog(err);})
                     b= true;
                 }
             }
@@ -557,14 +572,16 @@ class Commander{
                         else{
                             var str= cmdObj.args.join(' ')
                             var emojis= str.match(/(:\S+:)/g)
-                            var g_emojis= [...guild.emojis.cache.values()]
-                            g_emojis= [...new Set(g_emojis)]
-                            for(var emote of emojis){
-                                var emoji= undefined
-                                if(emote && Boolean(emote.length>2) &&
-                                    Boolean(emoji=g_emojis.find(e => {e.name===emote.substring(1,emote.length-1)}))
-                                ){
-                                    str= str.replace(emote, emoji.toString())
+                            if(Boolean(emojis) && Array.isArray(emojis)){
+                                emojis= [...new Set(emojis)]
+                                var g_emojis= [...guild.emojis.cache.values()]
+                                for(var emote of emojis){
+                                    var emoji= undefined
+                                    if(Boolean(emote) && Boolean(emote.length>2) &&
+                                        Boolean(emoji=g_emojis.find(e => {return (e.name===emote.substring(1,emote.length-1))}))
+                                    ){
+                                        str= str.replace(emote, emoji.toString())
+                                    }
                                 }
                             }
                             message.edit(str).catch(err => {hereLog(err);})
