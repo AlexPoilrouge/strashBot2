@@ -478,7 +478,7 @@ class Commander{
                 var ch_id= cmdObj.args[1];
 
                 var guild= undefined, channel= undefined;
-                if(cmdObj.args.length<2){
+                if(cmdObj.args.length<3){
                     cmdObj.msg_obj.author.send("Format: `!post-message <guild_id> <channel_id> <message text…>`");
                     b= false;
                 }
@@ -491,7 +491,22 @@ class Commander{
                     b= false;
                 }
                 else{
-                    channel.send(cmdObj.args.slice(2).join(' ')).catch(err => {hereLog(err);})
+                    var str= cmdObj.args.slice(2).join(' ')
+                    var emojis= str.match(/(:\S+:)/g)
+                    if(Boolean(emojis) && Array.isArray(emojis)){
+                        emojis= [...new Set(emojis)]
+                        var g_emojis= [...guild.emojis.cache.values()]
+                        for(var emote of emojis){
+                            var emoji= undefined
+                            if(Boolean(emote) && Boolean(emote.length>2) &&
+                                Boolean(emoji=g_emojis.find(e => {return (e.name===emote.substring(1,emote.length-1))}))
+                            ){
+                                str= str.replace(emote, emoji.toString())
+                            }
+                        }
+                    }
+
+                    channel.send(str).catch(err => {hereLog(err);})
                     b= true;
                 }
             }
@@ -500,26 +515,79 @@ class Commander{
                 var ch_id= cmdObj.args[1];
                 var msg_id= cmdObj.args[2];
 
-                var guild= undefined, channel= undefined, message= undefined;
-                if(cmdObj.args.length<3){
-                    cmdObj.msg_obj.author.send("Format: `!edit-message <guild_id> <channel_id> <message_id> <message text…>`");
-                    b= false;
-                }
-                else if(!Boolean(g_id.match(/[0-9]{18}/g)) || !Boolean(guild=this._worker._bot.guilds.cache.get(g_id))){
-                    cmdObj.msg_obj.author.send("Cannot found specified guild…");
-                    b= false;
-                }
-                else if(!Boolean(ch_id.match(/[0-9]{18}/g)) || !Boolean(channel=guild.channels.cache.get(ch_id))){
-                    cmdObj.msg_obj.author.send("Cannot found specified channel…");
-                    b= false;
-                }
-                else if(!Boolean(msg_id.match(/[0-9]{18}/g)) || !Boolean(message=(await channel.messages.fetch(msg_id)))){
-                    cmdObj.msg_obj.author.send("Cannot found specified message…");
+                if(cmdObj.args.length<2){
+                    cmdObj.msg_obj.author.send("Format:\n\t`!edit-message <guild_id> <channel_id> <message_id> <message text…>`\n"+
+                        "or\n\t`!edit-message <message_url> <message_text>`");
                     b= false;
                 }
                 else{
-                    message.edit(cmdObj.args.slice(3).join(' ')).catch(err => {hereLog(err);})
-                    b=true;
+                    var rgx_msg_url= /^https?\:\/\/discord\.com\/channels\/([0-9]{15,21})\/([0-9]{15,21})\/([0-9]{15,21})$/
+                    var match= undefined
+                    if(Boolean(match=cmdObj.args[0].match(rgx_msg_url))){
+                        g_id= match[1]
+                        ch_id= match[2]
+                        msg_id= match[3]
+                        cmdObj.args.shift()
+                    }
+                    else{
+                        if(cmdObj.args.length<4){
+                            cmdObj.msg_obj.author.send("Format:\n\t`!edit-message <guild_id> <channel_id> <message_id> <message text…>`");
+                            b= false;
+                        }
+                        else{
+                            g_id=cmdObj.args[0]
+                            ch_id= cmdObj.args[1]
+                            msg_id= cmdObj.args[2]
+
+                            if(!Boolean(g_id.match(/[0-9]{18}/g))){
+                                cmdObj.msg_obj.author.send(`[${cmdObj.command}] Invalid guild id (${g_id})…`);
+                                b= false;
+                            }
+                            else if(!Boolean(ch_id.match(/[0-9]{18}/g))){
+                                cmdObj.msg_obj.author.send(`[${cmdObj.command}] Invalid channel id (${ch_id})…`);
+                                b= false;
+                            }
+                            else if(!Boolean(msg_id.match(/[0-9]{18}/g))){
+                                cmdObj.msg_obj.author.send(`[${cmdObj.command}] Invalid message id (${msg_id})…`);;
+                                b= false;
+                            }
+                            for(var i=0; i<3; ++i) cmdObj.args.shift()
+                        }
+                    }
+
+                    if(b!==false){
+                        var guild= undefined, channel= undefined, message= undefined
+                        if(!Boolean(guild=this._worker._bot.guilds.cache.get(g_id))){
+                            cmdObj.msg_obj.author.send(`[${cmdObj.command}] Couldn't find guild (${g_id})…`);;
+                            b= false;
+                        }
+                        else if(!Boolean(channel=guild.channels.cache.get(ch_id))){
+                            cmdObj.msg_obj.author.send(`[${cmdObj.command}] Couldn't find channel (${ch_id})…`);;
+                            b= false;
+                        }
+                        else if(!Boolean(message=(await channel.messages.fetch(msg_id)))){
+                            cmdObj.msg_obj.author.send(`[${cmdObj.command}] Couldn't find message (${msg_id})…`);;
+                            b= false;
+                        }
+                        else{
+                            var str= cmdObj.args.join(' ')
+                            var emojis= str.match(/(:\S+:)/g)
+                            if(Boolean(emojis) && Array.isArray(emojis)){
+                                emojis= [...new Set(emojis)]
+                                var g_emojis= [...guild.emojis.cache.values()]
+                                for(var emote of emojis){
+                                    var emoji= undefined
+                                    if(Boolean(emote) && Boolean(emote.length>2) &&
+                                        Boolean(emoji=g_emojis.find(e => {return (e.name===emote.substring(1,emote.length-1))}))
+                                    ){
+                                        str= str.replace(emote, emoji.toString())
+                                    }
+                                }
+                            }
+                            message.edit(str).catch(err => {hereLog(err);})
+                            b=true;
+                        }
+                    }
                 }
             }
             else if(Boolean(l_cmd=this.loaded_commands.find(e =>{return ( (Array.isArray(e.name) && e.name.includes(cmd)) || (e.name===cmd));}))){
