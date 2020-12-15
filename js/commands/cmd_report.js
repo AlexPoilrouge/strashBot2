@@ -240,7 +240,7 @@ function _reportCmdWelcome(guild, utils){
     var channel= undefined;
     if (!Boolean(obj_welcomeChan)){
         msg= `welcome channel doesn't seem to be present in data`
-        problems.add(guild.id, msg, ProblemCount.TYPES.WARNING)
+        problems.add(guild.id, msg, ProblemCount.TYPES.WARN)
     }
     else if (!(Boolean(channel=guild.channels.cache.get(obj_welcomeChan)))){
         msg= `welcome channel #${obj_welcomeChan} doesn't seem to exist in ${guild.name}`
@@ -272,7 +272,7 @@ function _reportCmdWelcome(guild, utils){
     var msg= ""
     if (!Boolean(obj_reacRoles) || Object.keys(obj_reacRoles).length<=0 ){
         msg= `reaction-roles data not set for ${guild.name}`;
-        problems.add(guild.id, msg, ProblemCount.TYPES.WARNING);
+        problems.add(guild.id, msg, ProblemCount.TYPES.WARN);
     }
     else{
         Object.keys(obj_reacRoles).forEach( emoji =>{
