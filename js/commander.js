@@ -6,7 +6,8 @@ const config= require('config');
 
 const my_utils= require('./utils');
 
-const DEFINES= require('./defines')
+const DEFINES= require('./defines');
+const { resolve } = require('path');
 
 let hereLog= (...args) => {console.log("[Commander]", ...args);};
 
@@ -319,7 +320,10 @@ class Commander{
                     else return undefined;
                 }
             },
-            getMasterID: () => { return this._worker._bot.masterID; }
+            getMasterID: () => { return this._worker._bot.masterID; },
+            sendModMessage: (m, reciever, ...args) => {
+                return this._sendModMessage(m, cmd_name, reciever, ...args)
+            }
         }; };
 
         this._loadCommands();
@@ -339,7 +343,7 @@ class Commander{
             hereLog(`[Commander] loading '${file}'…`);
 
             let rcf= require(path.resolve(file))
-            var m= null, d= null, h= null, e=null, i= null, c= null, d=null;
+            var m= null, d= null, h= null, e=null, i= null, c= null, d=null, mm= null;
 
             var cmd_name= my_utils.commandNameFromFilePath(file);
             
@@ -355,6 +359,7 @@ class Commander{
                 event: ((Boolean(rcf.command) && Boolean(e=rcf.command.event))? ((name, ...args) => {return e(name, utils, ...args);}):null),
                 destroy: ((Boolean(rcf.command) && Boolean(d=rcf.command.destroy))? (() => {return d(utils);}):null),
                 clear_guild: ((Boolean(rcf.command) && Boolean(c=rcf.command.clear_guild))? c:null),
+                modMessage: ((Boolean(rcf.command) && Boolean(mm=rcf.command.modMsg))? ((m, sender, ...args) => {return mm(m, sender, ...args)}):null),
                 _wait_init: true,
             }); 
             t._cmdSettings.add(file);
@@ -432,6 +437,31 @@ class Commander{
         }
     }
 
+    _sendModMessage(m, sender, reciever){
+        return new Promise((resolve, reject) =>{ 
+            if(sender===reciever){
+                reject(`Module can't send modMessage to itsefl ('${sender}')`)
+                return
+            }
+
+            var lCmd= this.loaded_commands.find(lc => {return lc.name===reciever})
+
+            if(!Boolean(lCmd)){
+                reject(`Couldn't find module '${reciever}'`)
+            }
+            else{
+                var res= lCmd.modMessage(m, sender, ...arguments)
+                if(res===undefined || res===null){
+                    reject(`'${reciever}' responded to modMessage (${m}, ${arguments}) with ${res}`)
+                }
+                else{
+                    resolve(res)
+                }
+            }
+            return
+        })
+    }
+
     async processCommand(cmdObj, isDM= false){
         var b=undefined;
         var cmd= cmdObj.command;
@@ -473,7 +503,7 @@ class Commander{
 
                 b= true;
             }
-            else if(cmd==="post-message" && this._isMaster(cmdObj.msg_obj.author)){
+            else if(cmd==="post-message" /*&& this._isMaster(cmdObj.msg_obj.author)*/){
                 var g_id= cmdObj.args[0];
                 var ch_id= cmdObj.args[1];
 
@@ -488,6 +518,10 @@ class Commander{
                 }
                 else if(!Boolean(ch_id.match(/[0-9]{18}/g)) || !Boolean(channel=guild.channels.cache.get(ch_id))){
                     cmdObj.msg_obj.author.send("Cannot found specified channel…");
+                    b= false;
+                }
+                else if(!this._isMaster(cmdObj.msg_obj.author) && !this._hasAdminRoleInGuild(cmdObj.msg_obj.author,guild)){
+                    cmdObj.msg_obj.author.send(`[${cmdObj.command}] Forbidden: you don't seem to be admin in guild *${guild.name}*…`);
                     b= false;
                 }
                 else{
@@ -506,11 +540,13 @@ class Commander{
                         }
                     }
 
-                    channel.send(str).catch(err => {hereLog(err);})
+                    channel.send(str).then(msg =>{
+                        hereLog(`[${cmdObj.command}] ${msg.author.tag} made a message post: ${msg.url}`)
+                    }).catch(err => {hereLog(err);})
                     b= true;
                 }
             }
-            else if(cmd==="edit-message" && this._isMaster(cmdObj.msg_obj.author)){
+            else if(cmd==="edit-message" /*&& this._isMaster(cmdObj.msg_obj.author)*/){
                 var g_id= cmdObj.args[0];
                 var ch_id= cmdObj.args[1];
                 var msg_id= cmdObj.args[2];
@@ -558,15 +594,19 @@ class Commander{
                     if(b!==false){
                         var guild= undefined, channel= undefined, message= undefined
                         if(!Boolean(guild=this._worker._bot.guilds.cache.get(g_id))){
-                            cmdObj.msg_obj.author.send(`[${cmdObj.command}] Couldn't find guild (${g_id})…`);;
+                            cmdObj.msg_obj.author.send(`[${cmdObj.command}] Couldn't find guild (${g_id})…`);
                             b= false;
                         }
                         else if(!Boolean(channel=guild.channels.cache.get(ch_id))){
-                            cmdObj.msg_obj.author.send(`[${cmdObj.command}] Couldn't find channel (${ch_id})…`);;
+                            cmdObj.msg_obj.author.send(`[${cmdObj.command}] Couldn't find channel (${ch_id})…`);
                             b= false;
                         }
                         else if(!Boolean(message=(await channel.messages.fetch(msg_id)))){
-                            cmdObj.msg_obj.author.send(`[${cmdObj.command}] Couldn't find message (${msg_id})…`);;
+                            cmdObj.msg_obj.author.send(`[${cmdObj.command}] Couldn't find message (${msg_id})…`);
+                            b= false;
+                        }
+                        else if(!this._isMaster(cmdObj.msg_obj.author) && !this._hasAdminRoleInGuild(cmdObj.msg_obj.author,guild)){
+                            cmdObj.msg_obj.author.send(`[${cmdObj.command}] Forbidden: you don't seem to be admin in guild *${guild.name}*…`);
                             b= false;
                         }
                         else{
@@ -584,7 +624,9 @@ class Commander{
                                     }
                                 }
                             }
-                            message.edit(str).catch(err => {hereLog(err);})
+                            message.edit(str).then(msg =>{
+                                hereLog(`[${cmdObj.command}] ${msg.author.tag} made a message edit on ${msg.url}`)
+                            }).catch(err => {hereLog(err);})
                             b=true;
                         }
                     }
@@ -704,6 +746,15 @@ class Commander{
                         return (Boolean(member.roles.cache.get(r_id)));
                     })
                 );
+    }
+
+    _hasAdminRoleInGuild(user, guild){
+        var member= guild.members.resolve(user.id)
+        return (Boolean(member) && this._hasAdminRole(member))
+    }
+
+    _getGuildWhereUserHasAdminRole(user){
+        return ( [...(this.worker.bot.guilds.cache.values())].filter(g => {return this._hasAdminRoleInGuild(user,g)}) )
     }
 
     _isCtrlChannel(channel){
