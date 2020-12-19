@@ -440,7 +440,7 @@ class Commander{
     _sendModMessage(m, sender, reciever){
         return new Promise((resolve, reject) =>{ 
             if(sender===reciever){
-                reject(`Module can't send modMessage to itsefl ('${sender}')`)
+                reject(`Module can't send modMessages to itsefl ('${sender}')`)
                 return
             }
 
@@ -450,9 +450,14 @@ class Commander{
                 reject(`Couldn't find module '${reciever}'`)
             }
             else{
-                var res= lCmd.modMessage(m, sender, ...arguments)
+                var mm= lCmd.modMessage
+                if(!Boolean(mm)){
+                    reject(`Module '${reciever}' doesn't seem to handle modMessages`)
+                    return
+                }
+                var res= mm(m, sender, ...arguments)
                 if(res===undefined || res===null){
-                    reject(`'${reciever}' responded to modMessage (${m}, ${arguments}) with ${res}`)
+                    reject(`Module '${reciever}' responded to modMessage (${m}, ${arguments}) with ${res}`)
                 }
                 else{
                     resolve(res)
