@@ -159,7 +159,7 @@ async function cmd_init_per_guild(utils, guild){
                         delete chanObj[r_id]
                     }
                     else{
-                        chanObj[r_id]= unless.filter(ur_id => {return Boolean(guild.roles.cache.get(ur_id))})
+                        chanObj[r_id].unless= unless.filter(ur_id => {return Boolean(guild.roles.cache.get(ur_id))})
                     }
                 }
             }
@@ -337,7 +337,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         } while(__isRoleMention(args[0], message.mentions.roles))
 
         var give_only= false
-        if(give_only=(args[0].toLowerCase()==="give_only")) args.shift()
+        if(give_only=(Boolean(args[0]) && args[0].toLowerCase()==="give_only")) args.shift()
 
         msg.reactions.removeAll().then().catch(err => {
             hereLog(`[${command}] couldn't remove all reaction from message:\n\t${err.message}`)
@@ -684,7 +684,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             if(Boolean(role=__identifyRoleMention(args[0], message.mentions.roles))){
                 args.shift()
             }
-            if(!Boolean(role) && !Boolean(channels)){
+            if(!Boolean(role) && !Boolean(channel)){
                 message.author.send(`[${message.guild.name}] \`!${command}\`: "${args[0]}" doesn't seem to be a valid mention…`)
                 return false;
             }

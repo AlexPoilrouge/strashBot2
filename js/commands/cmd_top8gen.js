@@ -887,7 +887,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 var n= (i===5)?'5a':(i===6)?'5b':(i===7)?'7a':(i===8)?'7b':`${i}`
                 var p_name= (Boolean(getOpt(`top${n}-name`,undefined)))?
                                 getOpt(`top${n}-name`,undefined)
-                            :   (Boolean(smashGGInfos.top8[`${n}`]) && Boolean(smashGGInfos.top8[`${n}`].name))?
+                            :   ((Boolean(smashGGInfos)) && Boolean(smashGGInfos.top8) && Boolean(smashGGInfos.top8[`${n}`]) && Boolean(smashGGInfos.top8[`${n}`].name))?
                                     smashGGInfos.top8[`${n}`].name
                                 :   '-';
                 var p_info= undefined;
@@ -909,12 +909,12 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                         name: p_name,
                         team:   ( (Boolean(_tmp=getOpt(`top${n}-team`,undefined)))?
                                     _tmp
-                                :   (Boolean(smashGGInfos.top8[`${n}`]) && Boolean(_tmp=smashGGInfos.top8[`${n}`].team)) ?
+                                :   (Boolean(smashGGInfos)) && Boolean(smashGGInfos.top8) && (Boolean(smashGGInfos.top8[`${n}`]) && Boolean(_tmp=smashGGInfos.top8[`${n}`].team)) ?
                                         _tmp
                                     :   undefined ),
                         twitter:  ( (Boolean(_tmp=processTwitter(getOpt(`top${n}-twitter`,undefined))))?
                                     _tmp
-                                :   (Boolean(smashGGInfos.top8[`${n}`]) && Boolean(_tmp=smashGGInfos.top8[`${n}`].twitter))?
+                                :   (Boolean(smashGGInfos) && Boolean(smashGGInfos.top8) && Boolean(smashGGInfos.top8[`${n}`]) && Boolean(_tmp=smashGGInfos.top8[`${n}`].twitter))?
                                         _tmp
                                     :   '-' ),
                         roster: p_roster
