@@ -909,12 +909,12 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                         name: p_name,
                         team:   ( (Boolean(_tmp=getOpt(`top${n}-team`,undefined)))?
                                     _tmp
-                                :   (Boolean(smashGGInfos.top8[`${n}`]) && Boolean(_tmp=smashGGInfos.top8[`${n}`].team)) ?
+                                :   (Boolean(smashGGInfos)) && (Boolean(smashGGInfos.top8[`${n}`]) && Boolean(_tmp=smashGGInfos.top8[`${n}`].team)) ?
                                         _tmp
                                     :   undefined ),
                         twitter:  ( (Boolean(_tmp=processTwitter(getOpt(`top${n}-twitter`,undefined))))?
                                     _tmp
-                                :   (Boolean(smashGGInfos.top8[`${n}`]) && Boolean(_tmp=smashGGInfos.top8[`${n}`].twitter))?
+                                :   (Boolean(smashGGInfos) && Boolean(smashGGInfos.top8[`${n}`]) && Boolean(_tmp=smashGGInfos.top8[`${n}`].twitter))?
                                         _tmp
                                     :   '-' ),
                         roster: p_roster
