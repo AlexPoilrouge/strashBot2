@@ -338,5 +338,9 @@
 	"steve" : {
 		"number": "77",
 		"regex": "^(st[eiy]*[vf](en?)?)|(ale*x)|([zs][oe]?u?[mn]b[iy]*e?)|((sl)?[ea]nde?u?r(m[ae]*n)|(son))$"
+	},
+	"sephiroth": {
+		"number": "78",
+		"regex": "^s(é|è|ê|ë|e)((ph)|(f+))i+r+((o+)|au)t(h|(t+e))$"
 	}
 }
