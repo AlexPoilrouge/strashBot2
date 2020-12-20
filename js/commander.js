@@ -351,7 +351,8 @@ class Commander{
 
             var tmp_l_cmd= undefined;
             t.loaded_commands.push( tmp_l_cmd={
-                name: rcf.name,
+                name: cmd_name,
+                command: rcf.name,
                 init_per_guild: ((Boolean(rcf.command) && Boolean(i=rcf.command.init_per_guild))? (g =>{i(utils,g)}):null),
                 func: ((Boolean(rcf.command) && Boolean(m=rcf.command.main))? (cmdO, clrlv) => {return m(cmdO, clrlv, utils)}:null),
                 funcDM: ((Boolean(rcf.command) && Boolean(d=rcf.command.directMsg))? (cmdO, clrlv, gs) => {return m(cmdO, clrlv, utils)}:null),
@@ -440,9 +441,15 @@ class Commander{
     _sendModMessage(m, sender, reciever){
         return new Promise((resolve, reject) =>{ 
             if(sender===reciever){
-                reject(`Module can't send modMessages to itsefl ('${sender}')`)
+                reject(`Module can't send modMessages to itself ('${sender}')`)
                 return
             }
+
+            var str= `In l_commands there are:\n`
+            for(var _lc of this.loaded_commands){
+                str+= `\t- ${_lc.name}\n`
+            }
+            hereLog(str)
 
             var lCmd= this.loaded_commands.find(lc => {return lc.name===reciever})
 
@@ -455,9 +462,10 @@ class Commander{
                     reject(`Module '${reciever}' doesn't seem to handle modMessages`)
                     return
                 }
-                var res= mm(m, sender, ...arguments)
+                var args= Array.from(arguments).slice(3)
+                var res= (await mm(m, sender, ...args))
                 if(res===undefined || res===null){
-                    reject(`Module '${reciever}' responded to modMessage (${m}, ${arguments}) with ${res}`)
+                    reject(`Module '${reciever}' responded to modMessage (${m}, ${args}) with ${res}`)
                 }
                 else{
                     resolve(res)
@@ -637,7 +645,7 @@ class Commander{
                     }
                 }
             }
-            else if(Boolean(l_cmd=this.loaded_commands.find(e =>{return ( (Array.isArray(e.name) && e.name.includes(cmd)) || (e.name===cmd));}))){
+            else if(Boolean(l_cmd=this.loaded_commands.find(e =>{return ( (Array.isArray(e.command) && e.command.includes(cmd)) || (e.command===cmd));}))){
                 if(Boolean(l_cmd.func)){
                     while(l_cmd._wait_init){
                         __sleep(500);
@@ -684,11 +692,11 @@ class Commander{
                     `\t\`![add|remove|get]ctrlChannel\`\n`+
                     `\t\`![add|remove|get]adminRole\`\n`;
                 for (var c of this.loaded_commands){
-                    if(Array.isArray(c.name)){
-                        str+= '\t\`'+c.name.map( e =>{ return '!'+e+' '})+' \`\n';
+                    if(Array.isArray(c.command)){
+                        str+= '\t\`'+c.command.map( e =>{ return '!'+e+' '})+' \`\n';
                     }
                     else{
-                        str+= `\t\`!${c.name}\`\n`;
+                        str+= `\t\`!${c.command}\`\n`;
                     }
                 }
                 str+= `\n__*DM Commands*:__\n\n`+
@@ -705,7 +713,7 @@ class Commander{
                 if( (b=__clearanceManagementCmd(askedCmd, "ctrlchannel", this.CMD_manageCtrlChannel.bind(this), 'help')) || 
                     (b=__clearanceManagementCmd(askedCmd, "adminrole", this.CMD_manageAdminRole.bind(this), 'help')) )
                 {;}
-                else if(Boolean(l_cmd=this.loaded_commands.find(e =>{return (Array.isArray(e.name) && e.name.includes(askedCmd)) || (e.name===askedCmd);}))){
+                else if(Boolean(l_cmd=this.loaded_commands.find(e =>{return (Array.isArray(e.command) && e.command.includes(askedCmd)) || (e.command===askedCmd);}))){
                     if(Boolean(l_cmd.help)){
                         b= l_cmd.help(cmdObj, this._getClearanceLevel(cmdObj.msg_obj));
                     }
@@ -715,7 +723,7 @@ class Commander{
                 }
             }
         }
-        else if(Boolean(l_cmd=this.loaded_commands.find(e =>{return ( (Array.isArray(e.name) && e.name.includes(cmd)) || (e.name===cmd));}))){
+        else if(Boolean(l_cmd=this.loaded_commands.find(e =>{return ( (Array.isArray(e.command) && e.command.includes(cmd)) || (e.command===cmd));}))){
             if(Boolean(l_cmd.func)){
                 while(l_cmd._wait_init){
                     __sleep(500);
