@@ -463,7 +463,7 @@ class Commander{
                     return
                 }
                 var args= Array.from(arguments).slice(3)
-                var res= (await mm(m, sender, ...args))
+                var res= (await (mm(m, sender, ...args)))
                 if(res===undefined || res===null){
                     reject(`Module '${reciever}' responded to modMessage (${m}, ${args}) with ${res}`)
                 }
