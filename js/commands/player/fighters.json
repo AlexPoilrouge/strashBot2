@@ -342,5 +342,17 @@
 	"sephiroth": {
 		"number": "78",
 		"regex": "^s(é|è|ê|ë|e)((ph)|(f+))i+r+((o+)|au)t(h|(t+e))$"
+	},
+	"pyra":{
+		"number": "79",
+		"regex": "^p[iy]+h?r+h?a+h?$"
+	},
+	"mythra":{
+		"number": "80",
+		"regex": "^m[iy]+th?r+h?a+h?$"
+	},
+	"pyra_mythra":{
+		"number": "80d",
+		"regex": "^((p[iy]+h?r+h?a+h?)[\\s\\_\\-\\.]*((a?nd?)|(\\&)|((é|e)+t?))?[\\s\\_\\-\\.]*(m[iy]+th?r+h?a+h?))|((m[iy]+th?r+h?a+h?)[\\s\\_\\-\\.]*((a?nd?)|(\\&)|((é|e)+t?))?[\\s\\_\\-\\.]*(p[iy]+h?r+h?a+h?))$"
 	}
 }
