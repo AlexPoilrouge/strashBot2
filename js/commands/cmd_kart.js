@@ -1764,7 +1764,7 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
             }
         }
         else if(res[0]==="UNEXPECTED_RESULT"){
-            hereLog(`[clip][outdated_clips] bad response: ${str}`)
+            hereLog(`[clip] bad response: ${str}`)
             message.author.send(`[*${message.guild}*] \`!kart clip\`: internal error while fetching info from database`)
             return false
         }
@@ -1772,22 +1772,22 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
             return true;
         }
         else if(res[0]==="ERROR"){
-            hereLog(`[clip][outdated_clips] bad response: ${str}`)
+            hereLog(`[clip] bad response: ${str}`)
             message.author.send(`[*${message.guild}*] \`!kart clip\`: internal error`)
             return false
         }
         else if(res[0]==="UNKOWN_ERROR"){
-            hereLog(`[clip][outdated_clips] bad response: ${str}`)
+            hereLog(`[clip] bad response: ${str}`)
             message.author.send(`[*${message.guild}*] \`!kart clip\`: unknown internal error`)
             return false
         }
         else if(res[0]==="UNKOWN_RESULT"){
-            hereLog(`[clip][outdated_clips] bad response: ${str}`)
+            hereLog(`[clip] bad response: ${str}`)
             message.author.send(`[*${message.guild}*] \`!kart clip\`: unknown response from server`)
             return false
         }
         else{
-            hereLog(`[clip][outdated_clips] bad response: ${str}`)
+            hereLog(`[clip] bad response: ${str}`)
             message.author.send(`[*${message.guild}*] \`!kart clip\`: unknown response from server`)
             return false            
         }
