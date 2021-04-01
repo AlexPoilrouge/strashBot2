@@ -1608,6 +1608,197 @@ function _getServInfos(){
     }
 }
 
+async function _cmd_clip(cmdObj, clearanceLvl, utils){
+    let message= cmdObj.msg_obj;
+    let sub_cmd= cmdObj.args[0]
+    let args= cmdObj.args.slice(1);
+
+    var cmd= null;
+    var cmdType= 0
+    let msg_url_rgx= /^<?(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+>?$/;
+
+    var __add_clip_cmd = (arg_start_idx, url) => {
+        cmdType= 1
+        cmd= `${__kartCmd(kart_settings.config_commands.clip_add)} "${url}" "${message.author.id}"`
+
+        if(args.length>arg_start_idx){
+            var desc= args.slice(arg_start_idx).join(' ').replace("\"","\\\"").slice(0,250);
+            cmd+= ` "${desc}`
+        }
+    }
+
+    if(args.length>0){
+        if(args[0].toLowerCase()==="info"){
+            cmdType= 3
+            cmd= `${__kartCmd(kart_settings.config_commands.clip_info)}`
+            if(args.length<2){
+                message.author.send(`[${message.guild}] command \`!kart ${sub_cmd}\` needs a "clipID" as argument`)
+                return false
+            }
+            cmd+= ` "${args[1]}"`
+        }
+        else if(["rm","del","delete","remove","delete"].includes(args[0].toLowerCase())){
+            cmdType= 2
+            cmd= `${__kartCmd(kart_settings.config_commands.clip_remove)}`
+            if(args.length<2){
+                message.author.send(`[${message.guild}] command \`!${sub_cmd}\` needs a "clipID" as argument`)
+                return false
+            }
+            cmd+= ` "${args[1]}" "${(clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE)?author.id:'ADMIN'}"`
+        }
+        else if(["out","outdated","old","bad","unavailable","miss","missing","discarded"].includes(args[0].toLowerCase())){
+            cmdType= 4
+            cmd= `${__kartCmd(kart_settings.config_commands.outdated_clips)}`
+        }
+        else if(["edit","desc","description","text"].includes(args[0].toLowerCase())){
+            cmdType= 5
+            cmd= `${__kartCmd(kart_settings.config_commands.clip_edit_description)}`
+            if(args.length<2){
+                message.author.send(`[${message.guild}] command \`!${sub_cmd}\` needs a "clipID" as argument`)
+                return false
+            }
+            cmd+= ` "${args[1]}" "${(clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE)?author.id:'ADMIN'}"`
+            if(args.length>=3){
+                var desc= args.slice(2).join(' ').replace("\"","\\\"").slice(0,250);
+                cmd+= ` "${desc}"`
+            }
+        }
+        else if(Boolean(args[0].match(msg_url_rgx))){
+            __add_clip_cmd(1, args[0])
+        }
+        else if(Boolean(message.attachments) && message.attachments.size>=1){
+            var url= message.attachments.first().url;
+            
+            __add_clip_cmd(((args[0]==="add")?1:0), url)
+        }
+    }
+    else if(Boolean(message.attachments) && message.attachments.size>=1){
+        var url= message.attachments.first().url;
+        
+        __add_clip_cmd(0, url)
+    }
+
+    if (!Boolean(cmd)){
+        hereLog(`[clips] Bad command: \`${args.join(' ')}\``)
+        return false;
+    }
+
+    var str= undefined
+    try{
+        str= child_process.execSync(cmd, {timeout: 16000}).toString();
+    }
+    catch(err){
+        hereLog("[clips] Error while using command - "+err);
+        str= undefined
+    }
+
+    if(Boolean(str) && str.length>0){
+        res= str.split(' - ')
+        if(res[0]==="BAD_TYPE"){
+            var resp= `**Unsupported type**: only supports direct \`.gif\` url, \`.gif\` uploads,\n`+
+                `*YouTube* video links or *streamable.com* video links.`;
+            message.channel.send(resp, {split: true})
+            return false;
+        }
+        else if(res[0]==="ALREADY_ADDED"){
+            var resp= `**Clip url already in database**: the url seems to be already present in database`+
+                `${(resp.length>2 && resp[2])?` under clip id \`${resp[2]}\`…`:'…'}`
+            message.channel.send(resp, {split: true})
+            return false;
+            
+        }
+        else if(res[0]==="CLIP_ADDED"){
+            return true
+        }
+        else if(res[0]==="BAD_USER_ID"){
+            var resp= `**No access**: you can't remove or edit a clip that doesn't belong to you…`
+            message.channel.send(resp, {split: true})
+            return false;
+        }
+        else if(res[0]==="CLIP_NOT_FOUND"){
+            var resp= `**Clip not found**: No clip was found under this id…`
+            message.channel.send(resp, {split: true})
+            return false;
+        }
+        else if(res[0]==="CLIP_REMOVED"){
+            return true;
+        }
+        else if(res[0]==="CLIPS_CHECKED"){
+            return true;
+        }
+        else if(res[0]==="CLIP_INFO"){
+            var resp= `**Clip id**: ${res[1]}\n\t**url**: <${res[2]}>${(res[6]==="OUTDATED")?"(⚠ unreachable)":""}\n`+
+                    `\t**type**: ${res[3]}\n\t**date**: ${res[4]}`;
+            var sender= null
+            if(Boolean(res[5]) && Boolean(sender=message.guild.members.fetch(res[5]))){
+                resp+= `\n\t*Referenced by:* ${sender.nickname}`
+            }
+
+            message.channel.send(resp)
+
+            return true
+        }
+        else if(res[0]==="OUTDATED_CLIPS"){
+            if(res.length>2){
+                var resp= `${res[1]} outdated clips!\n`
+                var data= null
+                try{
+                    data= JSON.parse(res[2])
+                }
+                catch (err){
+                    hereLog(`[clip][outdated_clips] couldn't read outdated clip from JSON response`)
+                    data= null
+                }
+
+                if(Boolean(data)){
+                    for (id in data){
+                        var obj= data[id]
+                        resp+= `**clip ${id}**: <${obj['url']}> [${obj['timestamp']}]`
+                    }
+                }
+                else{
+                    hereLog(`[clip][outdated_clips] bad response: ${str}`)
+                    message.author.send(`[*${message.guild}*] \`!kart clip\`: internal error while fetching info from database`)
+                    return false
+                }
+            }
+        }
+        else if(res[0]==="UNEXPECTED_RESULT"){
+            hereLog(`[clip][outdated_clips] bad response: ${str}`)
+            message.author.send(`[*${message.guild}*] \`!kart clip\`: internal error while fetching info from database`)
+            return false
+        }
+        else if(res[0]==="DESCRIPTION_UPDATED"){
+            return true;
+        }
+        else if(res[0]==="ERROR"){
+            hereLog(`[clip][outdated_clips] bad response: ${str}`)
+            message.author.send(`[*${message.guild}*] \`!kart clip\`: internal error`)
+            return false
+        }
+        else if(res[0]==="UNKOWN_ERROR"){
+            hereLog(`[clip][outdated_clips] bad response: ${str}`)
+            message.author.send(`[*${message.guild}*] \`!kart clip\`: unknown internal error`)
+            return false
+        }
+        else if(res[0]==="UNKOWN_RESULT"){
+            hereLog(`[clip][outdated_clips] bad response: ${str}`)
+            message.author.send(`[*${message.guild}*] \`!kart clip\`: unknown response from server`)
+            return false
+        }
+        else{
+            hereLog(`[clip][outdated_clips] bad response: ${str}`)
+            message.author.send(`[*${message.guild}*] \`!kart clip\`: unknown response from server`)
+            return false            
+        }
+    }
+    else{
+        hereLog(`[clips] bad command result… (${str})`);
+        message.author.send(`[*${message.guild}*] \`!kart clip\`: internal error, bad response`)
+        return false;
+    }
+}
+
 async function cmd_main(cmdObj, clearanceLvl, utils){
     let message= cmdObj.msg_obj;
     let args= cmdObj.args;
@@ -1999,6 +2190,9 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 message.channel.send("❌ Internal error…")
                 return false
             }
+        }
+        else if(["clip","clips","replay","replays","video","vid","videos"].includes(args[0])){
+            return (await _cmd_clip(cmdObj,clearanceLvl,utils));
         }
         else if (args[0]==="help"){
             return cmd_help(cmdObj, clearanceLvl)
