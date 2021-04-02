@@ -1685,7 +1685,7 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
 
     var str= undefined
     try{
-        str= child_process.execSync(cmd, {timeout: 16000}).toString();
+        str= child_process.execSync(cmd, {timeout: 16000}).toString().replace(/\n+$/, '');
     }
     catch(err){
         hereLog("[clips] Error while using command - "+err);
@@ -1730,7 +1730,7 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
             var resp= `**Clip id**: ${res[1]}\n\t**url**: <${res[2]}>${(res[6]==="OUTDATED")?"(⚠ unreachable)":""}\n`+
                     `\t**type**: ${res[3]}\n\t**date**: ${res[4]}`;
             var sender= null
-            if(Boolean(res[5]) && Boolean(sender=message.guild.members.fetch(res[5]))){
+            if(Boolean(res[5]) && Boolean(sender=(await message.guild.members.fetch(res[5])))){
                 resp+= `\n\t*Referenced by:* ${sender.nickname}`
             }
 
