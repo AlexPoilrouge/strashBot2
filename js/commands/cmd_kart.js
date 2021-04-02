@@ -1617,6 +1617,10 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
     var cmdType= 0
     let msg_url_rgx= /^<?(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+>?$/;
 
+    var __url_clean= (url) =>{
+        return url.replace(/^<+/,'').replace(/>$+/,'')
+    }
+
     var __add_clip_cmd = (arg_start_idx, url) => {
         cmdType= 1
         cmd= `${__kartCmd(kart_settings.config_commands.clip_add)} "${url}" "${message.author.id}"`
@@ -1664,18 +1668,18 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
             }
         }
         else if(Boolean(args[0].match(msg_url_rgx))){
-            __add_clip_cmd(1, args[0])
+            __add_clip_cmd(1, __url_clean(args[0]))
         }
         else if(Boolean(message.attachments) && message.attachments.size>=1){
             var url= message.attachments.first().url;
             
-            __add_clip_cmd(((args[0]==="add")?1:0), url)
+            __add_clip_cmd(((args[0]==="add")?1:0), __url_clean(url))
         }
     }
     else if(Boolean(message.attachments) && message.attachments.size>=1){
         var url= message.attachments.first().url;
         
-        __add_clip_cmd(0, url)
+        __add_clip_cmd(0,  __url_clean(url))
     }
 
     if (!Boolean(cmd)){
@@ -1703,7 +1707,7 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
         }
         else if(res[0]==="ALREADY_ADDED"){
             var resp= `**Clip url already in database**: the url seems to be already present in database`+
-                `${(resp.length>2 && resp[2])?` under clip id \`${resp[2]}\`…`:'…'}`
+                `${(res.length>2 && res[2])?` under clip id \`${res[2]}\`…`:'…'}`
             message.channel.send(resp, {split: true})
             return false;
             
