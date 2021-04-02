@@ -1618,7 +1618,7 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
     let msg_url_rgx= /^<?(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+>?$/;
 
     var __url_clean= (url) =>{
-        return url.replace(/^<+/,'').replace(/>$+/,'')
+        return url.replace(/^<+/,'').replace(/>+$/,'')
     }
 
     var __add_clip_cmd = (arg_start_idx, url) => {
