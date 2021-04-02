@@ -1622,8 +1622,8 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
         cmd= `${__kartCmd(kart_settings.config_commands.clip_add)} "${url}" "${message.author.id}"`
 
         if(args.length>arg_start_idx){
-            var desc= args.slice(arg_start_idx).join(' ').replace("\"","\\\"").slice(0,250);
-            cmd+= ` "${desc}`
+            var desc= args.slice(arg_start_idx).join(' ').replace('"','').slice(0,250);
+            cmd+= ` "${desc}"`
         }
     }
 
@@ -1644,7 +1644,7 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
                 message.author.send(`[${message.guild}] command \`!${sub_cmd}\` needs a "clipID" as argument`)
                 return false
             }
-            cmd+= ` "${args[1]}" "${(clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE)?author.id:'ADMIN'}"`
+            cmd+= ` "${args[1]}" "${(clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE)?message.author.id:'ADMIN'}"`
         }
         else if(["out","outdated","old","bad","unavailable","miss","missing","discarded"].includes(args[0].toLowerCase())){
             cmdType= 4
@@ -1657,10 +1657,10 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
                 message.author.send(`[${message.guild}] command \`!${sub_cmd}\` needs a "clipID" as argument`)
                 return false
             }
-            cmd+= ` "${args[1]}" "${(clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE)?author.id:'ADMIN'}"`
+            cmd+= ` "${args[1]}" "${(clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE)?message.author.id:'ADMIN'}"`
             if(args.length>=3){
-                var desc= args.slice(2).join(' ').replace("\"","\\\"").slice(0,250);
-                cmd+= ` "${desc}"`
+                var desc= args.slice(2).join(' ').replace('"','').slice(0,250);
+                cmd+= ` "\\\"${desc}\\\""`
             }
         }
         else if(Boolean(args[0].match(msg_url_rgx))){
@@ -1691,6 +1691,7 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
         hereLog("[clips] Error while using command - "+err);
         str= undefined
     }
+
 
     if(Boolean(str) && str.length>0){
         res= str.split(' - ')
@@ -1753,8 +1754,12 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
                 if(Boolean(data)){
                     for (id in data){
                         var obj= data[id]
-                        resp+= `**clip ${id}**: <${obj['url']}> [${obj['timestamp']}]`
+                        resp+= `**clip ${id}**: <${obj['url']}> [${obj['timestamp']}]\n`
                     }
+
+                    message.channel.send(resp)
+
+                    return true
                 }
                 else{
                     hereLog(`[clip][outdated_clips] bad response: ${str}`)
@@ -1762,6 +1767,12 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
                     return false
                 }
             }
+            else{
+                hereLog(`[clip][outdated_clips] bad response: ${str}`)
+                message.author.send(`[*${message.guild}*] \`!kart clip\`: internal error while fetching info from database`)
+                return false
+            }
+
         }
         else if(res[0]==="UNEXPECTED_RESULT"){
             hereLog(`[clip] bad response: ${str}`)
