@@ -40,7 +40,12 @@
             "remove_times":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh RECORD_RM",
             "register":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh REGISTER",
             "is_registered":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh IS_REGISTERED",
-            "clear_score":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh CLEAR_SCORE"
+            "clear_score":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh CLEAR_SCORE",
+            "clip_add":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh CLIP_ADD",
+            "clip_remove":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh CLIP_RM",
+            "clip_info":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh CLIP_INFO",
+            "outdated_clips":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh OUTDATED_CLIPS",
+            "clip_edit_description":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh EDIT_DESCRIPTION"
     },
     "source_url":"${SRB2K_SERV_SOURCE_URL}"
 }

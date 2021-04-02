@@ -40,7 +40,12 @@
             "remove_times":"/home/strashbot/.srb2kart/addon_script.sh RECORD_RM",
             "register":"/home/strashbot/.srb2kart/addon_script.sh REGISTER",
             "is_registered":"/home/strashbot/.srb2kart/addon_script.sh IS_REGISTERED",
-            "clear_score":"/home/strashbot/.srb2kart/addon_script.sh CLEAR_SCORE"
+            "clear_score":"/home/strashbot/.srb2kart/addon_script.sh CLEAR_SCORE",
+            "clip_add":"/home/strashbot/.srb2kart/addon_script.sh CLIP_ADD",
+            "clip_remove":"/home/strashbot/.srb2kart/addon_script.sh CLIP_RM",
+            "clip_info":"/home/strashbot/.srb2kart/addon_script.sh CLIP_INFO",
+            "outdated_clips":"/home/strashbot/.srb2kart/addon_script.sh OUTDATED_CLIPS",
+            "clip_edit_description":"/home/strashbot/.srb2kart/addon_script.sh EDIT_DESCRIPTION"
     },
     "source_url":"http://bogus.git"
 }
