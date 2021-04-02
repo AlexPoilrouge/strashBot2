@@ -2310,7 +2310,23 @@ function cmd_help(cmdObj, clearanceLvl){
         "\t`!kart time rm [map name]`\n\n"+
         "\tRemoves a time record you have submitted for a given map.\n\n"+
         "\t`!kart time get [map name]`\n\n"+
-        "\tLink to download uploaded times for a given map."
+        "\tLink to download uploaded times for a given map.\n\n"
+    );
+    cmdObj.msg_obj.author.send(
+        "----\n*SRB2Kart server's clips library management:*\n\n"+
+        "\t`!kart clip`\n\n"+
+        "\tAdds a clip `.gif`, provided as a message attachement, to the library. (Only `.gif` files)\n\n"+
+        "\t`!kart clip add <url>`\n\n"+
+        "\tAdds a clip, from a given url, to the libraby. The url must be *a direct* `.gif` *link*, a *youtube link*, or a streamable.com video link\n\n"+
+        "\t`!kart clip info <clip_id>`\n\n"+
+        "\tPrint infos for a given clip. (The id of said clip should be displayed in the gallery page)\n\n"+
+        "\t`!kart clip rm <clip_id>`\n\n"+
+        "\t Removes a given clip from the gallery. (The id of said clip should be displayed in the gallery page)\n"+
+        "\t __Note:__ only an admin or the person that referenced the clip in the first place can remove said clip\n\n"+
+        "\t`!Kart clip description [bla bla bla]`\n\n"+
+        "\tEdit the description of a given clip. (The id of said clip should be displayed in the gallery page)\n\n"+
+        "\t`!kart clip outdated`\n\n"+
+        "\tShows which clips (if any) of the library are referenced by dead links."
     );
     return true;
 }
