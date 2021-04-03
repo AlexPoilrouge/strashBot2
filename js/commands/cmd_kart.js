@@ -1736,7 +1736,16 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
                     `\t**type**: ${res[3]}\n\t**date**: ${res[4]}`;
 
             if(Boolean(res[5])){
-                resp+= `\n\t*Referenced by:* <@${res[5]}>`
+                var sender= null
+                await message.guild.members.fetch(res[5]).then(m =>{
+                    sender= m.nickname
+                }).catch(err =>{
+                    hereLog(`[clip info] couldn't find user ${res[5]} on this guild ${message.guild}`)
+                    sender= '~~unkown~~'
+                })
+                if(Boolean(sender) && sender.length>0){
+                    resp+= `\n\t*Referenced by:* ${sender}`
+                }
             }
 
             message.channel.send(resp)
