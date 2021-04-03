@@ -1734,9 +1734,9 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
         else if(res[0]==="CLIP_INFO"){
             var resp= `**Clip id**: ${res[1]}\n\t**url**: <${res[2]}>${(res[6]==="OUTDATED")?"(⚠ unreachable)":""}\n`+
                     `\t**type**: ${res[3]}\n\t**date**: ${res[4]}`;
-            var sender= null
-            if(Boolean(res[5]) && Boolean(sender=(await message.guild.members.fetch(res[5])))){
-                resp+= `\n\t*Referenced by:* ${sender.nickname}`
+
+            if(Boolean(res[5])){
+                resp+= `\n\t*Referenced by:* <@${res[5]}>`
             }
 
             message.channel.send(resp)
