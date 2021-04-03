@@ -1738,7 +1738,7 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
             if(Boolean(res[5])){
                 var sender= null
                 await message.guild.members.fetch(res[5]).then(m =>{
-                    sender= (Boolean(m.nickname) && m.nickname.length>0)?m.nickname:m.name
+                    sender= (Boolean(m.nickname) && m.nickname.length>0)?m.nickname:m.user.username
                 }).catch(err =>{
                     hereLog(`[clip info] couldn't find user ${res[5]} on this guild ${message.guild}`)
                     sender= '~~unkown~~'
