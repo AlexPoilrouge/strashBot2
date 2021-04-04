@@ -1621,15 +1621,64 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
         return url.replace(/^<+/,'').replace(/>+$/,'')
     }
 
-    var __add_clip_cmd = (arg_start_idx, url) => {
+    var __description_clean= ( async (txt, guild) =>{
+        var rx_customEmoji= /<:(.+?):\d+>/g
+        var rx_channelMention_id= /<#(\d+)>/g
+        var rx_userMention_id= /<@(\d+)>/g
+        var rx_groupMention_id= /<@&(\d+)>/g
+
+        var r= txt.replace('"','').slice(0,250).replace(rx_customEmoji, "$1")
+
+        var ___name_lookups={
+            "members": (x) =>{
+                var n= null
+                return (Boolean(n=x.nickname))? n : x.user.name;
+            },
+            "*": (x) => {return x.name;}
+        }
+
+        var ___process_discord_objs= (async (txt, regex, guild_attr) => {
+            var res= txt
+            var tmp= null
+            if (Boolean(tmp=r.match(regex))){
+                var replace_table= []
+                for (var pattern in tmp){
+                    var m_id= null, id= null, name= null
+                    if(Boolean(m_id=pattern.match(/\d+/)) && Boolean(id=m_id[0])){
+                        await guild[guild_attr].fetch(id).then(obj =>{
+                            name= ___name_lookups(guild_attr)
+                        }).catch(err =>{
+                            hereLog(`[clip][decription processing] error trying to fetch name of '${pattern}' - ${err}`)
+                        })
+                    }
+                    name= (Boolean(name) && name.length>0)?name:"-unknown-"
+
+                    replace_table.push([pattern, name])
+                }
+                for (var replacement in replace_table){
+                    res= res.replace(replacement[0],replacement[1])
+                }
+            }
+
+            return res
+        })
+
+        r= (await ___process_discord_objs(r, rx_channelMention_id, "channels"))
+        r= (await ___process_discord_objs(r, rx_userMention_id, "members"))
+        r= (await ___process_discord_objs(r, rx_groupMention_id, "groups"))
+
+        return r
+    })
+
+    var __add_clip_cmd = (async (arg_start_idx, url) => {
         cmdType= 1
         cmd= `${__kartCmd(kart_settings.config_commands.clip_add)} "${url}" "${message.author.id}"`
 
         if(args.length>arg_start_idx){
-            var desc= args.slice(arg_start_idx).join(' ').replace('"','').slice(0,250);
+            var desc= __description_clean(args.slice(arg_start_idx).join(' '));
             cmd+= ` "${desc}"`
         }
-    }
+    })
 
     if(args.length>0){
         if(args[0].toLowerCase()==="info"){
@@ -1663,23 +1712,23 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
             }
             cmd+= ` "${args[1]}" "${(clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE)?message.author.id:'ADMIN'}"`
             if(args.length>=3){
-                var desc= args.slice(2).join(' ').replace('"','').slice(0,250);
+                var desc= (await __description_clean(args.slice(2).join(' ')));
                 cmd+= ` "\\\"${desc}\\\""`
             }
         }
         else if(Boolean(args[0].match(msg_url_rgx))){
-            __add_clip_cmd(1, __url_clean(args[0]))
+            await __add_clip_cmd(1, __url_clean(args[0]))
         }
         else if(Boolean(message.attachments) && message.attachments.size>=1){
             var url= message.attachments.first().url;
             
-            __add_clip_cmd(((args[0]==="add")?1:0), __url_clean(url))
+            await __add_clip_cmd(((args[0]==="add")?1:0), __url_clean(url))
         }
     }
     else if(Boolean(message.attachments) && message.attachments.size>=1){
         var url= message.attachments.first().url;
         
-        __add_clip_cmd(0,  __url_clean(url))
+        await __add_clip_cmd(0,  __url_clean(url))
     }
 
     if (!Boolean(cmd)){
@@ -1700,7 +1749,7 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
     if(Boolean(str) && str.length>0){
         res= str.split(' - ')
         if(res[0]==="BAD_TYPE"){
-            var resp= `**Unsupported type**: only supports direct \`.gif\` url, \`.gif\` uploads,\n`+
+            var resp= `**Unsupported type**: only supports direct \`.gif\`, \'.webm\', \'.ogg\' or \'.mp4\' urls or uploads,\n`+
                 `*YouTube* video links or *streamable.com* video links.`;
             message.channel.send(resp, {split: true})
             return false;
@@ -2328,9 +2377,9 @@ function cmd_help(cmdObj, clearanceLvl){
     cmdObj.msg_obj.author.send(
         "----\n*SRB2Kart server's clips library management:*\n\n"+
         "\t`!kart clip`\n\n"+
-        "\tAdds a clip `.gif`, provided as a message attachement, to the library. (Only `.gif` files)\n\n"+
+        "\tAdds a clip `.gif|.ogg|.webm|.mp4`, provided as a message attachement, to the library. (Only `.gif|.ogg|.webm|.mp4` files)\n\n"+
         "\t`!kart clip add <url>`\n\n"+
-        "\tAdds a clip, from a given url, to the libraby. The url must be *a direct* `.gif` *link*, a *youtube link*, or a streamable.com video link\n\n"+
+        "\tAdds a clip, from a given url, to the libraby. The url must be *a direct* `.gif|.ogg|.webm|.mp4` *link*, a *youtube link*, or a streamable.com video link\n\n"+
         "\t`!kart clip info <clip_id>`\n\n"+
         "\tPrint infos for a given clip. (The id of said clip should be displayed in the gallery page)\n\n"+
         "\t`!kart clip rm <clip_id>`\n\n"+
