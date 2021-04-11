@@ -1627,7 +1627,7 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
         var rx_userMention_id= /<@(\d+)>/g
         var rx_groupMention_id= /<@&(\d+)>/g
 
-        var r= txt.replace('"','').slice(0,250).replace(rx_customEmoji, "$1")
+        var r= txt.replace('"','').replace('\\','').slice(0,250).replace(rx_customEmoji, "$1")
 
         var ___name_lookups={
             "members": (x) =>{
@@ -1675,8 +1675,8 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
         cmd= `${__kartCmd(kart_settings.config_commands.clip_add)} "${url}" "${message.author.id}"`
 
         if(args.length>arg_start_idx){
-            var desc= __description_clean(args.slice(arg_start_idx).join(' '));
-            cmd+= ` "${desc}"`
+            var desc= (await __description_clean(args.slice(arg_start_idx).join(' ')));
+            cmd+= ` "\\\"${desc}\\\""`
         }
     })
 
