@@ -1697,7 +1697,7 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
                 message.author.send(`[${message.guild}] command \`!${sub_cmd}\` needs a "clipID" as argument`)
                 return false
             }
-            cmd+= ` "${args[1]}" "${(clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE)?message.author.id:'ADMIN'}"`
+            cmd+= ` "${args[1]}" "${(clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE)?'ADMIN':message.author.id}"`
         }
         else if(["out","outdated","old","bad","unavailable","miss","missing","discarded"].includes(args[0].toLowerCase())){
             cmdType= 4
@@ -1710,7 +1710,7 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
                 message.author.send(`[${message.guild}] command \`!${sub_cmd}\` needs a "clipID" as argument`)
                 return false
             }
-            cmd+= ` "${args[1]}" "${(clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE)?message.author.id:'ADMIN'}"`
+            cmd+= ` "${args[1]}" "${(clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE)?'ADMIN':message.author.id}"`
             if(args.length>=3){
                 var desc= (await __description_clean(args.slice(2).join(' ')));
                 cmd+= ` "\\\"${desc}\\\""`
