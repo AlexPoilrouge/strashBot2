@@ -20,6 +20,50 @@ let hereLog= (...args) => {console.log("[cmd_kart]", ...args);};
 
 var kart_settings= undefined;
 
+
+
+const KARTING_LEVEL={
+    NONE:               0b000,
+    KART_CHANNEL:       0b001,
+    KARTER:             0b010,
+    KART_ADMIN:         0b100,
+}
+
+
+
+function _getKartingLevel(message, utils){
+    var result= KARTING_LEVEL.NONE;
+    
+    var k_chan= utils.settings.get(message.guild, 'kart_channel')
+    if(Boolean(k_chan) && message.channel.id===k_chan){
+        result= result | KARTING_LEVEL.KART_CHANNEL
+    }
+
+    var k_role= utils.settings.get(message.guild, 'kart_role')
+    if(Boolean(k_role) && message.member.roles.cache.get(k_role)){
+        result= result | KARTING_LEVEL.KARTER
+    }
+
+    k_role= utils.settings.get(message.guild, 'kart_admin_role')
+    if(Boolean(k_role) && message.member.roles.cache.get(k_role)){
+        result= result | KARTING_LEVEL.KART_ADMIN
+    }
+
+    return result
+}
+
+function _kartingClearanceCheck(message, utils, kart_cmd=null, requiredLvl=KARTING_LEVEL.KART_ADMIN){
+    if((!(_getKartingLevel(message, utils) & requiredLvl)) && (clearanceLvl<CLEARANCE_LEVEL.CONTROL_CHANNEL)){
+        message.member.send(`[kart command] You don't have the clearance for `+
+            `${(Boolean(kart_cmd))? `\`!kart ${kart_cmd}\`` : " that"}…`
+        );
+        return false;
+    }
+    return true
+}
+
+
+
 function __loadingJSONObj(fileName){
     var fn= path.resolve(__dirname,fileName)
     if(fs.existsSync(fn)){
@@ -547,6 +591,8 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
     let args= cmdObj.args.slice(1);
 
     if(["try","add","get","new"].includes(args[0])){
+        if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`)) return false
+
         let _serv_run= _isServerRunning();
         var perma= false;
         var url_rgx= /^(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+$/;
@@ -631,6 +677,8 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
         }
     }
     else if(["keep","perma","fixed","final"].includes(args[0])){
+        if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`)) return false
+
         if(Boolean(args[1])){
             var str= undefined
             var b=false;
@@ -657,6 +705,8 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
         }
     }
     else if(["rm","remove","del","delete","suppr"].includes(args[0])){
+        if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`)) return false
+
         if(Boolean(args[1])){
             var resp= _removeAddonsConfig(args[1]);
             if(Boolean(resp) && resp[0] && Boolean(resp[1])){
@@ -713,118 +763,6 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
     return false;
 }
 
-// async function __uploading_cfg(channel, url){
-//     if(!Boolean(kart_settings) || !Boolean(kart_settings.dirs.main_folder)){
-//         return
-//     }
-
-//     if (!urlExistSync(url)){
-//         channel.send(`❌ L'url \`${url}\` ne semble pas exister…`);
-//         return
-//     }
-
-//     let filename= "new_startup.cfg"
-//     let filepath= kart_settings.dirs.main_folder+`/${filename}`;
-
-//     var pct= 0;
-//     var dl_msg= await channel.send(
-//         `Downloading \`${filename}\` on server …\t[${pct} %]`
-//     );
-
-//     let _error= (msg='') => {
-//         if (Boolean(dl_msg)){
-//             dl_msg.edit(`Downloading \`${filename}\` on server …\t[ERROR!]`+
-//                 ((Boolean(msg))?`\n\t(${msg})`:'')
-//             );
-
-//             dl_msg.react('❌');
-//         }
-//     }
-
-//     if(Boolean(dl_msg)){
-//         const file = fs.createWriteStream(filepath);
-//         var receivedBytes = 0;
-//         var totalBytes= 0;
-
-//         var t= Date.now();
-
-//         request.get(url)
-//             .on('response', (response) => {
-//                 if (response.statusCode !== 200) {
-//                     _error('Response status was ' + response.statusCode);
-//                 }
-
-//                 totalBytes= response.headers['content-length'];
-//             })
-//             .on('data', (chunk) => {
-//                 receivedBytes += chunk.length;
-
-//                 if (Boolean(dl_msg) && (Date.now()-t>=2000)){
-//                     dl_msg.edit(`Downloading \`${filename}\` on server …\t[${(receivedBytes/totalBytes)*100} %]`);
-//                     t= Date.now();
-//                 }
-//             })
-//             .pipe(file)
-//             .on('error', (err) => {
-//                 fs.unlink(filepath, err => {
-//                     hereLog(`[file dl error] ${err}`)
-//                 });
-//                 _error();
-//             });
-
-//             file.on('finish', () => {
-//                 file.close();
-
-//                 if (Boolean(dl_msg)){
-//                     dl_msg.edit(`Downloading \`${filename}\` on server …\t[Done!]`);
-
-//                     dl_msg.react('✅');
-//                 }
-
-//                 var str= undefined
-//                 try{
-//                     var cmd= __kartCmd(kart_settings.config_commands.change_config);
-//                     str= child_process.execSync(cmd+` ${filepath}`, {timeout: 4000}).toString();
-//                 }
-//                 catch(err){
-//                     hereLog("Error while keeping addons: "+err);
-//                     str= undefined
-//                 }
-
-//                 if(Boolean(str)){
-//                     let options= (str==="updated")? {} :
-//                         {
-//                             files: [{
-//                                 attachment: `${str}`,
-//                                 name: `startup.cfg.diff`
-//                             }]
-//                         }
-//                     if(_isServerRunning()){
-//                         channel.send(`\`startup.cfg\` a bien été mis à jour.\n`+
-//                             `Cependant, celan n'aura aucun effet pour la session déjà en cours`,
-//                             options
-//                         );
-//                     }
-//                     else{
-//                         channel.send(`\`startup.cfg\` a bien été mis à jour et sera effectif lors de la prochaine session.`,
-//                                 options
-//                         );
-//                     }
-//                 }
-//                 else{
-//                     channel.send(`❌ internal error while trying to update *startup.cfg*…`);
-//                 }
-//             });
-        
-//             file.on('error', (err) => {
-//                 fs.unlink(filepath, err => {
-//                     hereLog(`[file dl error] ${err}`)
-//                 });
-//                 _error(err.message);
-//             });
-//     }
-// }
-
 async function _cmd_config(cmdObj, clearanceLvl, utils){
     let message= cmdObj.msg_obj;
     let sub_cmd= cmdObj.args[0]
@@ -875,6 +813,8 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
         }
     }
     else if(["set","up","ul","upload","change"].includes(args[0])){
+        if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`)) return false
+
         if(Boolean(message.attachments) && message.attachments.size>=1){
             var url= message.attachments.first().url;
             
@@ -1875,7 +1815,69 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
 async function cmd_main(cmdObj, clearanceLvl, utils){
     let message= cmdObj.msg_obj;
     let args= cmdObj.args;
-    if(args[0]==="channel" && (clearanceLvl>CLEARANCE_LEVEL.NONE)){
+    if(args[0]==="role" && (clearanceLvl>CLEARANCE_LEVEL.NONE)){
+        if(args[1]==="clear"){
+            utils.settings.remove(message.guild, 'kart_role');
+
+            return true
+        }
+        else if(args[1]==="which"){
+            var roleKart= utils.settings.get(message.guild, 'kart_role');
+            var role= undefined;
+            if(!Boolean(roleKart) || !Boolean(role=message.guild.roles.cache.get(roleKart))){
+                message.author.send("No role set as *karting main role*…");
+
+                return true;
+            }
+            else {
+                message.author.send(`Role \"${role.name}\" is set as the *karting main role*…`);
+
+                return true;
+            }
+        }
+        var role= undefined;
+        if(!Boolean(message.mentions) || !Boolean(message.mentions.roles) || !Boolean(role=message.mentions.roles.first())){
+            message.member.send("[kart command] No mention to any role found… Format is:\n\t`!kart role @rolemention`");
+
+            return false;
+        }
+
+        utils.settings.set(message.guild, 'kart_role', role.id);
+
+        return true;
+    }
+    else if(args[0]==="admin_role" && (clearanceLvl>CLEARANCE_LEVEL.NONE)){
+        if(args[1]==="clear"){
+            utils.settings.remove(message.guild, 'kart_admin_role');
+
+            return true
+        }
+        else if(args[1]==="which"){
+            var roleKart= utils.settings.get(message.guild, 'kart_admin_role');
+            var role= undefined;
+            if(!Boolean(roleKart) || !Boolean(role=message.guild.roles.cache.get(roleKart))){
+                message.author.send("No role set as *karting admin role*…");
+
+                return true;
+            }
+            else{
+                message.author.send(`Role \"${role.name}\" is set as the *karting admin role*…`);
+
+                return true;
+            }
+        }
+        var role= undefined;
+        if(!Boolean(message.mentions) || !Boolean(message.mentions.roles) || !Boolean(role=message.mentions.roles.first())){
+            message.member.send("[kart command] No mention to any role found… Format is:\n\t`!kart admin_role @rolemention`");
+
+            return false;
+        }
+
+        utils.settings.set(message.guild, 'kart_admin_role', role.id);
+
+        return true;
+    }
+    else if(args[0]==="channel" && (clearanceLvl>CLEARANCE_LEVEL.NONE)){
         if(args[1]==="clear"){
             utils.settings.remove(message.guild, 'kart_channel');
 
@@ -1901,7 +1903,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         }
         var channel= undefined
         if(!Boolean(message.mentions) || !Boolean(message.mentions.channels) || !Boolean(channel=message.mentions.channels.first())){
-            message.member.send("[kart command] No mention to any channel found… Format is:\n\t`!karthannel #channelmention`");
+            message.member.send("[kart command] No mention to any channel found… Format is:\n\t`!kart channel #channelmention`");
 
             return false;
         }
@@ -1912,13 +1914,19 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
     }
     else{
-        var chanKart= utils.settings.get(message.guild, 'kart_channel');
-        if(!Boolean(chanKart) || chanKart!==message.channel.id){
+        // var chanKart= utils.settings.get(message.guild, 'kart_channel');
+        // if(!Boolean(chanKart) || chanKart!==message.channel.id){
+        //     message.member.send(`[kart command] command \`!kart ${args[0]}\` only possible in dedicated kart channel…`);
+        //     return false;
+        // }
+        if((!(_getKartingLevel(message, utils) & KARTING_LEVEL.KART_CHANNEL))){
             message.member.send(`[kart command] command \`!kart ${args[0]}\` only possible in dedicated kart channel…`);
             return false;
         }
 
         if(["run","launch","start","go","vroum"].includes(args[0])){
+            if(!_kartingClearanceCheck(message, utils, args[0])) return false
+
             if(_isServerRunning()){
                 str="Server SRB2Kart is already running…";
 
@@ -1958,6 +1966,8 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
         }
         else if(["halt","quit","stop","nope","kill","shutdown","done"].includes(args[0])){
+            if(!_kartingClearanceCheck(message, utils, args[0])) return false
+
             var servOwner= utils.settings.get(message.guild, "serv_owner");
             var owner= undefined;
             if( (!Boolean(servOwner) || !Boolean(owner= await utils.getBotClient().users.fetch(servOwner))) ||
@@ -1989,6 +1999,8 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
         }
         else if(["restart","retry","re","again","relaunch"].includes(args[0])){
+            if(!_kartingClearanceCheck(message, utils, args[0])) return false
+
             var servOwner= utils.settings.get(message.guild, "serv_owner");
             var owner= undefined;
             if( (!Boolean(servOwner) || !Boolean(owner= await utils.getBotClient().users.fetch(servOwner))) ||
@@ -2043,6 +2055,8 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
         }
         else if(["password","pwd","access","admin"].includes(args[0])){
+            if(!_kartingClearanceCheck(message, utils, args[0])) return false
+
             if(!_isServerRunning()){
                 message.channel.send(`Auncun serveur SRB2Kart actif…`);
                 return false;
@@ -2062,6 +2076,8 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             return false;
         }
         else if(["takeover","claim","seize","force","own","lock","lead","control","ctrl"].includes(args[0])){
+            if(!_kartingClearanceCheck(message, utils, args[0])) return false
+
             var servOwner= utils.settings.get(message.guild, "serv_owner");
             var owner= undefined;
             if(!_isServerRunning()){
@@ -2086,6 +2102,8 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
         }
         else if(["give","chown","transfer"].includes(args[0])){
+            if(!_kartingClearanceCheck(message, utils, args[0])) return false
+
             var member= undefined
             if(!Boolean(message.mentions) || !Boolean(message.mentions.members) || !Boolean(member=message.mentions.members.first())){
                 message.member.send(`[kart command] No mention to any user found… Format is:\n\t\`!kart ${args[0]} @usermention\``);
@@ -2117,6 +2135,8 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
         }
         else if(["leave","quit","ragequit","unlock","disown","alone","gone","flee","john"].includes(args[0])){
+            if(!_kartingClearanceCheck(message, utils, args[0])) return false
+
             if(!_isServerRunning()){
                 message.channel.send(`Auncun serveur SRB2Kart actif…`);
                 return false;
@@ -2255,6 +2275,8 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             return (await _cmd_register(cmdObj, clearanceLvl, utils));
         }
         else if(Boolean(args[0]) && args[0].match(/^((cle?a?r)|(re?mo?v?e?)|(re?se?t)|(dele?t?e?))[\-\_ ]scores?$/)){
+            if(!_kartingClearanceCheck(message, utils, args[0])) return false
+            
             if(__clearScores()){
                 message.channel.send("Score storage reset.")
                 return true
@@ -2282,33 +2304,38 @@ function cmd_help(cmdObj, clearanceLvl){
         "⚠ **_IMPORTANT:_** SRB2Kart server is exclusively for Strasbourg Smasher's usage.\n\n"+
         `__**kart** command___:\n\n`+
         ((clearanceLvl<CLEARANCE_LEVEL.ADMIN)? "": ("**Admins only (usable in other channels):**\n\n"+
+            "\t`!kart role @rolemention`\n\n"+
+            "\tset a designated for people who want to kart, y'know?\n\n"+
+            "\t`!kart admin_role @rolemention`\n\n"+
+            "\tset role for OG karters, have greater access to kart server commands and all...\n\n"+
             "\t`!kart channel #channelmention`\n\n"+
             "\tset which channel gets to be the *designated srb2kart channel*\n\n"+
             "\t`!kart channel clear`\n\n"+
             "\tunset the *designated srb2kart channel*\n\n"+
             "\t`!kart channel which`\n\n"+
             "\ttells which channel is set as the *designated srb2kart channel*\n\n"+
-            "**All users commands:**\n"
+            "**All users commands:**\n\n"
         ))
     );
     cmdObj.msg_obj.author.send(
-        "\n**Following commands are only usable in the designated \"srb2kart channel\"!**\n\n"+
-        "\t`!kart start ['stand']`\n\n"+
+        "\n**Following commands are only usable in the designated \"srb2kart channel\"!**\n"+
+        "\t*(commands that are liste with a preceeding 😎 are commands for 'admin karters' only*)\n\n"+
+        "😎\t`!kart start ['stand']`\n\n"+
         "\tTry to start the SRB2Kart server.\n\tIf success, the server password is send via private message, the reciever is considered as the *designated admin* of the server.\n"+
         "\t  If the optional argument `stand` is given, the server will have *__no__ designated admin*…\n\n"+
-        "\t`!kart stop`\n\n"+
+        "😎\t`!kart stop`\n\n"+
         "\tIf active, attempt to stop the SRB2Kart server.\n\n"+
-        "\t`!kart restart ['stand']`\n\n"+
+        "😎\t`!kart restart ['stand']`\n\n"+
         "\tAttempt to restart the SRB2Kart server.\n"+
         "\t  If the optional argument `stand` is given, the server will have *__no__ designated admin*…\n\n"+
         "\t⚠ **_Note:** the SRB2Kart server will automatically shutdown at 4 am. It will restart at 8 am, __unless__ it was stopped manually.\n\n"+
-        "\t`!kart password`\n\n"+
+        "😎\t`!kart password`\n\n"+
         "\tRequest to recieve the password of the active (if any) SRB2Kart server. (guild admin or designated SRB2Kart server admin only)\n\n"+
-        "\t`!kart claim`\n\n"+
+        "😎\t`!kart claim`\n\n"+
         "\tClaim the vacant ownership of the current running (if any) SRB2Kart server. (guild admin or designated SRB2Kart server admin only)\n\n"+
-        "\t`!kart transfer @usermention`\n\n"+
+        "😎\t`!kart transfer @usermention`\n\n"+
         "\tGive the ownership of the current running (if any) SRB2Kart server to the mentionned user. (guild admin or designated SRB2Kart server admin only)\n\n"+
-        "\t`!kart leave`\n\n"+
+        "😎\t`!kart leave`\n\n"+
         "\tGive up the ownership of the current running (if any) SRB2Kart server, leaving it vacant. (designated SRB2Kart server admin only)\n\n"+
         "\t`!kart info`\n\n"+
         "\tDisplay whether of not the SRB2Kart server is running along with its ownership\n"+
@@ -2334,7 +2361,7 @@ function cmd_help(cmdObj, clearanceLvl){
         // " example: `https://url/bla/bla/addon.pk3`\n\tIf no url is given, the addon must be an attachment to the same message as the command, and still"+
         // " have a valid addon extension (.pk3,.lua,.wad,.kart)\n"+
         // "\t⚠ This addon will be added under the *[temporary]* section, meaning it will be removed after next sessions ends.\n\n"+
-        "\t`!kart addons add [url]`\n\n"+
+        "😎\t`!kart addons add [url]`\n\n"+
         "\tThe addon must be an attachment to the same message as the command, and have a valid addon extension (.pk3,.lua,.wad,.kart)\n\n"+
         "\t⚠ If the kart server is running, this addon will be added under the *[temporary]* section until next session…\n\n"+
         // "\t`!kart addons add keep [url]`\n\n"+
@@ -2342,7 +2369,7 @@ function cmd_help(cmdObj, clearanceLvl){
         // " automatically after a session ends.\n\n"+
         // "\t`!kart addons keep <addon_filename>`\n\n"+
         // "\tMove an addon from the *[temporary]* section to the *[downloaded]* section.\n\n"+
-        "\t`!kart addons rm <addon_filename>`\n\n"+
+        "😎\t`!kart addons rm <addon_filename>`\n\n"+
         "\tRemove the addon designated by the given name from the server.\n"+
         "\t⚠ this only works for addons under the *[downloaded]* section!\n\n"+
         "\t`!kart addons link`\n\n"+
@@ -2352,7 +2379,7 @@ function cmd_help(cmdObj, clearanceLvl){
         "----\n*SRB2Kart server's startup config management:*\n\n"+
         "\t`!kart config get`\n\n"+
         "\tAllows to download the current `startup.cfg` config script executed when server starts\n\n"+
-        "\t`!kart config set`\n\n"+
+        "😎\t`!kart config set`\n\n"+
         "\tDownloads a new version of the `startup.cfg` config script onto the server\n"+
         "\t⚠ The new version of the script must be provided as a file attachment to the same message as the command, and must have `.cfg` extension.\n"+
         "\t⚠ When this config script is downloaded, some commands are filtered out of the script rendering them ineffective.\n"+
