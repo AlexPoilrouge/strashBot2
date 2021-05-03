@@ -52,8 +52,8 @@ function _getKartingLevel(message, utils){
     return result
 }
 
-function _kartingClearanceCheck(message, utils, kart_cmd=null, requiredLvl=KARTING_LEVEL.KART_ADMIN){
-    if((!(_getKartingLevel(message, utils) & requiredLvl)) && (clearanceLvl<CLEARANCE_LEVEL.CONTROL_CHANNEL)){
+function _kartingClearanceCheck(message, utils, kart_cmd=null, clearanceLvl=null, requiredLvl=KARTING_LEVEL.KART_ADMIN){
+    if((!(_getKartingLevel(message, utils) & requiredLvl)) && (clearanceLvl===null || clearanceLvl<CLEARANCE_LEVEL.ADMIN_ROLE)){
         message.member.send(`[kart command] You don't have the clearance for `+
             `${(Boolean(kart_cmd))? `\`!kart ${kart_cmd}\`` : " that"}…`
         );
@@ -591,7 +591,7 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
     let args= cmdObj.args.slice(1);
 
     if(["try","add","get","new"].includes(args[0])){
-        if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`)) return false
+        if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`, clearanceLvl)) return false
 
         let _serv_run= _isServerRunning();
         var perma= false;
@@ -614,6 +614,11 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
         }
         else if(Boolean(message.attachments) && message.attachments.size>=1){
             url= message.attachments.first().url;
+        }
+
+        if(!Boolean(url)){
+            message.channel.send(`\`!kart ${sub_cmd} ${args[0]}\` needs a joined file or a url…`)
+            return false
         }
 
         var filename= url.split('/').slice(-1)[0]
@@ -677,7 +682,7 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
         }
     }
     else if(["keep","perma","fixed","final"].includes(args[0])){
-        if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`)) return false
+        if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`, clearanceLvl)) return false
 
         if(Boolean(args[1])){
             var str= undefined
@@ -705,7 +710,7 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
         }
     }
     else if(["rm","remove","del","delete","suppr"].includes(args[0])){
-        if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`)) return false
+        if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`, clearanceLvl)) return false
 
         if(Boolean(args[1])){
             var resp= _removeAddonsConfig(args[1]);
@@ -813,7 +818,7 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
         }
     }
     else if(["set","up","ul","upload","change"].includes(args[0])){
-        if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`)) return false
+        if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`, clearanceLvl)) return false
 
         if(Boolean(message.attachments) && message.attachments.size>=1){
             var url= message.attachments.first().url;
@@ -1925,7 +1930,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         }
 
         if(["run","launch","start","go","vroum"].includes(args[0])){
-            if(!_kartingClearanceCheck(message, utils, args[0])) return false
+            if(!_kartingClearanceCheck(message, utils, args[0], clearanceLvl)) return false
 
             if(_isServerRunning()){
                 str="Server SRB2Kart is already running…";
@@ -1966,7 +1971,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
         }
         else if(["halt","quit","stop","nope","kill","shutdown","done"].includes(args[0])){
-            if(!_kartingClearanceCheck(message, utils, args[0])) return false
+            if(!_kartingClearanceCheck(message, utils, args[0], clearanceLvl)) return false
 
             var servOwner= utils.settings.get(message.guild, "serv_owner");
             var owner= undefined;
@@ -1999,7 +2004,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
         }
         else if(["restart","retry","re","again","relaunch"].includes(args[0])){
-            if(!_kartingClearanceCheck(message, utils, args[0])) return false
+            if(!_kartingClearanceCheck(message, utils, args[0], clearanceLvl)) return false
 
             var servOwner= utils.settings.get(message.guild, "serv_owner");
             var owner= undefined;
@@ -2055,7 +2060,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
         }
         else if(["password","pwd","access","admin"].includes(args[0])){
-            if(!_kartingClearanceCheck(message, utils, args[0])) return false
+            if(!_kartingClearanceCheck(message, utils, args[0], clearanceLvl)) return false
 
             if(!_isServerRunning()){
                 message.channel.send(`Auncun serveur SRB2Kart actif…`);
@@ -2076,7 +2081,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             return false;
         }
         else if(["takeover","claim","seize","force","own","lock","lead","control","ctrl"].includes(args[0])){
-            if(!_kartingClearanceCheck(message, utils, args[0])) return false
+            if(!_kartingClearanceCheck(message, utils, args[0], clearanceLvl)) return false
 
             var servOwner= utils.settings.get(message.guild, "serv_owner");
             var owner= undefined;
@@ -2102,7 +2107,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
         }
         else if(["give","chown","transfer"].includes(args[0])){
-            if(!_kartingClearanceCheck(message, utils, args[0])) return false
+            if(!_kartingClearanceCheck(message, utils, args[0], clearanceLvl)) return false
 
             var member= undefined
             if(!Boolean(message.mentions) || !Boolean(message.mentions.members) || !Boolean(member=message.mentions.members.first())){
@@ -2135,7 +2140,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
         }
         else if(["leave","quit","ragequit","unlock","disown","alone","gone","flee","john"].includes(args[0])){
-            if(!_kartingClearanceCheck(message, utils, args[0])) return false
+            if(!_kartingClearanceCheck(message, utils, args[0], clearanceLvl)) return false
 
             if(!_isServerRunning()){
                 message.channel.send(`Auncun serveur SRB2Kart actif…`);
@@ -2275,7 +2280,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             return (await _cmd_register(cmdObj, clearanceLvl, utils));
         }
         else if(Boolean(args[0]) && args[0].match(/^((cle?a?r)|(re?mo?v?e?)|(re?se?t)|(dele?t?e?))[\-\_ ]scores?$/)){
-            if(!_kartingClearanceCheck(message, utils, args[0])) return false
+            if(!_kartingClearanceCheck(message, utils, args[0], clearanceLvl)) return false
             
             if(__clearScores()){
                 message.channel.send("Score storage reset.")
