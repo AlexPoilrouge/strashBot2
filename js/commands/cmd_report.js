@@ -442,6 +442,50 @@ function _reportCmdKart(guild, utils){
 
 
 
+    var obj_kartRole= utils.settings.get(guild,"kart_role","kart");
+
+    msg= ""
+    var kartRole= undefined
+    if(!Boolean(obj_kartRole)){
+        var _msg= `No kart main role set… (${obj_kartRole})`
+        problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+        msg+= _msg
+    }
+    else if (!Boolean(kartRole=guild.roles.cache.get(obj_kartRole))){
+        var _msg= `Set kart main role is invalid… (${kartRole} - #${obj_kartChan})`
+        problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+        msg+= _msg
+    }
+    else{
+        msg+= `Kart main role is set to ${kartRole.name} (@${obj_kartRole})`
+    }
+
+    report_str+= `<b> Kart main role:</b>\n${msg}<br/>\n`
+
+
+
+    var obj_kartAdminRole= utils.settings.get(guild,"kart_admin_role","kart");
+
+    msg= ""
+    var kartAdminRole= undefined
+    if(!Boolean(obj_kartAdminRole)){
+        var _msg= `No kart admin role set… (${obj_kartAdminRole})`
+        problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+        msg+= _msg
+    }
+    else if (!Boolean(kartAdminRole=guild.roles.cache.get(obj_kartAdminRole))){
+        var _msg= `Set kart admin role is invalid… (${kartAdminRole} - #${obj_kartChan})`
+        problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+        msg+= _msg
+    }
+    else{
+        msg+= `Kart admin role is set to ${kartAdminRole.name} (@${obj_kartAdminRole})`
+    }
+
+    report_str+= `<b> Kart admin role:</b>\n${msg}<br/>\n`
+
+
+
     var obj_owner= utils.settings.get(guild,"serv_owner","kart");
 
     msg=""

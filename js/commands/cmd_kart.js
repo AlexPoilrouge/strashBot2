@@ -52,8 +52,8 @@ function _getKartingLevel(message, utils){
     return result
 }
 
-function _kartingClearanceCheck(message, utils, kart_cmd=null, clearanceLvl=null, requiredLvl=KARTING_LEVEL.KART_ADMIN){
-    if((!(_getKartingLevel(message, utils) & requiredLvl)) && (clearanceLvl===null || clearanceLvl<CLEARANCE_LEVEL.ADMIN_ROLE)){
+function _kartingClearanceCheck(message, utils, kart_cmd=undefined, clearanceLvl=undefined, requiredLvl=KARTING_LEVEL.KART_ADMIN){
+    if((!(_getKartingLevel(message, utils) & requiredLvl)) && (clearanceLvl===undefined || clearanceLvl<CLEARANCE_LEVEL.ADMIN_ROLE)){
         message.member.send(`[kart command] You don't have the clearance for `+
             `${(Boolean(kart_cmd))? `\`!kart ${kart_cmd}\`` : " that"}…`
         );
