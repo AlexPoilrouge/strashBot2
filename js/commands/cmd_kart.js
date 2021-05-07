@@ -2,6 +2,8 @@
 const CLEARANCE_LEVEL= require('../defines').CLEARANCE_LEVEL;
 const splitString= require('../utils').splitString;
 
+const KartServerInfo= require('./kart/serve_info').ServerInfo_Promise;
+
 const child_process= require("child_process");
 const fs= require( 'fs' );
 const path= require( 'path' );
@@ -21,6 +23,7 @@ let hereLog= (...args) => {console.log("[cmd_kart]", ...args);};
 var kart_settings= undefined;
 
 
+const KART_DEFAULT_SERV_PORT= 5029
 
 const KARTING_LEVEL={
     NONE:               0b000,
@@ -305,16 +308,15 @@ function _autoStartServer(utils){
 
 var _oldServInfos= undefined;
 
-function _checkServerStatus(utils){
-    var servInfoObj= _getServInfos();
-
-    if( Boolean(servInfoObj) &&
-        ( !Boolean(_oldServInfos) || !Boolean(_oldServInfos.players) ||
-          (servInfoObj.players.length !== _oldServInfos.players.length) ) )
-    {
+async function _checkServerStatus(utils){
+    var servInfo= (await _askServInfos())
+    if(Boolean(servInfo) && Boolean(servInfo.server) && servInfo.server.numberofplayer!==undefined &&
+        ( !Boolean(_oldServInfos) || !Boolean(_oldServInfos.server)) ||
+        ( servInfo.server.numberofplayer !== _oldServInfos.server.numberofplayer )
+    ){
         var bot= utils.getBotClient();
-        if(servInfoObj.players.length>1){
-            hereLog(`Changes in srb2kart server status detected… (player count: ${servInfoObj.players.length})`);
+        if(servInfo.server.numberofplayer>1){
+            hereLog(`Changes in srb2kart server status detected… (player count: ${servInfo.server.numberofplayer})`);
             bot.user.setActivity('Hosting SRB2Kart Races', { type: 'PLAYING' });
         }
         else{
@@ -1553,6 +1555,32 @@ function _getServInfos(){
     }
 }
 
+async function _askServInfos(){
+    if(!Boolean(kart_settings) || !Boolean(kart_settings.server_commands)
+        || !Boolean(kart_settings.server_commands.server_ip)
+        || (kart_settings.server_commands.server_ip.length<=0)
+    ){
+        hereLog(`[askServInfos] bad config…`);
+        return undefined;
+    }
+
+    var r= undefined
+    try{
+        var addr= kart_settings.server_commands.server_ip
+        var port= kart_settings.server_commands.server_port
+        port= ((!Boolean(port)) || (port.length<=0))?
+            KART_DEFAULT_SERV_PORT : port
+        r= (await KartServerInfo(addr, port))
+    }
+    catch(err){
+        hereLog(`[askServInfos] couldn't get server info at `
+            +`${addr}:${port} - ${err}`)
+        r= undefined
+    }
+
+    return r
+}
+
 async function _cmd_clip(cmdObj, clearanceLvl, utils){
     let message= cmdObj.msg_obj;
     let sub_cmd= cmdObj.args[0]
@@ -2160,18 +2188,93 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 return true;
             }
         }
-        else if(["server","info","about","?"].includes(args[0])){
-            str="";
-            if(_isServerRunning()){
-                str+="Strashbot SRB2Kart server is running!"
+        // else if(["server","info","about","?"].includes(args[0])){
+        //     str="";
+        //     if(_isServerRunning()){
+        //         str+="Strashbot SRB2Kart server is running!"
 
-                var servOwner= utils.settings.get(message.guild, "serv_owner");
+        //         var servOwner= utils.settings.get(message.guild, "serv_owner");
+        //         var owner= undefined;
+        //         if(Boolean(servOwner) && Boolean(owner= await utils.getBotClient().users.fetch(servOwner))){
+        //             str+=`\nL'admin désigné du serveur SRB2Kart est **${owner.username}**.`;
+        //         }
+        //         else{
+        //             str+=`\n⚠ Le serveur SRB2Kart n'a pas d'admin désigné… 😢`;
+        //         }
+
+        //         if (Boolean(kart_settings) && Boolean(kart_settings.server_commands)
+        //             && Boolean(kart_settings.server_commands.through_ssh)
+        //         ){
+        //             var _ip= kart_settings.server_commands.server_ip;
+        //             var _ipValid= Boolean(_ip) && Boolean(_ip.match(/^([0-9]{1,3}\.){3}[0-9]{1,3}$/))
+        //             var _addr= kart_settings.server_commands.server_addr;
+
+        //             str+= "\n\n\t"+ (
+        //                 (Boolean(_addr))?
+        //                     ( `Vous pouvez vous connecter au serveur en utilisant l'adresse: \`${_addr}\``
+        //                         + ((_ipValid)?`\n\t\t(ou l'ip: \`${_ip}\`)`:'') )
+        //                 : (_ipValid)?
+        //                     `Vous pouvez vous connecter au serveur en utilisant l'ip: ${_ip}`
+        //                 :   `❌ Erreur addresse du serveur indisponible…`
+        //             )
+        //         }
+        //         else{
+        //             var net= undefined;
+        //             if(Boolean(ifaces) && Boolean(ifaces['eth0']) && ifaces['eth0'].length>0 &&
+        //                 ( net= ifaces['eth0'].find(nif => {return Boolean(nif['address'].match(/^([0-9]{1,3}\.){3}[0-9]{1,3}$/))}) )
+        //             ){
+        //                 str+=`\n\n\tL'adresse ip du serveur est \`${net['address']}\``;
+        //             }
+        //         }
+
+        //         var infoStrObj= _getServInfos()
+        //         if(Boolean(infoStrObj)){
+        //             str+= `\n\nCurrent map: *${infoStrObj.current_map}*\n`;
+        //             str+= `${infoStrObj.spectators.length} spectators:\n`;
+        //             str+= `${(infoStrObj.spectators.length>0)?`\t*${infoStrObj.spectators.join("*; *")}*\n`:''}`;
+        //             str+= `${infoStrObj.players.length} players:\n`;
+        //             str+= `${(infoStrObj.players.length>0)?`\t*${infoStrObj.players.join("*; *")}*`:''}`;
+        //         }
+        //     }
+        //     else{
+        //         str+="Strashbot SRB2Kart server is inactive!";
+        //     }
+
+        //     if(str){
+        //         message.channel.send(str);
+        //         return true;
+        //     }
+        // }
+        else if(["server","info","about","?"].includes(args[0])){
+            var embed= {}
+            embed.title= "StrashBot server"
+            embed.color= 0xff0000ff //that's red (i hope? this rgba, right?)
+            if(_isServerRunning()){
+                if((Boolean(kart_settings) && Boolean(kart_settings.server_commands)
+                    && Boolean(kart_settings.server_commands.server_addr))
+                ){
+                    embed.thumbnail= {
+                        url: `http://${server_addr}/img/server/active_thumb.png`
+                    }
+                }
+
+                embed.fields=[]
+
+                var servOwner= utils.settings.get(message.guild, "serv_owner")
                 var owner= undefined;
                 if(Boolean(servOwner) && Boolean(owner= await utils.getBotClient().users.fetch(servOwner))){
-                    str+=`\nL'admin désigné du serveur SRB2Kart est **${owner.username}**.`;
+                    embed.fields.push({
+                        name: 'Responsable',
+                        value: `${owner.username}`,
+                        inline: true
+                    })
                 }
                 else{
-                    str+=`\n⚠ Le serveur SRB2Kart n'a pas d'admin désigné… 😢`;
+                    embed.fields.push({
+                        name: 'Responsable',
+                        value: `aucun`,
+                        inline: true
+                    })
                 }
 
                 if (Boolean(kart_settings) && Boolean(kart_settings.server_commands)
@@ -2181,46 +2284,143 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                     var _ipValid= Boolean(_ip) && Boolean(_ip.match(/^([0-9]{1,3}\.){3}[0-9]{1,3}$/))
                     var _addr= kart_settings.server_commands.server_addr;
 
-                    str+= "\n\n\t"+ (
-                        (Boolean(_addr))?
-                            ( `Vous pouvez vous connecter au serveur en utilisant l'adresse: \`${_addr}\``
-                                + ((_ipValid)?`\n\t\t(ou l'ip: \`${_ip}\`)`:'') )
-                        : (_ipValid)?
-                            `Vous pouvez vous connecter au serveur en utilisant l'ip: ${_ip}`
-                        :   `❌ Erreur addresse du serveur indisponible…`
-                    )
+                    embed.fields.push({
+                        name: 'Adresse de connexion',
+                        value: (
+                            (Boolean(_addr)?
+                                (`${_addr}`
+                                    +`${_ipValid?` (ou ${_ip})`:''}`
+                                )
+                            :   (_ipValid?_ip:"inconnue")
+                            )
+                        ),
+                        inline: true
+                    })
                 }
                 else{
                     var net= undefined;
                     if(Boolean(ifaces) && Boolean(ifaces['eth0']) && ifaces['eth0'].length>0 &&
                         ( net= ifaces['eth0'].find(nif => {return Boolean(nif['address'].match(/^([0-9]{1,3}\.){3}[0-9]{1,3}$/))}) )
                     ){
-                        str+=`\n\n\tL'adresse ip du serveur est \`${net['address']}\``;
+                        embed.fields.push({
+                            name: 'Adresse de connexion',
+                            value: net['address'],
+                            inline: true
+                        })
                     }
                 }
 
-                var infoStrObj= _getServInfos()
-                if(Boolean(infoStrObj)){
-                    str+= `\n\nCurrent map: *${infoStrObj.current_map}*\n`;
-                    str+= `${infoStrObj.spectators.length} spectators:\n`;
-                    str+= `${(infoStrObj.spectators.length>0)?`\t*${infoStrObj.spectators.join("*; *")}*\n`:''}`;
-                    str+= `${infoStrObj.players.length} players:\n`;
-                    str+= `${(infoStrObj.players.length>0)?`\t*${infoStrObj.players.join("*; *")}*`:''}`;
+                var serverInfos= (await _askServInfos())
+                if(Boolean(serverInfos)){
+                    var ss= serverInfos.server
+                    if(Boolean(ss) && Boolean(ss.servername)
+                        && ss.servername.length>0
+                    ){
+                        ss.title= `${ss.servername}`
+                    }
+                    if(Boolean(ss) && Boolean(ss.application)
+                        && ss.application.length>0
+                    ){
+                        ss.footer= {
+                            text:
+                                `${ss.application}` +
+                                `${(Boolean(ss.version) && Boolean(ss.subversion))?
+                                    `v${ss.version}.${ss.subversion}`
+                                :   ''
+                                }`
+                        }
+                    }
+
+                    embed.fields.push({
+                        name: 'Map',
+                        value:
+                            `${Boolean(ss)?
+                                `${ss.mapname} ${ss.maptitle}`
+                            :   'erreur'
+                            }`,
+                        inline: true
+                    })
+                    embed.fields.push({
+                        name: "Population",
+                        value:
+                            `${Boolean(ss)?
+                                `${ss.numberofplayer} / ${ss.maxplayer}`
+                            :   'erreur'
+                            }`,
+                        inline: true
+                    })
+
+                    var players= [], spectators= []
+                    var sp= serverInfos.players
+                    if(Boolean(sp) && sp.length>0){
+                        for (var player of sp){
+                            if(!Boolean(player.team) || player.team.length<=0
+                                || player.team==="UNKNOWN"
+                            )
+                                continue
+                            else if(player.team==="SPECTATOR"){
+                                spectators.push(player)
+                            }
+                            else{
+                                players.push(player)
+                            }
+                        }
+                    }
+                    var s_players='-', s_spectators='-'
+                    if(players.length>0){
+                        s_players=''
+                        for(var name of players){
+                            s_players+= `${name};\t `
+                        }
+                    }
+                    if(spectators.length>0){
+                        s_spectators=''
+                        for(var name of players){
+                            s_spectators+= `${name};\t `
+                        }
+                    }
+
+                    embed.fields.push({
+                        name: "Players",
+                        value: s_players,
+                        inline: false
+                    })
+                    embed.fields.push({
+                        name: "Spectators",
+                        value: s_spectators,
+                        inline: false
+                    })
+                }
+                else{
+                    embed.fields.push({
+                        name: 'Statut',
+                        value: '⚠️ ne répond pas!',
+                        inline: true
+                    })
                 }
             }
             else{
-                str+="Strashbot SRB2Kart server is inactive!";
+                if((Boolean(kart_settings) && Boolean(kart_settings.server_commands)
+                    && Boolean(kart_settings.server_commands.server_addr))
+                ){
+                    embed.thumbnail= {
+                        url: `http://${server_addr}/img/server/inactive_thumb.png`
+                    }
+                }
+                embed.fields.push({
+                    name: "Offline",
+                    value: "Le serveur semble inactif…",
+                    inline: false
+                })
             }
 
-            if(str){
-                message.channel.send(str);
-                return true;
-            }
+            message.channel.send('',embed)
+            return true
         }
         else if(["code","source","git"].includes(args[0])){
             if(Boolean(kart_settings) && Boolean(kart_settings.source_url)){
                 message.channel.send(`SRB2Kart server manager source at: <${kart_settings.source_url}>`);
-
+                
                 return true;
             }
             else{
