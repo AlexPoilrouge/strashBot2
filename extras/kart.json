@@ -5,7 +5,7 @@
             "restart":"/home/strashbot/.srb2kart/addon_script.sh RESTART_SERV",
             "is_active":"/home/strashbot/.srb2kart/addon_script.sh IS_ACTIVE_SERV",
             "through_ssh":true,
-            "server_ip":"192.168.1.13",
+            "server_ip":"193.70.41.86",
             "server_addr":"strashbot.fr",
             "server_port":"",
             "distant_user":"strashbot"

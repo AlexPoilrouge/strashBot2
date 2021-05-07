@@ -357,7 +357,11 @@ class KartServInfo{
     bye(){
         if (Boolean(this.soc)){
             hereLog("closing...")
-            this.soc.close()
+            try{
+                this.soc.close()
+            } catch(err){
+                hereLog(`[bye] couldn't close socket:\n\t${err}`)
+            }
         }
         if(Boolean(this.timer)){
             clearTimeout(this.timer)
@@ -387,7 +391,7 @@ function ServerInfo_Promise(addr, port, timeout=10000){
     }
 
     return new Promise((resolve,reject) =>{
-        var ksi= new KartServInfo(_ADDR, _PORT)
+        var ksi= new KartServInfo(addr, port)
         ksi.onTimeOut(()=>{
             ksi.bye()
             reject('TIMEDOUT')
