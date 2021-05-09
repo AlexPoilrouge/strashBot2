@@ -383,9 +383,21 @@ class KartServInfo{
     onServerBasicInfos(func){
         this.func_onServerBasicInfos= func
     }
+
+    static DecolorizeString(s){
+        var codes = [
+            "\x80","\x81","\x82","\x83","\x84","\x85","\x86","\x87",
+            "\x88","\x89","\x8a","\x8b","\x8c","\x8d","\x8e","\x8f"
+        ]
+        var r= s
+        for (var code of codes){
+            r= r.replace(code,'')
+        }
+        return r
+    }
 }
 
-function ServerInfo_Promise(addr, port, timeout=10000){
+function ServerInfo_Promise(addr, port, timeout=10000,decolorize=true){
     let isEmpty= (obj) =>{
         return (Object.keys(obj).length===0 && obj.constructor===obj)
     }
@@ -402,6 +414,11 @@ function ServerInfo_Promise(addr, port, timeout=10000){
                 reject('BAD_RESPONSE')
             }
             else{
+                if(decolorize){
+                    info.server['servername']=KartServInfo.DecolorizeString(
+                        info.server['servername']
+                    )
+                }
                 resolve(info)
             }
         })
