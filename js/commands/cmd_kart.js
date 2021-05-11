@@ -1551,6 +1551,8 @@ function _getServMode(){
                 return `${c}Elimination`
             case "JUICEBOX":
                 return `${c}JuiceBox`
+            case "ACRO":
+                return `${c}Acrobatics`
             default:
                 return `${c}${s}`
         }
