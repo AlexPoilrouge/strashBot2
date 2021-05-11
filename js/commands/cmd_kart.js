@@ -1505,6 +1505,60 @@ async function _askServInfos(){
     return r
 }
 
+function _getServMode(){
+    if(!Boolean(kart_settings) || !Boolean(kart_settings.config_commands)
+        || !Boolean(kart_settings.config_commands.serv_info)
+    ){
+        hereLog(`[getInfos] bad config…`);
+        return undefined;
+    }
+
+    var str= undefined
+    try{
+        var cmd= __kartCmd(kart_settings.config_commands.serv_info);
+        str= child_process.execSync(cmd, {timeout: 5000}).toString();
+    }
+    catch(err){
+        hereLog("[getInfos] Error while looking for server infos: "+err);
+        str= undefined
+    }
+
+    if(!Boolean(str)) return undefined
+
+    var obj= undefined
+    try{
+        obj= JSON.parse(str)
+    } catch(err){
+        hereLog(`[setServMode] couldn't get server mode info:\n\t${err}`)
+        obj= undefined
+    }
+    if(!Boolean(obj)) return undefined
+
+    if(!Boolean(obj.modes)){
+        hereLog(`[setServMode] No mode info recieved from \'${kart_settings.config_commands.serv_info}\'`)
+        return undefined
+    }
+    var t= obj.modes.map(m => {
+        var b= false
+        var s= (b=m.startsWith('*'))?m.substr(1):m
+        var c= b?'*':''
+        switch(s){
+            case "FRIEND":
+                return `${c}FriendMod`
+            case "SPBATK":
+                return `${c}SPB Attack`
+            case "ELIM":
+                return `${c}Elimination`
+            case "JUICEBOX":
+                return `${c}JuiceBox`
+            default:
+                return `${c}${s}`
+        }
+    })
+
+    return t
+}
+
 async function _cmd_clip(cmdObj, clearanceLvl, utils){
     let message= cmdObj.msg_obj;
     let sub_cmd= cmdObj.args[0]
@@ -2216,6 +2270,16 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                             }`,
                         inline: true
                     })
+
+                    var modes= _getServMode()
+                    if(Boolean(modes) && modes.length>=0){
+                        embed.fields.push({
+                            name: "Modes",
+                            value: modes.join('; '),
+                            inline: false
+                        })
+                    }
+
 
                     var players= [], spectators= []
                     var sp= serverInfos.players
