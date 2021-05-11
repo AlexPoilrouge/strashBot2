@@ -2272,7 +2272,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                     })
 
                     var modes= _getServMode()
-                    if(Boolean(modes) && modes.length>=0){
+                    if(Boolean(modes) && modes.length>0){
                         embed.fields.push({
                             name: "Modes",
                             value: modes.join('; '),
