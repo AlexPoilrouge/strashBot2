@@ -926,6 +926,137 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
     return false;
 }
 
+async function _cmd_addon_load(cmdObj, clearanceLvl, utils){
+    let message= cmdObj.msg_obj;
+    let sub_cmd= cmdObj.args[0]
+    let args= cmdObj.args.slice(1);
+
+    if(args.length===0 || ["get","dl","download","check"].includes(args[0])){
+        var str= undefined
+        try{
+            var cmd= __kartCmd(kart_settings.config_commands.get_addon_load_config);
+            str= child_process.execSync(cmd, {timeout: 32000}).toString();
+        }
+        catch(err){
+            hereLog("Error while looking for addons order file: "+err);
+            str= undefined
+        }
+
+        if(Boolean(str)){
+            if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
+                if(Boolean(kart_settings.http_url)){
+                    message.channel.send(`Srb2kart server's addons load order config file: ${kart_settings.http_url}/${str}`);
+                    return true;
+                }
+                else{
+                    message.channel.send("❌ Can't access srb2kart server's addons load order config file…")
+                    return false;
+                }
+            }
+            else if(fs.existsSync(str)){
+                message.channel.send("Srb2kart server's addons load order config file:",
+                    {
+                        files: [{
+                            attachment: `${str}`,
+                            name: `addon_load_order.txt`
+                        }]
+                    }
+                );
+
+                return true;
+            }
+            else{
+                message.channel.send("❌ Can't access server's addons load order config file…")
+                return false;
+            }
+        }
+        else{
+            message.channel.send("❌ Server internal error…")
+            return false;
+        }
+    }
+    else if(["set","up","ul","upload","change"].includes(args[0])){
+        if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`, clearanceLvl)) return false
+
+        if(Boolean(message.attachments) && message.attachments.size>=1){
+            var url= message.attachments.first().url;
+            
+            if ( !Boolean(kart_settings) || !Boolean(kart_settings.dirs.main_folder) ){
+                hereLog("[upload] no dest directory for addon order config dl");
+                message.channel.send(`❌ server internal error`);
+            }
+            else{
+                // await __uploading_cfg(message.channel,url);
+
+                var _b= false;
+                if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
+                    _b= await __ssh_download_cmd(
+                        kart_settings.config_commands.add_addon_order_config_url,
+                        message.channel, url, utils
+                    );
+                }
+                else{
+                    _b= await __downloading(message.channel, url,
+                        kart_settings.dirs.main_folder, utils, "new_addon_load_order.txt"
+                    );
+                }
+
+                if(!_b){
+                    hereLog("[uploading cfg] command fail");
+                    message.channel.send(`❌ internal error preventing addon order config upload…`);
+                    
+                    return false;
+                }
+
+                var str= undefined
+                try{
+                    var cmd= __kartCmd(kart_settings.config_commands.change_addon_order_config);
+                    str= child_process.execSync(cmd+" new_addon_load_order.txt", {timeout: 16000}).toString();
+                }
+                catch(err){
+                    hereLog("Error while changing addon order config: "+err);
+                    str= undefined
+                }
+
+                if(Boolean(str)){
+                    hereLog(`[change cfg] ret: ${str}`)
+                    let options= (str==="updated" && !kart_settings.server_commands.through_ssh)?
+                        {
+                            files: [{
+                                attachment: `${str}`,
+                                name: `addon_load_order.txt.diff`
+                            }]
+                        } : {}
+                    if(_isServerRunning()){
+                        message.channel.send(`\`addon_load_order.txt\` a bien été mis à jour.\n`+
+                            `Cependant, cela n'aura aucun effet pour la session déjà en cours\n` +
+                            ( (kart_settings.server_commands.through_ssh)?
+                                `\nDiff: ${kart_settings.http_url}/addon_load_order.txt.diff`
+                                : "Diff generated file" ),
+                            options
+                        );
+                    }
+                    else{
+                        message.channel.send(
+                            ( (kart_settings.server_commands.through_ssh)?
+                                `\nDiff: ${kart_settings.http_url}/addon_load_order.txtdiff`
+                                : "Diff generated file" ),
+                            options
+                        );
+                    }
+                }
+                else{
+                    message.channel.send(`❌ internal error while trying to update *addon_load_order.txt.cfg*…`);
+                }
+
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 async function ___stringFromID(guild, id){
     var member= undefined;
     try{
@@ -2369,6 +2500,9 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         else if (["config","startup"].includes(args[0])){
             return (await _cmd_config(cmdObj, clearanceLvl, utils))
         }
+        else if (["addon_load","addon_order","order","load_sequence"].includes(args[0])){
+            return (await _cmd_addon_load(cmdObj, clearanceLvl, utils))
+        }
         else if (["log","logs","log.txt"].includes(args[0])){
             var str= undefined
             try{
@@ -2495,24 +2629,19 @@ function cmd_help(cmdObj, clearanceLvl){
         "\t\t*[Base]*: addons that are loaded by default\n"+
         "\tIf `[pattern]` is given, this command will search for matching pattern amongs availabe addons.\n"+
         "\t\texample: `!kart addons ls rayman`\n\n"+
-        // "\t`!kart addons add [url]`\n\n"+
-        // "\tDownload an addon onto the server.\n\tIf `[url]` is used, the url must point directly at a file of valid extension (.pk3,.lua,.wad,.kart)"+
-        // " example: `https://url/bla/bla/addon.pk3`\n\tIf no url is given, the addon must be an attachment to the same message as the command, and still"+
-        // " have a valid addon extension (.pk3,.lua,.wad,.kart)\n"+
-        // "\t⚠ This addon will be added under the *[temporary]* section, meaning it will be removed after next sessions ends.\n\n"+
         "😎\t`!kart addons add [url]`\n\n"+
         "\tThe addon must be an attachment to the same message as the command, and have a valid addon extension (.pk3,.lua,.wad,.kart)\n\n"+
         "\t⚠ If the kart server is running, this addon will be added under the *[temporary]* section until next session…\n\n"+
-        // "\t`!kart addons add keep [url]`\n\n"+
-        // "\tSame as the previous command, except that the addons will be added into the *[downloaded]* section. Meaning it wont be removed"+
-        // " automatically after a session ends.\n\n"+
-        // "\t`!kart addons keep <addon_filename>`\n\n"+
-        // "\tMove an addon from the *[temporary]* section to the *[downloaded]* section.\n\n"+
         "😎\t`!kart addons rm <addon_filename>`\n\n"+
         "\tRemove the addon designated by the given name from the server.\n"+
         "\t⚠ this only works for addons under the *[downloaded]* section!\n\n"+
         "\t`!kart addons link`\n\n"+
-        "\tGet the link to DL a zip archives that contains all of the addons\n\n"
+        "\tGet the link to DL a zip archives that contains all of the addons\n\n"+
+        "\t`!kart addon_load get`\n\n"+
+        "\tAllows to download the current config file that sets rules to set the order in which the addons load when the server starts\n\n"+
+        "😎\t!kart addon_load set\n\n"+
+        "\tDownloads a new version of the addon load order config file onto the server\n"+
+        "\t⚠ The new version of the file must be provided as a file attachment to the same message as the command as a text file.\n"
     );
     cmdObj.msg_obj.author.send(
         "----\n*SRB2Kart server's startup config management:*\n\n"+
