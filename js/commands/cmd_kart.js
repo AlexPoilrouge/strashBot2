@@ -8,7 +8,8 @@ const child_process= require("child_process");
 const fs= require( 'fs' );
 const path= require( 'path' );
 const request = require('request');
-const urlExistSync = require("url-exist-sync");
+
+import urlExist from "url-exist";
 
 const my_utils= require('../utils.js')
 
@@ -391,11 +392,11 @@ async function __downloading(channel, url, destDir, utils, fileName=undefined){
 
 
     var retries= 16
-    while(retries>0 && !urlExistSync(url)){
+    while(retries>0 && !(await urlExist(url))){
         --retries;
         await my_utils.sleep()
     }
-    if (!urlExistSync(url)){
+    if (retries<=0){
         channel.send(`❌ L'url \`${url}\` ne semble pas exister…`);
         return
     }
@@ -495,11 +496,11 @@ async function __ssh_download_cmd(cmd, channel, url, utils, fileName=undefined){
 
     
     var retries= 16
-    while(retries>0 && !urlExistSync(url)){
+    while(retries>0 && !(await urlExist(url))){
         --retries;
         await my_utils.sleep()
     }
-    if (!urlExistSync(url)){
+    if (retries<=0){
         channel.send(`❌ L'url \`${url}\` ne semble pas exister…`);
         return
     }
