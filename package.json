@@ -15,11 +15,11 @@
     "fs": "0.0.1-security",
     "glob": "^7.1.6",
     "node-cron": "^2.0.3",
+    "node-fetch": "^2.6.1",
     "path": "^0.12.7",
     "request": "^2.88.2",
     "sqlite3": "^5.0.0",
     "unzipper": "^0.10.11",
-    "url-exist": "^3.0.0",
     "xml2json": "^0.12.0"
   }
 }

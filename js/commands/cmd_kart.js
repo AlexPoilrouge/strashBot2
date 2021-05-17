@@ -9,7 +9,7 @@ const fs= require( 'fs' );
 const path= require( 'path' );
 const request = require('request');
 
-import urlExist from "url-exist";
+const fetch = require('node-fetch');
 
 const my_utils= require('../utils.js')
 
@@ -387,12 +387,18 @@ async function cmd_init_per_guild(utils, guild){
     }
 }
 
+async function url_availabe(url){
+    return new Promise((resolve)=>{
+        fetch(url, {method: 'HEAD'}).then(()=>{resolve(true)}).catch(()=>{resolve(false)})
+    })
+}
+
 async function __downloading(channel, url, destDir, utils, fileName=undefined){
     var filename= (!Boolean(fileName))? url.split('/').splice(-1)[0] : fileName;
 
 
     var retries= 16
-    while(retries>0 && !(await urlExist(url))){
+    while(retries>0 && !(await url_availabe(url))){
         --retries;
         await my_utils.sleep()
     }
@@ -496,7 +502,7 @@ async function __ssh_download_cmd(cmd, channel, url, utils, fileName=undefined){
 
     
     var retries= 16
-    while(retries>0 && !(await urlExist(url))){
+    while(retries>0 && !(await url_availabe(url))){
         --retries;
         await my_utils.sleep()
     }
