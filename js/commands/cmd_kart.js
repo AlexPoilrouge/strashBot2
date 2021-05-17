@@ -10,6 +10,8 @@ const path= require( 'path' );
 const request = require('request');
 const urlExistSync = require("url-exist-sync");
 
+const my_utils= require('../utils.js')
+
 const os = require('os');
 const ifaces = os.networkInterfaces();
 
@@ -388,6 +390,11 @@ async function __downloading(channel, url, destDir, utils, fileName=undefined){
     var filename= (!Boolean(fileName))? url.split('/').splice(-1)[0] : fileName;
 
 
+    var retries= 16
+    while(retries>0 && !urlExistSync(url)){
+        --retries;
+        await my_utils.sleep()
+    }
     if (!urlExistSync(url)){
         channel.send(`❌ L'url \`${url}\` ne semble pas exister…`);
         return
@@ -487,6 +494,11 @@ async function __ssh_download_cmd(cmd, channel, url, utils, fileName=undefined){
     var filename= (!Boolean(fileName))? url.split('/').splice(-1)[0] : fileName;
 
     
+    var retries= 16
+    while(retries>0 && !urlExistSync(url)){
+        --retries;
+        await my_utils.sleep()
+    }
     if (!urlExistSync(url)){
         channel.send(`❌ L'url \`${url}\` ne semble pas exister…`);
         return
@@ -1002,7 +1014,7 @@ async function _cmd_addon_load(cmdObj, clearanceLvl, utils){
                 }
 
                 if(!_b){
-                    hereLog("[uploading cfg] command fail");
+                    hereLog("[uploading load order config] command fail");
                     message.channel.send(`❌ internal error preventing addon order config upload…`);
                     
                     return false;
@@ -2639,9 +2651,11 @@ function cmd_help(cmdObj, clearanceLvl){
         "\tGet the link to DL a zip archives that contains all of the addons\n\n"+
         "\t`!kart addon_load get`\n\n"+
         "\tAllows to download the current config file that sets rules to set the order in which the addons load when the server starts\n\n"+
-        "😎\t!kart addon_load set\n\n"+
+        "😎\t`!kart addon_load set`\n\n"+
         "\tDownloads a new version of the addon load order config file onto the server\n"+
-        "\t⚠ The new version of the file must be provided as a file attachment to the same message as the command as a text file.\n"
+        "\t⚠ The new version of the file must be provided as a file attachment to the same message as the command as a text file.\n\n"+
+        "\t__Example of `addon_load _order_config.txt`__: making sure *addonA* is loaded firt, *addonB* last, and *addonC* before *addonD*\n"+
+        "```\nFIRST: \"addonA.pk3\"\n\"addonC.wad\" < \"addonD.pk3\"\n\"\"LAST: \"addonB.pk3\"\n```\n"
     );
     cmdObj.msg_obj.author.send(
         "----\n*SRB2Kart server's startup config management:*\n\n"+

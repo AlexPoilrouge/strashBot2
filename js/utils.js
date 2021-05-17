@@ -310,9 +310,14 @@ class DataBaseManager{
     }
 }
 
+function sleep(ms=1000){
+    return new Promise(resolve => setTimeout(resolve, ms))
+}
+
 module.exports.JSONCheck= JSONCheck;
 module.exports.commandDecompose= commandDecompose;
 module.exports.commandNameFromFilePath= commandNameFromFilePath;
 module.exports.commandArgsOptionsExtract= commandArgsOptionsExtract;
 module.exports.splitString= splitString;
 module.exports.DataBaseManager= DataBaseManager;
+module.exports.sleep= sleep;
