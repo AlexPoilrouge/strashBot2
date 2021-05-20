@@ -1703,6 +1703,8 @@ function _getServMode(){
                 return `${c}JuiceBox`
             case "ACRO":
                 return `${c}Acrobatics`
+            case "HP":
+                return `${c}HP`
             default:
                 return `${c}${s}`
         }
