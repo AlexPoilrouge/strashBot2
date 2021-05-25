@@ -737,7 +737,7 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
         if(Boolean(args[1])){
             var resp= _removeAddonsConfig(args[1]);
             if(Boolean(resp) && resp[0] && Boolean(resp[1])){
-                if(resp[1]==="SCHEDULED_FOR_REMOVAL"){
+                if(resp[1]==="SCHEDULED_FOR_REMOVAL\n"){
                     message.channel.send("Addons will be removed on server restart:\n\t"+args[1]);
                     return true
                 }
