@@ -34,28 +34,31 @@ function __isDateValid(date){
 
 function __g_authentication(g_auth_obj){
     return new Promise((resolve, reject) =>{
-        if (!(Boolean(g_auth_obj) && Boolean(g_auth_obj.client_email) && Boolean(g_auth_obj.private_key))) reject("wtf, invalid auth_obj?!")
+        if (!(Boolean(g_auth_obj) && Boolean(g_auth_obj.client_email) && Boolean(g_auth_obj.private_key))){
+            reject("wtf, invalid auth_obj?!")
+        }
+        else{
+            let jwtClient = new google.google.auth.JWT(
+                g_auth_obj.client_email,
+                null,
+                g_auth_obj.private_key,
+                [G_AUTH_URL_CALENDAR]
+            );
 
-        let jwtClient = new google.google.auth.JWT(
-            g_auth_obj.client_email,
-            null,
-            g_auth_obj.private_key,
-            [G_AUTH_URL_CALENDAR]
-        );
-
-        jwtClient.authorize(function (err, tokens) {
-            if (err) {
-                reject(err);
-                return;
-            } else {
-                resolve(jwtClient)
-            }
-        });
+            jwtClient.authorize(function (err, tokens) {
+                if (err) {
+                    reject(err);
+                    return;
+                } else {
+                    resolve(jwtClient)
+                }
+            });
+        }
     })
 }
 
 async function _request_JWTClient(){
-    return new Promise((reject, resolve) => {
+    return new Promise((resolve, reject) => {
         var fn= path.resolve(__dirname, G_SERVICE_ACCOUNT_FILEPATH)
         if(fs.existsSync(fn)){
             var data= fs.readFileSync(fn);
@@ -63,7 +66,7 @@ async function _request_JWTClient(){
             var r= undefined;
             try{
                 if(Boolean(data) && Boolean(r=JSON.parse(data))){
-                    __g_authentication(data).then((jwtClient) => {
+                    __g_authentication(r).then((jwtClient) => {
                         resolve(jwtClient)
                     }).catch(err => {
                         reject(`Error authenticating: ${err}`)
@@ -93,7 +96,7 @@ function _request_calendarEventsInfos(cal_id, monthsBack=6){
                     calendarId: cal_id,
                     orderBy: 'startTime',
                     singleEvents: true,
-                    timeMin: minDate
+                    timeMin: dateMin
                 },
                 function (err, response) {
                     if (err) {
@@ -568,21 +571,26 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         var resp=`[${message.guild.name}] **List of (g)calendars**:\n`
         
         var calendars= utils.settings.get(message.guild, 'calendars')
-        for (var k in calendars){
-            resp+= `\t\`${k}\`:\n`
-            if (Boolean(calendars[k])){
-                for (var ch_id in Object.keys(calendars[k])){
-                    var channel= undefined
-                    if (Boolean(channel=(message.guild.channels.cache.get(ch_id)))){
-                        resp+= `\t\t- *${channel.name}}*`
-                    }
-                    else{
-                        resp+= `\t\t- *⚠ Unknown channel*`
+        if(!Boolean(calendars) || Object.keys(calendars).length<=0){
+            resp+= `\t- *there are no calendar set* -\n`
+        }
+        else{
+            for (var k in calendars){
+                resp+= `\t\`${k}\`:\n`
+                if (Boolean(calendars[k])){
+                    for (var ch_id in Object.keys(calendars[k])){
+                        var channel= undefined
+                        if (Boolean(channel=(message.guild.channels.cache.get(ch_id)))){
+                            resp+= `\t\t- *${channel.name}}*`
+                        }
+                        else{
+                            resp+= `\t\t- *⚠ Unknown channel*`
+                        }
                     }
                 }
-            }
-            else{
-                resp+= `\t\t- *⚠ No channels*`
+                else{
+                    resp+= `\t\t- *⚠ No channels*`
+                }
             }
         }
 
@@ -593,6 +601,13 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         var resp=`[${message.guild.name}] **(g)calendars clean**:\n`
 
         var calendars= utils.settings.get(message.guild, 'calendars')
+        if((!Boolean(calendars)) || Object.keys(calendars).length<=0){
+            resp+= `\t- *nothing to do* -\n`
+
+            message.author.send(resp)
+
+            return true
+        }
         var cal_del=[]
         for (var k in calendars){
             var channels= calendars[k]
@@ -640,28 +655,28 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 var resp= `Able to authenticate and fecth infos from "${cal_id}"`
                 var l= 0
                 if(Boolean(cal_infos.data) && Boolean(cal_infos.data.items)){
-                    if(Boolean(cal_infos.data.items) && (l=cal_infos.data.items.length>0)){
-                        resp+= `\n- found ${l} event${(l>1)?'s':''}`
+                    if(Boolean(cal_infos.data.items) && ((l=cal_infos.data.items.length)>0)){
+                        resp+= `\n\t- found ${l} event${(l>1)?'s':''}`
                     }
                     else{
-                        resp+= `\n- no event found`
+                        resp+= `\n\t- no event found`
                     }
                 }
                 else{
-                    resp+= `\n- ⚠ can't access to events data though...`
+                    resp+= `\n\t- ⚠ can't access to events data though...`
                 }
 
                 message.channel.send(resp)
                 return true
             }
             else{
-                message.author.send(`Unable to access data from "${cal_id}"`)
+                message.author.send(`[${message.guild.name}][calendar]{${args[0]}}{${cal_id}} Unable to access data from "${cal_id}"`)
                 return false
             }
         }
         catch(err){
-            hereLog(`[test]{${cal_id}} request events infos failed - ${err}`)
-            message.author.send(`Unable to access data from "${cal_id}" for some reason (internal error)`)
+            hereLog(`[${args[0]}]{${cal_id}} request events infos failed - ${err}`)
+            message.author.send(`[${message.guild.name}][calendar]{${args[0]}}{${cal_id}} Unable to access data from "${cal_id}" for some reason (internal error)`)
             return false
         }
     }
@@ -691,7 +706,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                     for (var msg_id in messages){
                         var msg= undefined
                         try{
-                            if(Boolean(msg=(await channel.messages.fetch(msg_id)))){
+                            if(Boolean(msg=(await (channel.messages.fetch(msg_id))))){
                                 msg.delete().then( m => {}).catch(err => {
                                     hereLog(`[remove] error while removing message ${ch_id}/${msg_id} (channel ${channel.name}) - ${err}`)
                                 })
