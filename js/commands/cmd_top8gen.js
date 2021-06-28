@@ -339,7 +339,7 @@ async function _generateTop8(template, genInfos, channel){
 
 
 function __rosterCharNameProcess(str){
-    var num_match= str.match(/^([0-9]*[1-9][ae]?)(\.[0-9]+)?$/)
+    var num_match= str.toLowerCase().match(/^([0-9]*[1-9][ae]?)(\.[0-9]+)?$/)
     if(Boolean(num_match) && Boolean(num_match[1])){
         return `${num_match[1]}${(Boolean(num_match[2]))?`${num_match[2]}`:''}`
     }
@@ -356,7 +356,7 @@ function __rosterCharNameProcess(str){
             for (var key of keys){
                 var fighter= fightersOBJ[key]
                 var regex= (Boolean(fighter) && Boolean(fighter.regex))?(new RegExp(fighter.regex)):undefined
-                if(Boolean(regex) && (Boolean(input.toLowerCase().match(regex)) || Boolean(input===fighter.number))){
+                if(Boolean(regex) && (Boolean(input.toLowerCase().match(regex)) || Boolean(input.toLowerCase()===fighter.number))){
                     return `${fighter.number}${(Boolean(skin_test) && Boolean(skin_test[1]))?`.${skin_test[1]}`:''}`
                 }
             }
@@ -867,7 +867,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 for(var i=1; i<=4; ++i){
                     var roster_opt= getOpt(`top${topNum}-char${i}`,undefined)
                     if(Boolean(roster_opt)){
-                        r[i-1]= __rosterCharNameProcess(roster_opt)
+                        r[i-1]= __rosterCharNameProcess(roster_opt.toLowerCase())
                     }
                 }
                 return r
