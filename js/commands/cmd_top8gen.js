@@ -442,14 +442,14 @@ async function _evaluateArgsOptions(args, options, guild, user){
         var player_infos= undefined;
 
         if(!Boolean(option_name) || !Boolean(option_value=options[option_name])){
-            if(Boolean(sgg_infos) && Boolean(sgg_infos[p]) && Boolean(sgg_infos[p].name)){
+            if(Boolean(sgg_infos) && Boolean(sgg_infos.top8) && Boolean(sgg_infos.top8[p]) && Boolean(sgg_infos.top8[p].name)){
                 if(Boolean(p_db)){
-                    player_infos= (await p_db.getPlayerInfos(sgg_infos[p].name))
+                    player_infos= (await p_db.getPlayerInfos(sgg_infos.top8[p].name))
                     rep.infos[option_name]= `Player ${p} name is: "${player_infos.name}"`
                     test_infos[p]['name']= player_infos.name;
                 }
                 else{
-                    rep.infos[`smashgg${p}-name`]= `Player ${p} name is: "${sgg_infos[p].name}"`
+                    rep.infos[`smashgg${p}-name`]= `Player ${p} name is: "${sgg_infos.top8[p].name}"`
                     test_infos[p]['name']= player_infos.name;
                 }
             }
