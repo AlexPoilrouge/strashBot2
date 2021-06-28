@@ -325,7 +325,8 @@ async function _generateTop8(template, genInfos, channel){
 
         if(b_svg){
             channel.send(
-                ((z_b)?`Source at: <${genInfos.http_addr}/top8.zip>`:''),
+                // ((z_b)?`Source at: <${genInfos.http_addr}/top8.zip>`:''),
+                `Generated top8 image: `,
                 { files : [ `${genInfos.destination_dir}/top8.png` ] }
             )
         }
