@@ -708,7 +708,7 @@ async function _evaluateArgsOptions(args, options, guild, user){
                     }
                     else if(Boolean(ch_match=ch_input.match(/^((.+)[\s\.]([0-9]{1,2}))|(.+)$/))){
                         var n_match= (Boolean(ch_match[2]))?ch_match[2]:ch_match[4]
-                        if(Boolean(ch_key=ch_keys.find(k => {return Boolean(n_match.match(RegExp(fightersOBJ[k].regex)))}))){
+                        if(Boolean(ch_key=ch_keys.find(k => {return Boolean(n_match.toLowerCase().match(RegExp(fightersOBJ[k].regex)))}))){
                             character= {name: ch_key}
                             if(Boolean(ch_match[3])){
                                 character['skin']= ch_match[3];
