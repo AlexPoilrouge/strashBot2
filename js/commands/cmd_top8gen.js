@@ -389,7 +389,7 @@ async function _fetchSmashGGInfos(url){
         var r_obj= {
             numEntrants: r.numEntrants,
             venueAdress: r.venueAdress,
-            date: r.date,
+            date: (Boolean(r.date.toLocaleDateString))?r.date.toLocaleDateString('fr-FR'):d.date,
             top8: {}
         }
 
