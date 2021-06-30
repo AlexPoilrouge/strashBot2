@@ -474,9 +474,9 @@ async function _evaluateArgsOptions(args, options, guild, user){
 
         option_name= `top${p}-twitter`;
         if(!Boolean(option_name) || !Boolean(option_value=options[option_name])){
-            if(Boolean(sgg_infos) && Boolean(sgg_infos[p]) && Boolean(sgg_infos[p].twitter)){
-                rep.infos[`smashgg${p}-twitter`]= `Player ${p} ${f_pname} twitter set to ${sgg_infos[p].twitter}`
-                test_infos[p]['twitter']= sgg_infos[p].twitter;
+            if(Boolean(sgg_infos) && Boolean(sgg_infos.top8) && Boolean(sgg_infos.top8[p]) && Boolean(sgg_infos.top8[p].twitter)){
+                rep.infos[`smashgg${p}-twitter`]= `Player ${p} ${f_pname} twitter set to ${sgg_infos.top8[p].twitter}`
+                test_infos[p]['twitter']= sgg_infos.top8[p].twitter;
             }
             else{
                 rep.warnings[option_name]= `No twitter set for player ${p} ${f_pname}; Use option \`?${option_name}="@twitter"\` to add it manually`
@@ -490,9 +490,9 @@ async function _evaluateArgsOptions(args, options, guild, user){
         option_name= `top${p}-team`
         if(Boolean(option_value=options[option_name])) player_infos.team= option_value;
         if(!Boolean(player_infos) || !Boolean(player_infos.team)){
-            if(Boolean(sgg_infos) && Boolean(sgg_infos[p]) && Boolean(sgg_infos[p].team)){
-                rep.infos[`smashgg${p}-team`]= `Player ${p} ${f_pname} team set to ${sgg_infos[p].team}`
-                test_infos[p]['team']= sgg_infos[p].team               
+            if(Boolean(sgg_infos) && Boolean(sgg_infos.top8) && Boolean(sgg_infos.top8[p]) && Boolean(sgg_infos.top8[p].team)){
+                rep.infos[`smashgg${p}-team`]= `Player ${p} ${f_pname} team set to ${sgg_infos.top8[p].team}`
+                test_infos[p]['team']= sgg_infos.top8[p].team               
             }
             else{
                 rep.warnings[option_name]= `No team found for player ${p} ${f_pname} in DataBase; Use option \`?${tmp}="team"\` to add it manually`
