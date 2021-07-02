@@ -124,7 +124,7 @@ async function _checkCalendarUpdate(guild, utils){
     update_check= (!Boolean(update_check))?{}:update_check
 
     if (Boolean(calendars_obj)){
-        for (var cal_id in Object.keys(calendars_obj)){
+        for (var cal_id of Object.keys(calendars_obj)){
             var channel_object= undefined
             if(Boolean(channel_object=calendars_obj[cal_id])){
                 var events= (await _request_calendarEventsInfos(calendar_id))
@@ -136,7 +136,7 @@ async function _checkCalendarUpdate(guild, utils){
                     (!Boolean(update_check[cal_id])) ||
                     (Boolean(events.data.updated) && ((!Boolean(update_check[cal_id].next)) || (new Date(events.data.updated)).getTime()>update_check[cal_id].lastTime) )
                 ){
-                    for (var ch_id in Object.keys(channel_object)){
+                    for (var ch_id of Object.keys(channel_object)){
                         var channel= undefined
                         if (Boolean(ch_id) && Boolean(channel=guild.channels.cache.get(ch_id))){
                             var l_msg_id= (Boolean(channel_object[ch_id]))? channel_object[ch_id] : []
@@ -177,15 +177,15 @@ async function cmd_init_per_guild(utils, guild){
     var update_check= utils.settings.get(guild,'update_check')
     var b_updating= false
     if(Boolean(calendars_object)){
-        for (var cal_id in Object.keys(calendars_object)){
+        for (var cal_id of Object.keys(calendars_object)){
             var chan_obj= calendars_object[cal_id]
             if(Boolean(chan_obj)){
-                for (var chan_id in Object.keys(chan_obj)){
+                for (var chan_id of Object.keys(chan_obj)){
                     var channel= undefined
                     if(Boolean(channel=guild.channels.cache.get(chan_id))){
                         var msg_obj= chan_obj[chan_id]
                         if(Boolean(msg_obj)){
-                            for (var msg_id in msg_obj){
+                            for (var msg_id of msg_obj){
                                 if (Boolean(msg_id)){
                                     var message= undefined
                                     try{
@@ -212,7 +212,7 @@ async function cmd_init_per_guild(utils, guild){
         }
 
         utils.settings.set(guild, 'update_check', update_check)
-        utils.settings.set(channel.guild, 'calendars', calendars_object)
+        utils.settings.set(guild, 'calendars', calendars_object)
 
         if(b_updating){
             _checkCalendarUpdate(guild, utils)
@@ -255,7 +255,7 @@ function ___metaTextInfoFromDescription(descriptionText){
 
 function ___getEmoteBulletFromTagList(tagList, bulletTagDict, defaultBullet='🔵'){
     var r= defaultBullet
-    for (var tag in tagList){
+    for (var tag of tagList){
         var _b= bulletTagDict[tag]
         if (Boolean(_b) && _b.length>0){
             r= _b
@@ -270,7 +270,7 @@ function ___getCategoryFromTagList(tagList, catList){
         return "unknown"
     }
 
-    for (var tag in tagList){
+    for (var tag of tagList){
         if (catList.includes(tag)){
             return tag
         }
@@ -373,7 +373,7 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
 }
 
 async function _update_calendar_channel(calendar_id, channel, utils, message_id_list, cal_events){
-    for (var msg_id in message_id_list){
+    for (var msg_id of message_id_list){
         var message= undefined
         try{
             if(Boolean(msg_id) && Boolean(message=(await (channel.messages.fetch(msg_id))))){
@@ -389,7 +389,7 @@ async function _update_calendar_channel(calendar_id, channel, utils, message_id_
         var resp= ""
         var foundCategories= []
         var l_txtCatObj= []
-        for (var event_item in cal_events.items){
+        for (var event_item of cal_events.items){
             var obj= __textCatObj_fromEventItem(channel.guild, utils, event_item)
             if (Boolean(obj) && Boolean(obj.text) && Boolean(obj.text.length)){
                 l_txtCatObj.push(obj)
@@ -414,11 +414,11 @@ async function _update_calendar_channel(calendar_id, channel, utils, message_id_
                 foundCategories= foundCategories.concat([ 'outdated' ])
             }
 
-            for (var cat in foundCategories){
+            for (var cat of foundCategories){
                 resp+= `#**${(cat==='unknown')?"Divers":((cat==="outdated")?"Terminé":cat)}** :\n\n`
                 
                 var l_events= l_txtCatObj.filter(obj => {return (Boolean(obj) && obj.category===cat)})
-                for (var ev in l_events){
+                for (var ev of l_events){
                     resp+= `\t${ev}\n\n`
                 }
             }
@@ -502,11 +502,11 @@ function __list_tags_and_categories(utils, guild){
     var str= `__category list__:\n`
     var cal_cat_list= utils.settings.get(guild, 'categories')
     if ((!Boolean(cal_cat_list)) || (cal_cat_list.length<=0)){
-        str+= `\t⋅ no categories data`
+        str+= `\t⋅ no categories data\n`
     }
     else{
         var i= 0
-        for (var c in cal_cat_list){
+        for (var c of cal_cat_list){
             str+= `\t⋅ #${c}${(i<=0)?' (default)':''}\n`
             ++i
         }
@@ -515,10 +515,10 @@ function __list_tags_and_categories(utils, guild){
     var cal_tags_dict= utils.settings.get(guild, 'tags')
     str+= `__tag list__:\n`
     if ((!Boolean(cal_tags_dict)) || (Object.keys(cal_tags_dict)).length<=0){
-        str+= `\t⋅ no tags data`
+        str+= `\t⋅ no tags data\n`
     }
     else{
-        for (var t in Object.keys(cal_tags_dict)){
+        for (var t of Object.keys(cal_tags_dict)){
             str+= `\t⋅ ${cal_tags_dict[t]} - #${t}\n`
         }
     }
@@ -531,7 +531,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
     let message= cmdObj.msg_obj;
     let args= cmdObj.args;
 
-    if(args[0]==="set" && (clearanceLvl>CLEARANCE_LEVEL.NONE)){
+    if(['set','add'].includes(args[0]) && (clearanceLvl>CLEARANCE_LEVEL.NONE)){
         if(args.length<3){
             message.author.send(`[${message.guild.name}][calendar]{${args[0]}} - needs 2 arguments: \`!calendar add calendar_id@gmail.com #channelMention\``)
             return false
@@ -560,14 +560,14 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         else if(!Boolean(calendars[cal_id])){
             calendars[cal_id]= ch_obj
         }
-        else if (!calendars[cal_id][channel.id]){
-            calendars[cal_id][channel.id]= {}
+        else if (!Boolean(calendars[cal_id][channel.id])){
+            calendars[cal_id][channel.id]= []
         }
         utils.settings.set(message.guild, 'calendars', calendars);
 
         return true
     }
-    else if (args[0]==="get" && (clearanceLvl>CLEARANCE_LEVEL.NONE)){
+    else if (['get','ls','list','all'].includes(args[0]) && (clearanceLvl>CLEARANCE_LEVEL.NONE)){
         var resp=`[${message.guild.name}] **List of (g)calendars**:\n`
         
         var calendars= utils.settings.get(message.guild, 'calendars')
@@ -578,12 +578,14 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             for (var k in calendars){
                 resp+= `\t\`${k}\`:\n`
                 if (Boolean(calendars[k])){
-                    for (var ch_id in Object.keys(calendars[k])){
+                    for (var ch_id of Object.keys(calendars[k])){
+                        hereLog(`Uuuuh yeah? hello? ${ch_id} ?! wtf... ${Object.keys(calendars[k])}`)
                         var channel= undefined
                         if (Boolean(channel=(message.guild.channels.cache.get(ch_id)))){
-                            resp+= `\t\t- *${channel.name}}*`
+                            resp+= `\t\t- *${channel.name}*`
                         }
                         else{
+                            hereLog(`[yeah]k=${k}, cal[k]=${JSON.stringify(calendars[k])}, ch_id=${ch_id}`)
                             resp+= `\t\t- *⚠ Unknown channel*`
                         }
                     }
@@ -613,7 +615,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             var channels= calendars[k]
 
             var remaining_ch= 0
-            for (var ch_id in Object.keys(channels)){
+            for (var ch_id of Object.keys(channels)){
                 if (!Boolean(message.guild.channels.cache.get(ch_id))){
                     delete calendars[k][ch_id]
                 }
@@ -634,7 +636,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
         }
 
-        for (var k in cal_del){
+        for (var k of cal_del){
             delete calendars[k]
         }
         utils.settings.set(message.guild, 'calendars', calendars);
@@ -703,7 +705,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             if(Boolean(channel=(message.guild.channels.cache.get(ch_id)))){
                 var messages= ch_obj[ch_id]
                 if (Boolean(messages)){
-                    for (var msg_id in messages){
+                    for (var msg_id of messages){
                         var msg= undefined
                         try{
                             if(Boolean(msg=(await (channel.messages.fetch(msg_id))))){
@@ -725,7 +727,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             cal_ch_rm(channel.id)
         }
         else{
-            for (var channel_id in Object.keys(ch_obj)){
+            for (var channel_id of Object.keys(ch_obj)){
                 cal_ch_rm(channel_id)
             }
             delete calendars[cal_id]
@@ -895,7 +897,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         }
 
         var b= false
-        for (var cal_id in Object.keys(calendars)){
+        for (var cal_id of Object.keys(calendars)){
             var chan_obj= undefined
             if (Boolean(cal_id) && Boolean(chan_obj=calendars[cal_id])){
                 try{
@@ -909,6 +911,10 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
         return b
     }
+    else{
+        message.author.send(`[${message.guild.name}][calendar]{${args[0]}} - unknown command`)
+        return false
+    }
 }
 
 
@@ -921,7 +927,7 @@ function cmd_event(eventName, utils){
 
         var calendars_object= utils.settings.get(channel.guild, 'calendars')
         if(Boolean(calendars_object)){
-            for (var cal_id in Object.keys(calendars_object)){
+            for (var cal_id of Object.keys(calendars_object)){
                 var chan_obj= calendars_object[cal_id]
                 if(Boolean(chan_obj[channel.id])){
                     delete chan_obj[channel.id]
@@ -941,13 +947,13 @@ function cmd_event(eventName, utils){
     else if("messageDelete"){
         var message= arguments[2];
 
-        var calendars_object= utils.settings.get(channel.guild, 'calendars')
+        var calendars_object= utils.settings.get(message.guild, 'calendars')
         if(Boolean(calendars_object)){
-            for (var chan_obj in Object.values(calendars_object)){
+            for (var chan_obj of Object.values(calendars_object)){
                 if(Boolean(chan_obj)){
-                    for(var msg_list in Object.values(chan_obj)){
+                    for(var msg_list of Object.values(chan_obj)){
                         if(Boolean(msg_list) && msg_list.length>0){
-                            for (var msg_id in msg_list){
+                            for (var msg_id of msg_list){
                                 if(message.id===msg_id){
                                     next_auto_update= true
 
