@@ -84,6 +84,7 @@ async function _request_JWTClient(){
 }
 
 function _request_calendarEventsInfos(cal_id, monthsBack=6){
+    hereLog(`[_request_calendarEventsInfos]{${cal_id},${monthsBack}}`)
     var dateMin= new Date()
     dateMin.setMonth(dateMin.getMonth()-monthsBack)
 
@@ -127,7 +128,7 @@ async function _checkCalendarUpdate(guild, utils){
         for (var cal_id of Object.keys(calendars_obj)){
             var channel_object= undefined
             if(Boolean(channel_object=calendars_obj[cal_id])){
-                var events= (await _request_calendarEventsInfos(calendar_id))
+                var events= (await _request_calendarEventsInfos(cal_id))
                 if ((!Boolean(events)) || (!Boolean(events.data))){
                     hereLog(`[update_calendar]{${calendar_id}} bad fetch of events for calendar '${calendar_id}'`)
                     break
@@ -140,7 +141,7 @@ async function _checkCalendarUpdate(guild, utils){
                         var channel= undefined
                         if (Boolean(ch_id) && Boolean(channel=guild.channels.cache.get(ch_id))){
                             var l_msg_id= (Boolean(channel_object[ch_id]))? channel_object[ch_id] : []
-                            var _t= (await _update_calendar_channel(calendar_id, channel, l_msg_id, events))
+                            var _t= (await _update_calendar_channel(calendar_id, channel, utils, l_msg_id, events))
 
                             if(_t) update_check[cal_id]['lastTime']= Date.now()
                             update_check[cal_id]['unnecessary']= _t
@@ -281,7 +282,7 @@ function ___getCategoryFromTagList(tagList, catList){
 
 function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFAULT_TIMEZONE, displayTimezone=DEFAULT_TIMEZONE){
     var txt_title= undefined
-    if (!(Boolean(txt_title=event_item.summary) && title.length>0)){
+    if (!(Boolean(txt_title=event_item.summary) && txt_title.length>0)){
         hereLog("[event_to_text] item without title?")
         return undefined
     }
@@ -308,15 +309,21 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
     if(!Boolean(startDate)) return undefined;
 
     var endDate= __getDate('end')
+    let HourTime= 3600000
+    let DayTime= 24*HourTime
     if(Boolean(endDate)){
-        let HourTime= 3600000
-        let DayTime= 24*HourTime
-
+        hereLog(`[test] startDate: ${JSON.stringify(endDate)}`)
+        hereLog(`[test] endDate: ${JSON.stringify(endDate)}`)
         var timeHourDiff= Math.floor((endDate.getTime()-startDate.getTime())/HourTime)
         if(timeHourDiff>=12){
             var d_rx= /^([0-9]{2})\/[0-9]{2}\/[0-9]{4}\,\s*([0-9]{2})\:[0-9]{2}\:[0-9]{2}$/
+            hereLog(`[test] displaytimezone: ${displayTimezone}`)
+            hereLog(`[test] startDate local: ${JSON.stringify(startDate.toLocaleString('fr-FR',{timeZone: displayTimezone}))}`)
+            hereLog(`[test] endDate local: ${JSON.stringify(endDate.toLocaleString('fr-FR',{timeZone: displayTimezone}))}`)
             var startDateRegexGroup= (startDate.toLocaleString('fr-Fr',{timeZone: displayTimezone})).match(d_rx)
             var endDateRegexGroup= (endDate.toLocaleString('fr-Fr',{timeZone: displayTimezone})).match(d_rx)
+            hereLog(`[test] startDateRegexGroup: ${JSON.stringify(startDateRegexGroup)}`)
+            hereLog(`[test] endDateRegexGroup: ${JSON.stringify(endDateRegexGroup)}`)
             if(  (timeHourDiff>=24) || 
                 (Boolean(startDateRegexGroup) && Boolean(endDateRegexGroup) &&
                     startDateRegexGroup[1]!==endDateRegexGroup[1]
@@ -351,7 +358,8 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
         txt_eventItemBullet= ___getEmoteBulletFromTagList(descInfo.tags, tagsDict)
     }
 
-    var resp= `${txt_eventItemBullet} - [ ${dateTxt} ] : ${title}`
+    hereLog(`[test] descInfo: ${JSON.stringify(descInfo)}`)
+    var resp= `${txt_eventItemBullet} - [ ${dateTxt} ] : ${txt_title}`
     if(Boolean(descInfo.text) && descInfo.text.length>0){
         resp+= `\n> ${descInfo.text.replaceAll('\n','\n> ')}`
     }
@@ -373,6 +381,7 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
 }
 
 async function _update_calendar_channel(calendar_id, channel, utils, message_id_list, cal_events){
+    hereLog(`[test] ${JSON.stringify(message_id_list)}`)
     for (var msg_id of message_id_list){
         var message= undefined
         try{
@@ -389,7 +398,7 @@ async function _update_calendar_channel(calendar_id, channel, utils, message_id_
         var resp= ""
         var foundCategories= []
         var l_txtCatObj= []
-        for (var event_item of cal_events.items){
+        for (var event_item of cal_events.data.items){
             var obj= __textCatObj_fromEventItem(channel.guild, utils, event_item)
             if (Boolean(obj) && Boolean(obj.text) && Boolean(obj.text.length)){
                 l_txtCatObj.push(obj)
@@ -400,6 +409,7 @@ async function _update_calendar_channel(calendar_id, channel, utils, message_id_
                 }
             }
         }
+        hereLog(`[test] l_txtCatObj: ${JSON.stringify(l_txtCatObj)}`)
         if (l_txtCatObj.length>0){
             var i= -1
             if((i=foundCategories.indexOf('unknown'))>0){
@@ -419,7 +429,7 @@ async function _update_calendar_channel(calendar_id, channel, utils, message_id_
                 
                 var l_events= l_txtCatObj.filter(obj => {return (Boolean(obj) && obj.category===cat)})
                 for (var ev of l_events){
-                    resp+= `\t${ev}\n\n`
+                    resp+= `\t${ev.text}\n\n`
                 }
             }
 
@@ -434,11 +444,11 @@ async function _update_calendar_channel(calendar_id, channel, utils, message_id_
                         newMsgList.push(sentMsg.id)
                     }
 
-                    var calendars_obj= utils.settings.get(guild, 'calendars')
+                    var calendars_obj= utils.settings.get(channel.guild, 'calendars')
                     var channel_object= undefined
                     if(Boolean(calendars_obj) && Boolean(channel_object=(calendars_obj[calendar_id]))){
                         channel_object[channel.id]= newMsgList
-                        utils.settings.set(guild, 'calendars',channel_object)
+                        utils.settings.set(channel.guild, 'calendars',calendars_obj)
                     }
                     else{
                         hereLog(`[update_calendar_channel]{${calendar_id}, ${channel}} - Critical ERROR: can't find channel object!`)
@@ -478,11 +488,20 @@ async function update_calendar(guild, utils, calendar_id){
     if(Boolean(calendars_obj) && Boolean(channel_object=(calendars_obj[calendar_id]))){
         var update_check= utils.settings.get(guild,'update_check')
         update_check= (!Boolean(update_check))?{}:update_check
+        if(!Boolean(update_check[calendar_id])) update_check[calendar_id]= {}
+
         for (var ch_id in channel_object){
             var channel= undefined
             if (Boolean(ch_id) && Boolean(channel=guild.channels.cache.get(ch_id))){
                 var l_msg_id= (Boolean(channel_object[ch_id]))? channel_object[ch_id] : []
-                var _t= (await _update_calendar_channel(calendar_id, channel, l_msg_id, events))
+                var _t= false
+                try{
+                    _t= (await _update_calendar_channel(calendar_id, channel, utils, l_msg_id, events))
+                }
+                catch(err){
+                    hereLog(`[update_calendar]{${calendar_id}} error while try to update channel ${channel.id} (${channel.name}): ${err}`)
+                    _t= false
+                }
                 if(_t) update_check[calendar_id]['lastTime']= Date.now()
                 update_check[calendar_id]['unnecessary']= _t
                 b= b && _t
@@ -552,7 +571,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
         var calendars= utils.settings.get(message.guild, 'calendars');
         var ch_obj= {}
-        ch_obj[channel.id]= {}
+        ch_obj[channel.id]= []
         if(!Boolean(calendars)){
             calendars= {}
             calendars[cal_id]= ch_obj
@@ -901,7 +920,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             var chan_obj= undefined
             if (Boolean(cal_id) && Boolean(chan_obj=calendars[cal_id])){
                 try{
-                    b= b || (Boolean(await update_calendar(message.guild, cal_id, chan_obj)))
+                    b= b || (Boolean(await update_calendar(message.guild, utils, cal_id)))
                 }
                 catch (err){
                     hereLog(`[update] error while updating calendar '${cal_id}' - ${err}`)
