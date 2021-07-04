@@ -165,7 +165,7 @@ function cmd_init(utils){
     if(!Boolean(updateCal_job)){
         updateCal_job= cron.schedule('42 * * * *', () =>{
             var bot= utils.getBotClient()
-            bot.cache.guilds.each(guild => {
+            bot.guilds.cache.each(guild => {
                 _checkCalendarUpdate(guild, utils)
             })
         });
@@ -232,7 +232,7 @@ function ___metaTextInfoFromDescription(descriptionText){
     var lines= descriptionText.split('\n')
     var _tags= lines[0].split(/\s+/), _stop_tags= (-1)
     var tags= _tags.filter( (elem, idx) => {
-        if(_stop_tags>=0 || elem.startsWith("#")){
+        if(_stop_tags>=0 || (!elem.startsWith("#"))){
             _stop_tags= (_stop_tags<0)?idx : _stop_tags
             return false
         }
@@ -242,7 +242,15 @@ function ___metaTextInfoFromDescription(descriptionText){
     })
 
     descInfo_Obj.tags= tags
-    descInfo_Obj.text= lines.slice(1).join('\n')
+    if(tags.length<=0){
+        descInfo_Obj.text= lines.join('\n')
+    }
+    else if(_stop_tags>=0 && _stop_tags<_tags.length){
+        descInfo_Obj.text= _tags.slice(_stop_tags).join(' ')+'\n'+lines.slice(1).join('\n')
+    }
+    else{
+        descInfo_Obj.text= lines.slice(1).join('\n')
+    }
     if(_stop_tags>0){
         var lastTag= _tags[_stop_tags-1]
         var new_fLine= (lines[0].slice(lines[0].indexOf(lastTag)).replace(/^\s+/,'')) + descInfo_Obj.text
@@ -347,7 +355,9 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
             }
         }
     }
-    var dateTxt= `${startDate.toLocaleDateString('fr-Fr',{timeZone: displayTimezone})}${(Boolean(endDate))?` - ${endDate.toLocaleDateString('fr-Fr',{timeZone: displayTimezone})}`:''}`
+    var startDateTxt= `${startDate.toLocaleDateString('fr-Fr',{timeZone: displayTimezone})}`
+    var endDateTxt= (Boolean(endDate))? `${endDate.toLocaleDateString('fr-Fr',{timeZone: displayTimezone})}` : undefined
+    var dateTxt= `${startDateTxt}${(Boolean(endDateTxt) && (endDateTxt!==startDateTxt))?` - ${endDateTxt}`:''}`
 
     var descInfo= ___metaTextInfoFromDescription(event_item.description)
 
@@ -359,7 +369,7 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
     }
 
     hereLog(`[test] descInfo: ${JSON.stringify(descInfo)}`)
-    var resp= `${txt_eventItemBullet} - [ ${dateTxt} ] : ${txt_title}`
+    var resp= `${txt_eventItemBullet}  **[ ${dateTxt} ]** : ***${txt_title}***`
     if(Boolean(descInfo.text) && descInfo.text.length>0){
         resp+= `\n> ${descInfo.text.replaceAll('\n','\n> ')}`
     }
@@ -429,7 +439,7 @@ async function _update_calendar_channel(calendar_id, channel, utils, message_id_
                 
                 var l_events= l_txtCatObj.filter(obj => {return (Boolean(obj) && obj.category===cat)})
                 for (var ev of l_events){
-                    resp+= `\t${ev.text}\n\n`
+                    resp+= `${ev.text}\n\n`
                 }
             }
 
