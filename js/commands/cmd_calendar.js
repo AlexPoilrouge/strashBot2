@@ -245,27 +245,46 @@ function ___metaTextInfoFromDescription(descriptionText){
     if(tags.length<=0){
         descInfo_Obj.text= lines.join('\n')
     }
-    else if(_stop_tags>=0 && _stop_tags<_tags.length){
-        descInfo_Obj.text= _tags.slice(_stop_tags).join(' ')+'\n'+lines.slice(1).join('\n')
-    }
+    // else if(_stop_tags>=0 && _stop_tags<_tags.length){
+    //     hereLog(`[test] _tags: ${JSON.stringify(_tags)}`)
+    //     hereLog(`[test] lines: ${JSON.stringify(lines)}`)
+    //     descInfo_Obj.text= _tags.slice(_stop_tags).join(' ')+'\n'+lines.slice(1).join('\n')
+    // }
     else{
         descInfo_Obj.text= lines.slice(1).join('\n')
-    }
-    if(_stop_tags>0){
-        var lastTag= _tags[_stop_tags-1]
-        var new_fLine= (lines[0].slice(lines[0].indexOf(lastTag)).replace(/^\s+/,'')) + descInfo_Obj.text
-        if (new_fLine.length>0){
-            descInfo_Obj.text= new_fLine+descInfo_Obj.text
+
+        if(_stop_tags>0){
+            var lastTag= _tags[_stop_tags-1]
+            hereLog(`[test] lastTag: ${lastTag}; _stop_tags: ${_stop_tags}`)
+            var new_fLine= (lines[0].slice(lines[0].indexOf(lastTag)+lastTag.length).replace(/^\s+/,''))
+            if (new_fLine.length>0){
+                descInfo_Obj.text= new_fLine + '\n' + lines.slice(1).join('\n')
+            }
+            else{
+                descInfo_Obj.text= lines.slice(1).join('\n')
+            }
+        }
+        else{
+            descInfo_Obj.text= lines.join('\n')
         }
     }
+    // if(_stop_tags>0 && tags.length>0){
+    //     var lastTag= _tags[_stop_tags-1]
+    //     var new_fLine= (lines[0].slice(lines[0].indexOf(lastTag)).replace(/^\s+/,'')) + descInfo_Obj.text
+    //     if (new_fLine.length>0){
+    //         descInfo_Obj.text= new_fLine+descInfo_Obj.text
+    //     }
+    // }
 
     return descInfo_Obj
 }
 
 function ___getEmoteBulletFromTagList(tagList, bulletTagDict, defaultBullet='🔵'){
+    hereLog(`[test]___getEmoteBulletFromTagList - tagLlist: ${JSON.stringify(tagList)}\n\tbulletTagDict: ${JSON.stringify(bulletTagDict)}}`)
     var r= defaultBullet
     for (var tag of tagList){
-        var _b= bulletTagDict[tag]
+        var _tag= (tag.startsWith('#'))?tag.slice(1):tag
+        var _b= bulletTagDict[_tag]
         if (Boolean(_b) && _b.length>0){
             r= _b
         }
@@ -768,6 +787,9 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
     }
     else if(['tag','tags'].includes(args[0])){
         var cal_tags= utils.settings.get(message.guild, 'tags')
+        if(!Boolean(cal_tags)){
+            cal_tags= {}
+        }
 
         let _process_tag= (txt) =>{
             if (!Boolean(txt)) return undefined
@@ -790,8 +812,8 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 return false
             }
 
-            if(Boolean(cal_tag[tag])){
-                delete cal_tag[tag]
+            if(Boolean(cal_tags[tag])){
+                delete cal_tags[tag]
             }
 
             utils.settings.set(message.guild, 'tags', cal_tags)
@@ -810,6 +832,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
             
             var tag= _process_tag(args[1])
+            hereLog(`[test] got tag "${tag}"`)
             if(!Boolean(tag)){
                 message.author.send(`[${message.guild.name}][calendar]{${args[0]}} - invalid tag`)
                 return false
@@ -817,6 +840,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             tag= tag.toLowerCase()
 
             var emote= identifyEmoji(args[2], utils)
+            hereLog(`[test] emoji identified "${emote}"`)
             if(!Boolean(emote)){
                 message.author.send(`[${message.guild.name}][calendar]{${args[0]}} - second argument doesn't seem to be an emote`)
                 return false
@@ -835,6 +859,9 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
     }
     else if(['category','categories','cat',"type"].includes(args[0])){
         var cal_category= utils.settings.get(message.guild, 'categories')
+        if(!Boolean(cal_category)){
+            cal_category= {}
+        }
 
         let _process_cat= (txt) =>{
             if (!Boolean(txt)) return undefined
