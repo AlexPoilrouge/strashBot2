@@ -265,7 +265,7 @@ function ___metaTextInfoFromDescription(descriptionText){
             }
         }
         else{
-            descInfo_Obj.text= lines.join('\n')
+            descInfo_Obj.text= lines.slice(1).join('\n')
         }
     }
     // if(_stop_tags>0 && tags.length>0){
@@ -279,7 +279,7 @@ function ___metaTextInfoFromDescription(descriptionText){
     return descInfo_Obj
 }
 
-function ___getEmoteBulletFromTagList(tagList, bulletTagDict, defaultBullet='🔵'){
+function ___getEmoteBulletFromTagList(tagList, bulletTagDict, defaultBullet='🔹'){
     hereLog(`[test]___getEmoteBulletFromTagList - tagLlist: ${JSON.stringify(tagList)}\n\tbulletTagDict: ${JSON.stringify(bulletTagDict)}}`)
     var r= defaultBullet
     for (var tag of tagList){
@@ -294,13 +294,15 @@ function ___getEmoteBulletFromTagList(tagList, bulletTagDict, defaultBullet='�
 }
 
 function ___getCategoryFromTagList(tagList, catList){
+    hereLog(`[test](___getCategoryFromTagList) tagList: ${JSON.stringify(tagList)}; catList: ${JSON.stringify(catList)}`)
     if (catList.length<=0){
         return "unknown"
     }
 
     for (var tag of tagList){
-        if (catList.includes(tag)){
-            return tag
+        var _tag= tag.startsWith('#')?tag.slice(1):tag
+        if (catList.includes(_tag)){
+            return _tag
         }
     }
 
@@ -380,7 +382,7 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
 
     var descInfo= ___metaTextInfoFromDescription(event_item.description)
 
-    var txt_eventItemBullet= '🔵'
+    var txt_eventItemBullet= '🔹'
     if(Boolean(descInfo.tags) && descInfo.tags.length>0){
         var tagsDict= utils.settings.get(guild, 'tags')
         if(!Boolean(tagsDict)) tagsDict= {};
@@ -388,7 +390,7 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
     }
 
     hereLog(`[test] descInfo: ${JSON.stringify(descInfo)}`)
-    var resp= `${txt_eventItemBullet}  **[ ${dateTxt} ]** : ***${txt_title}***`
+    var resp= `${txt_eventItemBullet}  **[** ${dateTxt} **]** : ***${txt_title}***\n`
     if(Boolean(descInfo.text) && descInfo.text.length>0){
         resp+= `\n> ${descInfo.text.replaceAll('\n','\n> ')}`
     }
@@ -399,7 +401,7 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
     if((Date.now()-_tmpDate.getTime())>DayTime){
         cat= "outdated"
     }
-    else if(Boolean(descInfo.text) && descInfo.text.length>0){
+    else if(Boolean(descInfo.tags) && descInfo.tags.length>0){
         var catList= utils.settings.get(guild, 'categories')
         if(!Boolean(catList)) catList=[];
         cat= ___getCategoryFromTagList(descInfo.tags, catList)
@@ -424,11 +426,11 @@ async function _update_calendar_channel(calendar_id, channel, utils, message_id_
     }
 
     if(Boolean(cal_events) && Boolean(cal_events.data) && Boolean(cal_events.data.items) && cal_events.data.items.length>0){
-        var resp= ""
         var foundCategories= []
         var l_txtCatObj= []
         for (var event_item of cal_events.data.items){
             var obj= __textCatObj_fromEventItem(channel.guild, utils, event_item)
+            hereLog(`[test] catObj: ${JSON.stringify(obj)}`)
             if (Boolean(obj) && Boolean(obj.text) && Boolean(obj.text.length)){
                 l_txtCatObj.push(obj)
 
@@ -439,6 +441,7 @@ async function _update_calendar_channel(calendar_id, channel, utils, message_id_
             }
         }
         hereLog(`[test] l_txtCatObj: ${JSON.stringify(l_txtCatObj)}`)
+        hereLog(`[test] foundCategories: ${JSON.stringify(foundCategories)}`)
         if (l_txtCatObj.length>0){
             var i= -1
             if((i=foundCategories.indexOf('unknown'))>0){
@@ -448,53 +451,71 @@ async function _update_calendar_channel(calendar_id, channel, utils, message_id_
             else if(foundCategories.length===0){
                 foundCategories.push('unknown')
             }
-            else if(foundCategories.indexOf('outdated')>0){
+            else if((i=foundCategories.indexOf('outdated'))>=0){
                 foundCategories.splice(i,1)
                 foundCategories= foundCategories.concat([ 'outdated' ])
             }
 
+            var _valid= true
+            var newMsgList= []
             for (var cat of foundCategories){
-                resp+= `#**${(cat==='unknown')?"Divers":((cat==="outdated")?"Terminé":cat)}** :\n\n`
+                if(!_valid) break;
+
+                var resp= `---- **${(cat==='unknown')?"Divers":((cat==="outdated")?"Terminé":cat)}** ----\n\n`
                 
                 var l_events= l_txtCatObj.filter(obj => {return (Boolean(obj) && obj.category===cat)})
                 for (var ev of l_events){
                     resp+= `${ev.text}\n\n`
                 }
-            }
 
-            try{
-                var sentMsg= (await channel.send(resp, {split: true}))
-                if(Boolean(sentMsg)){
-                    var newMsgList= []
-                    if(Array.isArray(sentMsg)){
-                        newMsgList= sentMsg.map((msg) => {return msg.id})
+                resp+= `\n-`
+
+                try{
+                    var sentMsg= (await channel.send(resp, {split: true}))
+                    if(Boolean(sentMsg)){
+                        if(Array.isArray(sentMsg)){
+                            newMsgList= newMsgList.concat(sentMsg)
+                        }
+                        else{
+                            newMsgList= newMsgList.push(sentMsg)
+                        }
                     }
                     else{
-                        newMsgList.push(sentMsg.id)
-                    }
-
-                    var calendars_obj= utils.settings.get(channel.guild, 'calendars')
-                    var channel_object= undefined
-                    if(Boolean(calendars_obj) && Boolean(channel_object=(calendars_obj[calendar_id]))){
-                        channel_object[channel.id]= newMsgList
-                        utils.settings.set(channel.guild, 'calendars',calendars_obj)
-                    }
-                    else{
-                        hereLog(`[update_calendar_channel]{${calendar_id}, ${channel}} - Critical ERROR: can't find channel object!`)
+                        hereLog(`[update_calendar_channel]{${calendar_id}, ${channel}} - problem while sending new message: no message object?!`)
+                        _valid= false
                     }
                 }
-                else{
-                    hereLog(`[update_calendar_channel]{${calendar_id}, ${channel}} - problem while sending new message: no message object?!`)
-                    return false
+                catch(err){
+                    hereLog(`[update_calendar_channel]{${calendar_id}, ${channel}} - error occured during message sending? ${err}`)
+                    _valid= false
                 }
             }
-            catch(err){
-                hereLog(`[update_calendar_channel]{${calendar_id}, ${channel}} - error occured during message sending? ${err}`)
+            
+            var calendars_obj= utils.settings.get(channel.guild, 'calendars')
+            var channel_object= undefined
+            if(_valid && Boolean(calendars_obj) && Boolean(channel_object=(calendars_obj[calendar_id]))){
+                channel_object[channel.id]= newMsgList.map((msg) => {return msg.id})
+                utils.settings.set(channel.guild, 'calendars',calendars_obj)
+            }
+            else{
+                hereLog(`[update_calendar_channel]{${calendar_id}, ${channel}} - Critical ERROR: can't find channel object!`)
+
+                for (var msg of newMsgList){
+                    if(Boolean(msg)){
+                        try{
+                            msg.delete()
+                        }
+                        catch(err){
+                            hereLog(`[update_calendar_channel]{${calendar_id}, ${channel}} Error over erro -_-' : can't delete message ${msg.id}`)
+                        }
+                    }
+                }
+
                 return false
             }
 
 
-            return true
+            return _valid
         }
     }
     else{
@@ -860,7 +881,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
     else if(['category','categories','cat',"type"].includes(args[0])){
         var cal_category= utils.settings.get(message.guild, 'categories')
         if(!Boolean(cal_category)){
-            cal_category= {}
+            cal_category= []
         }
 
         let _process_cat= (txt) =>{
@@ -927,7 +948,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
             
             var cat= _process_cat(args[1])
-            if(!Boolean(tag)){
+            if(!Boolean(cat)){
                 message.author.send(`[${message.guild.name}][calendar]{${args[0]}} - invalid category`)
                 return false
             }
