@@ -780,7 +780,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
             return true
         }
-        else if(Boolean(args[0]) && args[0].match(/^groups?$/)){
+        else if(Boolean(args[0]) && args[0].match(/^roles?$/)){
             if(clearanceLvl<CLEARANCE_LEVEL.CONTROL_CHANNEL){
                 return false;
             }
@@ -969,7 +969,7 @@ function cmd_help(cmdObj, clearanceLvl){
         "========\n\n"+
         `__**top8** command__:\n\n`+
         ((clearanceLvl<CLEARANCE_LEVEL.ADMIN)? "": ("**Admins only:**\n\n"+
-            `\t\`!${prt_cmd} group #role-mention\`\n\n`+
+            `\t\`!${prt_cmd} role #role-mention\`\n\n`+
             `\tsets which role (additionally to Admins) can have its members use the \`!top8\` command\n\n`+
             `\t\`!${prt_cmd} group\`\n\n`+
             `\ttells which is the designated group\n\n`+
