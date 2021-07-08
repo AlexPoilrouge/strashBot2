@@ -130,26 +130,30 @@ async function _checkCalendarUpdate(guild, utils){
             if(Boolean(channel_object=calendars_obj[cal_id])){
                 var events= (await _request_calendarEventsInfos(cal_id))
                 if ((!Boolean(events)) || (!Boolean(events.data))){
-                    hereLog(`[update_calendar]{${calendar_id}} bad fetch of events for calendar '${calendar_id}'`)
+                    hereLog(`[_checkCalendarUpdate]{${guild.name}} bad fetch of events for calendar '${cal_id}'`)
                     break
                 }
                 else if(
                     (!Boolean(update_check[cal_id])) ||
-                    (Boolean(events.data.updated) && ((!Boolean(update_check[cal_id].next)) || (new Date(events.data.updated)).getTime()>update_check[cal_id].lastTime) )
+                    (Boolean(events.data.updated) && ((!Boolean(update_check[cal_id].unnecessary)) || (new Date(events.data.updated)).getTime()>update_check[cal_id].lastTime) )
                 ){
                     for (var ch_id of Object.keys(channel_object)){
                         var channel= undefined
                         if (Boolean(ch_id) && Boolean(channel=guild.channels.cache.get(ch_id))){
                             var l_msg_id= (Boolean(channel_object[ch_id]))? channel_object[ch_id] : []
-                            var _t= (await _update_calendar_channel(calendar_id, channel, utils, l_msg_id, events))
-
+                            var _t= (await _update_calendar_channel(cal_id, channel, utils, l_msg_id, events))
+                            
+                            if(!Boolean(update_check[cal_id])) update_check[cal_id]= {}
                             if(_t) update_check[cal_id]['lastTime']= Date.now()
                             update_check[cal_id]['unnecessary']= _t
                         }
                         else{
-                            hereLog(`[update] error while updating calendar '${calendar_id}': bad channel id given ${ch_id}`)
+                            hereLog(`[update] error while updating calendar '${cal_id}': bad channel id given ${ch_id}`)
                         }
                     }
+                }
+                else{
+                    hereLog(`[test][_checkCalendarUpdate] no updated seemed to be needed`)
                 }
             }
         }
@@ -163,7 +167,7 @@ var updateCal_job= undefined
 
 function cmd_init(utils){
     if(!Boolean(updateCal_job)){
-        updateCal_job= cron.schedule('42 * * * *', () =>{
+        updateCal_job= cron.schedule('*/2 * * * *', () =>{
             var bot= utils.getBotClient()
             bot.guilds.cache.each(guild => {
                 _checkCalendarUpdate(guild, utils)
@@ -199,6 +203,7 @@ async function cmd_init_per_guild(utils, guild){
                                     
                                     if(!Boolean(message)){
                                         update_check[cal_id]['unnecessary']= false
+                                        hereLog(`[init_per_guild] message ${msg_id} wasn't found…`)
                                         b_updating= true
                                     }
                                 }
@@ -325,8 +330,8 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
         ){
             date= DateFromTimeZone(strDate, eventTimezone)
         }
-        else if ( !(Boolean(event_item[field]) && Boolean(strDate=event_item[field].dateTime) && strDate.length>0
-            && __isDateValid(date=(new Date(strDate)))) )
+        else if ( !( Boolean(event_item[field]) && Boolean(strDate=event_item[field].dateTime) && strDate.length>0
+            && __isDateValid(date=(new Date(strDate))) ) )
         {
             hereLog(`[event_to_text] bad or no '${field}' date (${txt_title} - ${strDate})`)
             date= undefined
@@ -407,7 +412,7 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
         cat= ___getCategoryFromTagList(descInfo.tags, catList)
     }
     
-    
+    //TODO: need to find next event to expire and put it in there?
     return {text: resp, category: cat};
 }
 
@@ -451,7 +456,8 @@ async function _update_calendar_channel(calendar_id, channel, utils, message_id_
             else if(foundCategories.length===0){
                 foundCategories.push('unknown')
             }
-            else if((i=foundCategories.indexOf('outdated'))>=0){
+            
+            if((i=foundCategories.indexOf('outdated'))>=0){
                 foundCategories.splice(i,1)
                 foundCategories= foundCategories.concat([ 'outdated' ])
             }
