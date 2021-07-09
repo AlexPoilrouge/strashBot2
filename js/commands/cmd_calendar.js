@@ -136,9 +136,10 @@ async function _checkCalendarUpdate(guild, utils){
                 }
                 else if(
                     (!Boolean(_uc_cid_obj=update_check[cal_id])) ||
-                    (Boolean(events.data.updated) && ((!Boolean(_uc_cid_obj.unnecessary)) ||
+                    (Boolean(events.data.updated) && (
+                        (!Boolean(_uc_cid_obj.unnecessary)) ||
                         (new Date(events.data.updated)).getTime()>_uc_cid_obj.lastTime) ||
-                        (Boolean(_uc_cid_obj.nextDiscardTime) && (_uc_cid_obj.nextDiscardTime <= Date.now()))
+                        ( Boolean(_uc_cid_obj.nextDiscardTime) && (_uc_cid_obj.nextDiscardTime <= Date.now()) )
                     )
                 ){
                     for (var ch_id of Object.keys(channel_object)){
@@ -450,7 +451,7 @@ async function _update_calendar_channel(calendar_id, channel, utils, message_id_
                 if(!foundCategories.includes(cat)){
                     foundCategories.push(cat)
                 }
-                if(obj.category!=='outdated' && Boolean(obj.discardTime) && (obj.discardTime>Date.now())
+                if(obj.category!=='outdated' && Boolean(obj.discardTime) && (obj.discardTime>(Date.now())) &&
                     ((!Boolean(next_discardTime)) || obj.discardTime<next_discardTime)
                 ){
                     next_discardTime= obj.discardTime
