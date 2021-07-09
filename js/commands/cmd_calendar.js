@@ -127,6 +127,7 @@ async function _checkCalendarUpdate(guild, utils){
     if (Boolean(calendars_obj)){
         for (var cal_id of Object.keys(calendars_obj)){
             var channel_object= undefined
+            var _uc_cid_obj= undefined
             if(Boolean(channel_object=calendars_obj[cal_id])){
                 var events= (await _request_calendarEventsInfos(cal_id))
                 if ((!Boolean(events)) || (!Boolean(events.data))){
@@ -134,8 +135,11 @@ async function _checkCalendarUpdate(guild, utils){
                     break
                 }
                 else if(
-                    (!Boolean(update_check[cal_id])) ||
-                    (Boolean(events.data.updated) && ((!Boolean(update_check[cal_id].unnecessary)) || (new Date(events.data.updated)).getTime()>update_check[cal_id].lastTime) )
+                    (!Boolean(_uc_cid_obj=update_check[cal_id])) ||
+                    (Boolean(events.data.updated) && ((!Boolean(_uc_cid_obj.unnecessary)) ||
+                        (new Date(events.data.updated)).getTime()>_uc_cid_obj.lastTime) ||
+                        (Boolean(_uc_cid_obj.nextDiscardTime) && (_uc_cid_obj.nextDiscardTime <= Date.now()))
+                    )
                 ){
                     for (var ch_id of Object.keys(channel_object)){
                         var channel= undefined
@@ -385,6 +389,8 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
     var endDateTxt= (Boolean(endDate))? `${endDate.toLocaleDateString('fr-Fr',{timeZone: displayTimezone})}` : undefined
     var dateTxt= `${startDateTxt}${(Boolean(endDateTxt) && (endDateTxt!==startDateTxt))?` - ${endDateTxt}`:''}`
 
+    var discardDate= (Boolean(endDate)?endDate:DateFromTimeZone(`${startDate.getFullYear()}/${startDate.getMonth()+1}/${startDate.getDate()}`))
+
     var descInfo= ___metaTextInfoFromDescription(event_item.description)
 
     var txt_eventItemBullet= '🔹'
@@ -413,7 +419,7 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
     }
     
     //TODO: need to find next event to expire and put it in there?
-    return {text: resp, category: cat};
+    return {text: resp, category: cat, discardTime: discardDate.getTime()};
 }
 
 async function _update_calendar_channel(calendar_id, channel, utils, message_id_list, cal_events){
@@ -433,6 +439,7 @@ async function _update_calendar_channel(calendar_id, channel, utils, message_id_
     if(Boolean(cal_events) && Boolean(cal_events.data) && Boolean(cal_events.data.items) && cal_events.data.items.length>0){
         var foundCategories= []
         var l_txtCatObj= []
+        var next_discardTime= undefined
         for (var event_item of cal_events.data.items){
             var obj= __textCatObj_fromEventItem(channel.guild, utils, event_item)
             hereLog(`[test] catObj: ${JSON.stringify(obj)}`)
@@ -442,6 +449,11 @@ async function _update_calendar_channel(calendar_id, channel, utils, message_id_
                 var cat= (Boolean(obj.category))?obj.category:"unknown"
                 if(!foundCategories.includes(cat)){
                     foundCategories.push(cat)
+                }
+                if(obj.category!=='outdated' && Boolean(obj.discardTime) && (obj.discardTime>Date.now())
+                    ((!Boolean(next_discardTime)) || obj.discardTime<next_discardTime)
+                ){
+                    next_discardTime= obj.discardTime
                 }
             }
         }
@@ -502,6 +514,16 @@ async function _update_calendar_channel(calendar_id, channel, utils, message_id_
             if(_valid && Boolean(calendars_obj) && Boolean(channel_object=(calendars_obj[calendar_id]))){
                 channel_object[channel.id]= newMsgList.map((msg) => {return msg.id})
                 utils.settings.set(channel.guild, 'calendars',calendars_obj)
+
+                if(Boolean(next_discardTime)){
+                    var update_check= utils.settings.get(channel.guild, 'update_check')
+                    update_check= (!Boolean(update_check))?{}:update_check
+                    if(!Boolean(update_check[calendar_id])) update_check[calendar_id]= {}
+
+                    update_check[calendar_id]['nextDiscardTime']= next_discardTime
+
+                    utils.settings.set(channel.guild, 'update_check')
+                }
             }
             else{
                 hereLog(`[update_calendar_channel]{${calendar_id}, ${channel}} - Critical ERROR: can't find channel object!`)
