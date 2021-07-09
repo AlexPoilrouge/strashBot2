@@ -629,7 +629,10 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
     let message= cmdObj.msg_obj;
     let args= cmdObj.args;
 
-    if(['set','add'].includes(args[0]) && (clearanceLvl>CLEARANCE_LEVEL.NONE)){
+    if (args[0].match(/^h(e*lp)?$/)){
+        return cmd_help(cmdObj, clearanceLvl)
+    }
+    else if(['set','add'].includes(args[0]) && (clearanceLvl>CLEARANCE_LEVEL.NONE)){
         if(args.length<3){
             message.author.send(`[${message.guild.name}][calendar]{${args[0]}} - needs 2 arguments: \`!calendar add calendar_id@gmail.com #channelMention\``)
             return false
@@ -851,6 +854,11 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         }
 
         if(['rm','remove','del','delete'].includes(args[1])){
+            if (clearanceLvl<=CLEARANCE_LEVEL.NONE){
+                message.author.send(`[${message.guild.name}][calendar]{${args[0]} ${args[1]}} - you don't have the clearance level for this`)
+                return false
+            }
+
             if (args.length<3){
                 message.author.send(`[${message.guild.name}][calendar]{${args[0]} ${args[1]}} - need to specifiy a tag to remove`)
                 return false
@@ -868,12 +876,17 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
             utils.settings.set(message.guild, 'tags', cal_tags)
         }
-        else if(['ls','list'].includes(args[1])){
+        else if(['ls','list'].includes(args[1]) || (!Boolean(args[1]) && clearanceLvl<=CLEARANCE_LEVEL.NONE)){
             var str= `[${message.guild.name}][calendar]{${args[0]}}\n${__list_tags_and_categories(utils,message.guild)}`
             
             message.author.send(str, {split: true})
         }
         else{
+            if (clearanceLvl<=CLEARANCE_LEVEL.NONE){
+                message.author.send(`[${message.guild.name}][calendar]{${args[0]}} - you don't have the clearance level for this`)
+                return false
+            }
+
             if (args.length<3){
                 message.author.send(`[${message.guild.name}][calendar]{${args[0]}} - add a tag with an emote that'll be used as a bullet. Ex:\n`+
                     `\t\`!calendar ${args[0]} tagname ▶\``
@@ -924,6 +937,11 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
 
         if(['rm','remove','del','delete'].includes(args[1])){
+            if (clearanceLvl<=CLEARANCE_LEVEL.NONE){
+                message.author.send(`[${message.guild.name}][calendar]{${args[0]} ${args[1]}} - you don't have the clearance level for this`)
+                return false
+            }
+
             if (args.length<3){
                 message.author.send(`[${message.guild.name}][calendar]{${args[0]} ${args[1]}} - need to specifiy a category to remove`)
                 return false
@@ -943,6 +961,11 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             utils.settings.set(message.guild, 'categories', cal_category)
         }
         else if(['default','defaut','défaut'].includes(args[1])){
+            if (clearanceLvl<=CLEARANCE_LEVEL.NONE){
+                message.author.send(`[${message.guild.name}][calendar]{${args[0]} ${args[1]}} - you don't have the clearance level for this`)
+                return false
+            }
+
             if (args.length<3){
                 message.author.send(`[${message.guild.name}][calendar]{${args[0]} ${args[1]}} - need to specifiy a category to set as default`)
                 return false
@@ -963,12 +986,17 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
             utils.settings.set(message.guild, 'categories', cal_category)
         }
-        else if(['ls','list'].includes(args[1])){
+        else if(['ls','list'].includes(args[1]) || (!Boolean(args[1]) && clearanceLvl<=CLEARANCE_LEVEL.NONE)){
             var str= `[${message.guild.name}][calendar]{${args[0]}}\n${__list_tags_and_categories(utils,message.guild)}`
             
             message.author.send(str, {split: true})
         }
         else{
+            if (clearanceLvl<=CLEARANCE_LEVEL.NONE){
+                message.author.send(`[${message.guild.name}][calendar]{${args[0]}} - you don't have the clearance level for this`)
+                return false
+            }
+
             if (args.length<2){
                 message.author.send(`[${message.guild.name}][calendar]{${args[0]}} - specify a category to add. Ex:\n`+
                     `\t\`!calendar ${args[0]} categoryname \``
@@ -1024,7 +1052,55 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 }
 
 
-function cmd_help(cmdObj, clearanceLvl){}
+function cmd_help(cmdObj, clearanceLvl){
+    var prt_cmd= "calendar"
+
+    cmdObj.msg_obj.author.send(
+        "========\n\n"+
+        `__**top8** command__:\n\n`+
+        ((clearanceLvl<=CLEARANCE_LEVEL.NONE)? "": ("**Admins only:**\n\n"+
+            `\t\`!${prt_cmd} set <calendar_id@gmail.com> <#channel-mention>\`\n\n`+
+            `\tLinks a calender to a given channel\n\n`+
+            `\t\`!${prt_cmd} ls\`\n\n`+
+            `\tShows a list of all calendars that have been to some channels (alongs with said channels)\n\n`+
+            `\t\`!${prt_cmd} remove <calendar_id@gmail.com> [#channel-mention]\`\n\n`+
+            `\tRemove all links (if no \`#channel-mention\` is provided) of a calendar to all channels it was previously linked with.\n`+
+            `\tIf a \`#channel-mention\` parameter is given, only remove links of the calendar with this specific channel.\n\n`+
+            `\t\`!${prt_cmd} update\`\n\n`+
+            `\tManually forces an update of all linked calendars.\n`
+        )) +
+        `\t\`!${prt_cmd} test <calendar_id@gmail.com>\`\n\n`+
+        `\tTests if, for a given calendar, all its event are accessible for reading.\n\n`+
+        `\t\`!${prt_cmd} tags ls\`\n\n`+
+        `\tLists all availabe calendar tags along with their associated emotes.\n\n`+
+        ((clearanceLvl<=CLEARANCE_LEVEL.NONE)?
+                ""
+            :   (`\t\`!${prt_cmd} tags remove <tag_name>\` **[Admins only]**\n\n`+
+                    `\tRemoves a given available calendar tag\n\n`)
+        )+
+        ((clearanceLvl<=CLEARANCE_LEVEL.NONE)?
+                ""
+            :   (`\t\`!${prt_cmd} tags <tag_name> <:emoji:>\` **[Admins only]**\n\n`+
+                    `\tAdds a given tag with a given associated emoji to the list of availabe tags\n\n`)
+        )+
+        `\t\`!${prt_cmd} categories ls\`\n\n`+
+        `\tLists all availabe calendar item categories.\n\n`+
+        ((clearanceLvl<=CLEARANCE_LEVEL.NONE)?
+                ""
+            :   (`\t\`!${prt_cmd} categories remove <category_name>\` **[Admins only]**\n\n`+
+                    `\tRemoves a given available calendar  item category\n\n`)
+        )+
+        ((clearanceLvl<=CLEARANCE_LEVEL.NONE)?
+                ""
+            :   (`\t\`!${prt_cmd} categories <category_name>\` **[Admins only]**\n\n`+
+                    `\tAdds a given  item categories to the list of availabe catagories\n\n`)
+        )
+        ,
+        {split: true}
+    )
+
+    return true;
+}
 
 
 function cmd_event(eventName, utils){
@@ -1055,13 +1131,19 @@ function cmd_event(eventName, utils){
 
         var calendars_object= utils.settings.get(message.guild, 'calendars')
         if(Boolean(calendars_object)){
-            for (var chan_obj of Object.values(calendars_object)){
+            for (var cal_id in calendars_object){
+                var chan_obj= calendars_object[cal_id]
                 if(Boolean(chan_obj)){
                     for(var msg_list of Object.values(chan_obj)){
                         if(Boolean(msg_list) && msg_list.length>0){
                             for (var msg_id of msg_list){
                                 if(message.id===msg_id){
-                                    next_auto_update= true
+                                    var update_check= utils.settings.get(message.guild,'update_check')
+                                    update_check= (Boolean(update_check))? update_check: {}
+                                    if(!Boolean(update_check[cal_id])) update_check[cal_id]= {}
+                                    update_check['unnecessary']= false
+
+                                    utils.settings.set(message.guild,'update_check',update_check)
 
                                     return true
                                 }
