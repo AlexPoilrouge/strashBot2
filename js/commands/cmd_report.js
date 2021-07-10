@@ -972,14 +972,15 @@ async function _reportCmdCalendars(guild, utils){
                                 }
                             }
                             else{
+                                var b_ok= true
                                 for (var msg_id of msg_list){
-                                    var msg= undefined
+                                    var f_msg= undefined
                                     try{
-                                        msg= (Boolean(msg_id) && Boolean(msg=(await (channel.messages.fetch(msg_id)))))? msg : undefined 
+                                        f_msg= (Boolean(msg_id) && Boolean(f_msg=(await (channel.messages.fetch(msg_id)))))? f_msg : undefined 
                                     } catch(err){
-                                        msg= undefined
+                                        f_msg= undefined
                                     }
-                                    if(!Boolean(msg)){
+                                    if(!Boolean(f_msg)){
                                         if((!Boolean(data_update_check)) || (!Boolean(duc_cid=data_update_check[calendar_id])) ||
                                             (Boolean(duc_cid.unnecessary))
                                         ){
@@ -994,13 +995,15 @@ async function _reportCmdCalendars(guild, utils){
     
                                             msg+= `<li>${_msg}</li> (${JSON.stringify(msg_list)})`
                                         }
-                                    }
-                                    else{
-                                        var _msg= `in channel ${channel}, "${calendar_id}" is displayed though: ${JSON.stringify(msg_list)}`
-                                        problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
 
-                                        msg+= `<li>${_msg}</li> (${JSON.stringify(msg_list)})`
+                                        b_ok= false
                                     }
+                                }
+                                if(b_ok){
+                                    var _msg= `in channel ${channel}, "${calendar_id}" is displayed though: ${JSON.stringify(msg_list)}`
+                                    problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
+
+                                    msg+= `<li>${_msg}</li>`
                                 }
                             }
                         }
@@ -1009,11 +1012,13 @@ async function _reportCmdCalendars(guild, utils){
                     msg+= `</ul>\n`
                 }
             }
-            msg+= '</li>'
+            msg+= '</li>\n'
         }
+        msg+= '</ul>'
     }
 
     report_str+= `${msg}</br>`
+    msg= ""
 
     report_str+=`<h5>update checks:</h5>`
 
@@ -1035,6 +1040,7 @@ async function _reportCmdCalendars(guild, utils){
 
             if(!Boolean(cal_id.match(G_MAIL_REGEX))){
                 var _msg= `"${cal_id}" doesn't seem to be a valid calendar id…`
+                hereLog(`[test] data_update_check: ${JSON.stringify(data_update_check)}`)
                 problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
 
                 msg+= _msg
@@ -1119,6 +1125,7 @@ async function _reportCmdCalendars(guild, utils){
     }
 
     report_str+= `${msg}</br>`
+    msg= ""
 
 
     var data_tags= utils.settings.get(guild, 'tags', 'calendar')
@@ -1150,10 +1157,12 @@ async function _reportCmdCalendars(guild, utils){
             }
             else{
                 let simpleEmojiRegex= /(?:[\u2700-\u27bf]|(?:\ud83c[\udde6-\uddff]){2}|[\ud800-\udbff][\udc00-\udfff]|[\u0023-\u0039]\ufe0f?\u20e3|\u3299|\u3297|\u303d|\u3030|\u24c2|\ud83c[\udd70-\udd71]|\ud83c[\udd7e-\udd7f]|\ud83c\udd8e|\ud83c[\udd91-\udd9a]|\ud83c[\udde6-\uddff]|\ud83c[\ude01-\ude02]|\ud83c\ude1a|\ud83c\ude2f|\ud83c[\ude32-\ude3a]|\ud83c[\ude50-\ude51]|\u203c|\u2049|[\u25aa-\u25ab]|\u25b6|\u25c0|[\u25fb-\u25fe]|\u00a9|\u00ae|\u2122|\u2139|\ud83c\udc04|[\u2600-\u26FF]|\u2b05|\u2b06|\u2b07|\u2b1b|\u2b1c|\u2b50|\u2b55|\u231a|\u231b|\u2328|\u23cf|[\u23e9-\u23f3]|[\u23f8-\u23fa]|\ud83c\udccf|\u2934|\u2935|[\u2190-\u21ff])/g;
-                if(!Boolean(emote.match(simpleEmojiRegex)) ||
-                    !Boolean([...guild.emojis.cache.values()].find( e => {return e.toString()===emote})))
+                if(!Boolean(emote.match(simpleEmojiRegex)) &&
+                    !Boolean([...guild.emojis.cache.values()].find( e => {hereLog(`[test] e.toString() is ${e.toString()}`);return e.toString()===emote})))
                 {
                     var _msg= `Tag "${tag}" is register but associated to an invalid emoji ('${emote}')`
+                    hereLog(`[test] tags emojis? ${JSON.stringify([...guild.emojis.cache.values()])}`)
+                    hereLog(`[test] Boolean(emote.match(simpleEmojiRegex)? ${Boolean(emote.match(simpleEmojiRegex))}`)
                     problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
 
                     msg+= `<li>${_msg}</li>\n`
@@ -1171,6 +1180,7 @@ async function _reportCmdCalendars(guild, utils){
     }
 
     report_str+= `${msg}</br>`
+    msg= ""
 
 
 
@@ -1193,7 +1203,7 @@ async function _reportCmdCalendars(guild, utils){
     else{
         msg+= `Categories: `
         for (var cat of data_category){
-            problems.add(guild.id, `category '${cat}' found`, ProblemCount.TYPES.info)
+            problems.add(guild.id, `category '${cat}' found`, ProblemCount.TYPES.INFO)
 
             msg+= ` '${cat}';`
         }
@@ -1221,7 +1231,8 @@ async function _runReportGuild(guild, utils, sendToUser= undefined){
     };
 
     let moduleExists= (modName) => {
-        return fs.existsSync(`./cmd_${modName}.js`)
+        hereLog(`[test] exists? '${__dirname}/cmd_${modName}.js'`)
+        return fs.existsSync(`${__dirname}/cmd_${modName}.js`)
     }
 
     problems.clear(guild.id)
@@ -1244,6 +1255,9 @@ async function _runReportGuild(guild, utils, sendToUser= undefined){
         report_str+= _reportCmdWelcome(guild, utils);
         
         report_str+= `<br/>\n`
+    }
+    else{
+        hereLog('[test] welcome mod? nooooooo')
     }
 
     if(moduleExists('main')){
