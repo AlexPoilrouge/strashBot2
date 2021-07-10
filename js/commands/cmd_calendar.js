@@ -828,13 +828,24 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             cal_ch_rm(channel.id)
         }
         else{
-            for (var channel_id of Object.keys(ch_obj)){
+            var _k_ch_ids= Object.keys(ch_obj)
+            for (var channel_id of _k_ch_ids){
                 cal_ch_rm(channel_id)
             }
-            delete calendars[cal_id]
         }
 
-        var calendars= utils.settings.get(message.guild, 'calendars', calendars)
+        if(Object.keys(ch_obj).length<=0){
+            delete calendars[cal_id]
+
+            var update_check= utils.settings.get(message.guild, 'update_check')
+            if(Boolean(update_check) && Boolean(update_check[cal_id])){
+                delete update_check[cal_id]
+
+                utils.settings.set(message.guild, 'update_check', update_check)
+            }
+        }
+
+        utils.settings.set(message.guild, 'calendars', calendars)
 
         return true
     }
