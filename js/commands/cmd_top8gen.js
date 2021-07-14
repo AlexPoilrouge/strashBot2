@@ -240,7 +240,7 @@ async function _generateTop8(template, genInfos, channel){
         var cmd= `${genInfos.svg_bin} ${svg} --export-png=${outpng}`
         try{
             hereLog(`[rasterize func] calling command '${cmd}'`)
-            child_process.execSync(cmd, {timeout: 24000});
+            child_process.execSync(cmd, {timeout: 64000});
         } catch(error){
             hereLog(`[rast_func] error invoking rasterizing command \`${cmd}\`!\n\t${error}`)
             b= false;
