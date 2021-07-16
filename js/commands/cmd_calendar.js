@@ -117,9 +117,6 @@ function _request_calendarEventsInfos(cal_id, monthsBack=6){
 
 
 async function _checkCalendarUpdate(guild, utils){
-    hereLog(`checking calendar updates for guild "${guild.name}"…`)
-
-    //something, something _update_calendar_channel
     var calendars_obj= utils.settings.get(guild, 'calendars')
     var update_check= utils.settings.get(guild,'update_check')
     update_check= (!Boolean(update_check))?{}:update_check
@@ -157,9 +154,6 @@ async function _checkCalendarUpdate(guild, utils){
                         }
                     }
                 }
-                else{
-                    hereLog(`[test][_checkCalendarUpdate] no updated seemed to be needed`)
-                }
             }
         }
 
@@ -172,7 +166,7 @@ var updateCal_job= undefined
 
 function cmd_init(utils){
     if(!Boolean(updateCal_job)){
-        updateCal_job= cron.schedule('*/2 * * * *', () =>{
+        updateCal_job= cron.schedule('42 * * * *', () =>{
             var bot= utils.getBotClient()
             bot.guilds.cache.each(guild => {
                 _checkCalendarUpdate(guild, utils)
@@ -255,17 +249,11 @@ function ___metaTextInfoFromDescription(descriptionText){
     if(tags.length<=0){
         descInfo_Obj.text= lines.join('\n')
     }
-    // else if(_stop_tags>=0 && _stop_tags<_tags.length){
-    //     hereLog(`[test] _tags: ${JSON.stringify(_tags)}`)
-    //     hereLog(`[test] lines: ${JSON.stringify(lines)}`)
-    //     descInfo_Obj.text= _tags.slice(_stop_tags).join(' ')+'\n'+lines.slice(1).join('\n')
-    // }
     else{
         descInfo_Obj.text= lines.slice(1).join('\n')
 
         if(_stop_tags>0){
             var lastTag= _tags[_stop_tags-1]
-            hereLog(`[test] lastTag: ${lastTag}; _stop_tags: ${_stop_tags}`)
             var new_fLine= (lines[0].slice(lines[0].indexOf(lastTag)+lastTag.length).replace(/^\s+/,''))
             if (new_fLine.length>0){
                 descInfo_Obj.text= new_fLine + '\n' + lines.slice(1).join('\n')
@@ -278,19 +266,11 @@ function ___metaTextInfoFromDescription(descriptionText){
             descInfo_Obj.text= lines.slice(1).join('\n')
         }
     }
-    // if(_stop_tags>0 && tags.length>0){
-    //     var lastTag= _tags[_stop_tags-1]
-    //     var new_fLine= (lines[0].slice(lines[0].indexOf(lastTag)).replace(/^\s+/,'')) + descInfo_Obj.text
-    //     if (new_fLine.length>0){
-    //         descInfo_Obj.text= new_fLine+descInfo_Obj.text
-    //     }
-    // }
 
     return descInfo_Obj
 }
 
 function ___getEmoteBulletFromTagList(tagList, bulletTagDict, defaultBullet='🔹'){
-    hereLog(`[test]___getEmoteBulletFromTagList - tagLlist: ${JSON.stringify(tagList)}\n\tbulletTagDict: ${JSON.stringify(bulletTagDict)}}`)
     var r= defaultBullet
     for (var tag of tagList){
         var _tag= (tag.startsWith('#'))?tag.slice(1):tag
@@ -304,7 +284,6 @@ function ___getEmoteBulletFromTagList(tagList, bulletTagDict, defaultBullet='�
 }
 
 function ___getCategoryFromTagList(tagList, catList){
-    hereLog(`[test](___getCategoryFromTagList) tagList: ${JSON.stringify(tagList)}; catList: ${JSON.stringify(catList)}`)
     if (catList.length<=0){
         return "unknown"
     }
@@ -314,6 +293,10 @@ function ___getCategoryFromTagList(tagList, catList){
         if (catList.includes(_tag)){
             return _tag
         }
+    }
+
+    if(catList.length>0){
+        return catList[0]
     }
 
     return "unknown"
@@ -351,18 +334,11 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
     let HourTime= 3600000
     let DayTime= 24*HourTime
     if(Boolean(endDate)){
-        hereLog(`[test] startDate: ${JSON.stringify(endDate)}`)
-        hereLog(`[test] endDate: ${JSON.stringify(endDate)}`)
         var timeHourDiff= Math.floor((endDate.getTime()-startDate.getTime())/HourTime)
         if(timeHourDiff>=12){
             var d_rx= /^([0-9]{2})\/[0-9]{2}\/[0-9]{4}\,\s*([0-9]{2})\:[0-9]{2}\:[0-9]{2}$/
-            hereLog(`[test] displaytimezone: ${displayTimezone}`)
-            hereLog(`[test] startDate local: ${JSON.stringify(startDate.toLocaleString('fr-FR',{timeZone: displayTimezone}))}`)
-            hereLog(`[test] endDate local: ${JSON.stringify(endDate.toLocaleString('fr-FR',{timeZone: displayTimezone}))}`)
             var startDateRegexGroup= (startDate.toLocaleString('fr-Fr',{timeZone: displayTimezone})).match(d_rx)
             var endDateRegexGroup= (endDate.toLocaleString('fr-Fr',{timeZone: displayTimezone})).match(d_rx)
-            hereLog(`[test] startDateRegexGroup: ${JSON.stringify(startDateRegexGroup)}`)
-            hereLog(`[test] endDateRegexGroup: ${JSON.stringify(endDateRegexGroup)}`)
             if(  (timeHourDiff>=24) || 
                 (Boolean(startDateRegexGroup) && Boolean(endDateRegexGroup) &&
                     startDateRegexGroup[1]!==endDateRegexGroup[1]
@@ -390,7 +366,7 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
     var endDateTxt= (Boolean(endDate))? `${endDate.toLocaleDateString('fr-Fr',{timeZone: displayTimezone})}` : undefined
     var dateTxt= `${startDateTxt}${(Boolean(endDateTxt) && (endDateTxt!==startDateTxt))?` - ${endDateTxt}`:''}`
 
-    var discardDate= (Boolean(endDate)?endDate:DateFromTimeZone(`${startDate.getFullYear()}/${startDate.getMonth()+1}/${startDate.getDate()}`))
+    // var discardDate= (Boolean(endDate)?endDate:DateFromTimeZone(`${startDate.getFullYear()}/${startDate.getMonth()+1}/${startDate.getDate()}`))
 
     var descInfo= ___metaTextInfoFromDescription(event_item.description)
 
@@ -401,7 +377,6 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
         txt_eventItemBullet= ___getEmoteBulletFromTagList(descInfo.tags, tagsDict)
     }
 
-    hereLog(`[test] descInfo: ${JSON.stringify(descInfo)}`)
     var resp= `${txt_eventItemBullet}  **[** ${dateTxt} **]** : ***${txt_title}***\n`
     if(Boolean(descInfo.text) && descInfo.text.length>0){
         resp+= `\n> ${descInfo.text.replaceAll('\n','\n> ')}`
@@ -410,7 +385,7 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
     var cat= "unknown"
     var _usedDate= (Boolean(endDate))? endDate : startDate
     var _tmpDate= new Date(_usedDate.getTime()-(_usedDate.getTime()%DayTime))
-    if((Date.now()-_tmpDate.getTime())>DayTime){
+    if((Date.now()-_tmpDate.getTime())>=DayTime){
         cat= "outdated"
     }
     else if(Boolean(descInfo.tags) && descInfo.tags.length>0){
@@ -419,12 +394,11 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
         cat= ___getCategoryFromTagList(descInfo.tags, catList)
     }
     
-    //TODO: need to find next event to expire and put it in there?
-    return {text: resp, category: cat, discardTime: discardDate.getTime()};
+    // return {text: resp, category: cat, discardTime: discardDate.getTime()};
+    return {text: resp, category: cat, discardTime: (_tmpDate.getTime()+DayTime )};
 }
 
 async function _update_calendar_channel(calendar_id, channel, utils, message_id_list, cal_events){
-    hereLog(`[test] ${JSON.stringify(message_id_list)}`)
     for (var msg_id of message_id_list){
         var message= undefined
         try{
@@ -458,8 +432,7 @@ async function _update_calendar_channel(calendar_id, channel, utils, message_id_
                 }
             }
         }
-        hereLog(`[test] l_txtCatObj: ${JSON.stringify(l_txtCatObj)}`)
-        hereLog(`[test] foundCategories: ${JSON.stringify(foundCategories)}`)
+
         if (l_txtCatObj.length>0){
             var i= -1
             if((i=foundCategories.indexOf('unknown'))>0){
@@ -680,13 +653,11 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 resp+= `\t\`${k}\`:\n`
                 if (Boolean(calendars[k])){
                     for (var ch_id of Object.keys(calendars[k])){
-                        hereLog(`Uuuuh yeah? hello? ${ch_id} ?! wtf... ${Object.keys(calendars[k])}`)
                         var channel= undefined
                         if (Boolean(channel=(message.guild.channels.cache.get(ch_id)))){
                             resp+= `\t\t- *${channel.name}*`
                         }
                         else{
-                            hereLog(`[yeah]k=${k}, cal[k]=${JSON.stringify(calendars[k])}, ch_id=${ch_id}`)
                             resp+= `\t\t- *⚠ Unknown channel*`
                         }
                     }
@@ -906,7 +877,6 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
             
             var tag= _process_tag(args[1])
-            hereLog(`[test] got tag "${tag}"`)
             if(!Boolean(tag)){
                 message.author.send(`[${message.guild.name}][calendar]{${args[0]}} - invalid tag`)
                 return false
@@ -914,7 +884,6 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             tag= tag.toLowerCase()
 
             var emote= identifyEmoji(args[2], utils)
-            hereLog(`[test] emoji identified "${emote}"`)
             if(!Boolean(emote)){
                 message.author.send(`[${message.guild.name}][calendar]{${args[0]}} - second argument doesn't seem to be an emote`)
                 return false
@@ -1103,10 +1072,17 @@ function cmd_help(cmdObj, clearanceLvl){
         )+
         ((clearanceLvl<=CLEARANCE_LEVEL.NONE)?
                 ""
-            :   (`\t\`!${prt_cmd} categories <category_name>\` **[Admins only]**\n\n`+
-                    `\tAdds a given  item categories to the list of availabe catagories\n\n`)
-        )
-        ,
+            :   (`\t\`!${prt_cmd} categories default <category_name>\` **[Admins only]**\n\n`+
+                    `\tSets a given existing category as the new default category\n`+
+                    `\t(The default category is the category given to an event which as none specified.`+
+                    `\tThe default category is the earliest shown in the category list.)`)
+        )+
+        ((clearanceLvl<=CLEARANCE_LEVEL.NONE)?
+                ""
+            :   (`\t\`!${prt_cmd} categories <category_name> [default]\` **[Admins only]**\n\n`+
+                    `\tAdds a given item categories to the list of availabe catagories\n`+
+                    `If \`default\` parameter is given, the new category will be set as the new default category.\n\n`)
+        ),
         {split: true}
     )
 
@@ -1174,7 +1150,6 @@ function cmd_guild_clear(guild){}
 
 
 function cmd_destroy(utils){
-    hereLog("destroy…");
     if(Boolean(updateCal_job)){
         delete updateCal_job;
         updateCal_job= undefined;
