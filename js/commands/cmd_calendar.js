@@ -417,7 +417,6 @@ async function _update_calendar_channel(calendar_id, channel, utils, message_id_
         var next_discardTime= undefined
         for (var event_item of cal_events.data.items){
             var obj= __textCatObj_fromEventItem(channel.guild, utils, event_item)
-            hereLog(`[test] catObj: ${JSON.stringify(obj)}`)
             if (Boolean(obj) && Boolean(obj.text) && Boolean(obj.text.length)){
                 l_txtCatObj.push(obj)
 
@@ -453,11 +452,11 @@ async function _update_calendar_channel(calendar_id, channel, utils, message_id_
             for (var cat of foundCategories){
                 if(!_valid) break;
 
-                var resp= `---- **${(cat==='unknown')?"Divers":((cat==="outdated")?"Terminé":cat)}** ----\n\n`
+                var resp= `---- **${(cat==='unknown')?"Divers":((cat==="outdated")?"Terminé":cat)}** ----\n\n\n`
                 
                 var l_events= l_txtCatObj.filter(obj => {return (Boolean(obj) && obj.category===cat)})
                 for (var ev of l_events){
-                    resp+= `${ev.text}\n\n`
+                    resp+= `${ev.text}\n\n\n`
                 }
 
                 resp+= `\n-`
