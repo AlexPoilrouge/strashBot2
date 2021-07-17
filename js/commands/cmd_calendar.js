@@ -1036,7 +1036,7 @@ function cmd_help(cmdObj, clearanceLvl){
 
     cmdObj.msg_obj.author.send(
         "========\n\n"+
-        `__**top8** command__:\n\n`+
+        `__**calendar** command__:\n\n`+
         ((clearanceLvl<=CLEARANCE_LEVEL.NONE)? "": (
             `\t\`!${prt_cmd} set <calendar_id@gmail.com> <#channel-mention>\` **[Admins only]**\n\n`+
             `\tLinks a calender to a given channel\n\n`+
