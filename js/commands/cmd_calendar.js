@@ -654,15 +654,15 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                     for (var ch_id of Object.keys(calendars[k])){
                         var channel= undefined
                         if (Boolean(channel=(message.guild.channels.cache.get(ch_id)))){
-                            resp+= `\t\t- *${channel.name}*`
+                            resp+= `\t\t- *${channel.name}*\n`
                         }
                         else{
-                            resp+= `\t\t- *⚠ Unknown channel*`
+                            resp+= `\t\t- *⚠ Unknown channel*\n`
                         }
                     }
                 }
                 else{
-                    resp+= `\t\t- *⚠ No channels*`
+                    resp+= `\t\t- *⚠ No channels*\n`
                 }
             }
         }
@@ -1010,7 +1010,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         }
 
         var b= false
-        for (var cal_id of Object.keys(calendars)){
+        for (var cal_id in calendars){
             var chan_obj= undefined
             if (Boolean(cal_id) && Boolean(chan_obj=calendars[cal_id])){
                 try{
