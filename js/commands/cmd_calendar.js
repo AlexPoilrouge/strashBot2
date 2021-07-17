@@ -1037,15 +1037,15 @@ function cmd_help(cmdObj, clearanceLvl){
     cmdObj.msg_obj.author.send(
         "========\n\n"+
         `__**top8** command__:\n\n`+
-        ((clearanceLvl<=CLEARANCE_LEVEL.NONE)? "": ("**Admins only:**\n\n"+
-            `\t\`!${prt_cmd} set <calendar_id@gmail.com> <#channel-mention>\`\n\n`+
+        ((clearanceLvl<=CLEARANCE_LEVEL.NONE)? "": (
+            `\t\`!${prt_cmd} set <calendar_id@gmail.com> <#channel-mention>\` **[Admins only]**\n\n`+
             `\tLinks a calender to a given channel\n\n`+
-            `\t\`!${prt_cmd} ls\`\n\n`+
+            `\t\`!${prt_cmd} ls\` **[Admins only]**\n\n`+
             `\tShows a list of all calendars that have been to some channels (alongs with said channels)\n\n`+
-            `\t\`!${prt_cmd} remove <calendar_id@gmail.com> [#channel-mention]\`\n\n`+
+            `\t\`!${prt_cmd} remove <calendar_id@gmail.com> [#channel-mention]\` **[Admins only]**\n\n`+
             `\tRemove all links (if no \`#channel-mention\` is provided) of a calendar to all channels it was previously linked with.\n`+
             `\tIf a \`#channel-mention\` parameter is given, only remove links of the calendar with this specific channel.\n\n`+
-            `\t\`!${prt_cmd} update\`\n\n`+
+            `\t\`!${prt_cmd} update\` **[Admins only]**\n\n`+
             `\tManually forces an update of all linked calendars.\n`
         )) +
         `\t\`!${prt_cmd} test <calendar_id@gmail.com>\`\n\n`+
@@ -1074,7 +1074,7 @@ function cmd_help(cmdObj, clearanceLvl){
             :   (`\t\`!${prt_cmd} categories default <category_name>\` **[Admins only]**\n\n`+
                     `\tSets a given existing category as the new default category\n`+
                     `\t(The default category is the category given to an event which as none specified.`+
-                    `\tThe default category is the earliest shown in the category list.)`)
+                    `\tThe default category is the earliest shown in the category list.)\n\n`)
         )+
         ((clearanceLvl<=CLEARANCE_LEVEL.NONE)?
                 ""
