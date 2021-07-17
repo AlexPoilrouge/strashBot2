@@ -32,6 +32,19 @@ function __isDateValid(date){
 }
 
 
+function _isInControl(message, utils){
+    var result= false;
+
+    var c_role= utils.settings.get(message.guild, 'role')
+    if(Boolean(c_role) && message.member.roles.cache.get(c_role)){
+        result= true;
+    }
+
+    return result
+}
+
+
+
 function __g_authentication(g_auth_obj){
     return new Promise((resolve, reject) =>{
         if (!(Boolean(g_auth_obj) && Boolean(g_auth_obj.client_email) && Boolean(g_auth_obj.private_key))){
@@ -530,6 +543,7 @@ async function _update_calendar_channel(calendar_id, channel, utils, message_id_
 }
 
 async function update_calendar(guild, utils, calendar_id){
+    hereLog(`[test] update_calendar(${guild}, utils, ${calendar_id})`)
     var events= (await _request_calendarEventsInfos(calendar_id))
     if (!Boolean(events)){
         hereLog(`[update_calendar]{${calendar_id}} bad fetch of events for calendar '${calendar_id}'`)
@@ -657,15 +671,15 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                     for (var ch_id of Object.keys(calendars[k])){
                         var channel= undefined
                         if (Boolean(channel=(message.guild.channels.cache.get(ch_id)))){
-                            resp+= `\t\t- *${channel.name}*`
+                            resp+= `\t\t- *${channel.name}*\n`
                         }
                         else{
-                            resp+= `\t\t- *⚠ Unknown channel*`
+                            resp+= `\t\t- *⚠ Unknown channel*\n`
                         }
                     }
                 }
                 else{
-                    resp+= `\t\t- *⚠ No channels*`
+                    resp+= `\t\t- *⚠ No channels*\n`
                 }
             }
         }
@@ -838,7 +852,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         }
 
         if(['rm','remove','del','delete'].includes(args[1])){
-            if (clearanceLvl<=CLEARANCE_LEVEL.NONE){
+            if (clearanceLvl<=CLEARANCE_LEVEL.NONE || _isInControl(message, utils)){
                 message.author.send(`[${message.guild.name}][calendar]{${args[0]} ${args[1]}} - you don't have the clearance level for this`)
                 return false
             }
@@ -860,13 +874,13 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
             utils.settings.set(message.guild, 'tags', cal_tags)
         }
-        else if(['ls','list'].includes(args[1]) || (!Boolean(args[1]) && clearanceLvl<=CLEARANCE_LEVEL.NONE)){
+        else if(['ls','list'].includes(args[1]) || (!Boolean(args[1]) && (clearanceLvl<=CLEARANCE_LEVEL.NONE  && !_isInControl(message, utils)))){
             var str= `[${message.guild.name}][calendar]{${args[0]}}\n${__list_tags_and_categories(utils,message.guild)}`
             
             message.author.send(str, {split: true})
         }
         else{
-            if (clearanceLvl<=CLEARANCE_LEVEL.NONE){
+            if (clearanceLvl<=CLEARANCE_LEVEL.NONE && !_isInControl(message, utils)){
                 message.author.send(`[${message.guild.name}][calendar]{${args[0]}} - you don't have the clearance level for this`)
                 return false
             }
@@ -919,7 +933,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
 
         if(['rm','remove','del','delete'].includes(args[1])){
-            if (clearanceLvl<=CLEARANCE_LEVEL.NONE){
+            if (clearanceLvl<=CLEARANCE_LEVEL.NONE && !_isInControl(message, utils)){
                 message.author.send(`[${message.guild.name}][calendar]{${args[0]} ${args[1]}} - you don't have the clearance level for this`)
                 return false
             }
@@ -943,7 +957,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             utils.settings.set(message.guild, 'categories', cal_category)
         }
         else if(['default','defaut','défaut'].includes(args[1])){
-            if (clearanceLvl<=CLEARANCE_LEVEL.NONE){
+            if (clearanceLvl<=CLEARANCE_LEVEL.NONE && !_isInControl(message, utils)){
                 message.author.send(`[${message.guild.name}][calendar]{${args[0]} ${args[1]}} - you don't have the clearance level for this`)
                 return false
             }
@@ -968,13 +982,13 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
             utils.settings.set(message.guild, 'categories', cal_category)
         }
-        else if(['ls','list'].includes(args[1]) || (!Boolean(args[1]) && clearanceLvl<=CLEARANCE_LEVEL.NONE)){
+        else if(['ls','list'].includes(args[1]) || (!Boolean(args[1]) && (clearanceLvl<=CLEARANCE_LEVEL.NONE && !_isInControl(message, utils)))){
             var str= `[${message.guild.name}][calendar]{${args[0]}}\n${__list_tags_and_categories(utils,message.guild)}`
             
             message.author.send(str, {split: true})
         }
         else{
-            if (clearanceLvl<=CLEARANCE_LEVEL.NONE){
+            if (clearanceLvl<=CLEARANCE_LEVEL.NONE && !_isInControl(message, utils)){
                 message.author.send(`[${message.guild.name}][calendar]{${args[0]}} - you don't have the clearance level for this`)
                 return false
             }
@@ -1005,7 +1019,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
         return true
     }
-    else if (args[0]==="update" && (clearanceLvl>CLEARANCE_LEVEL.NONE)){
+    else if (args[0]==="update" && (clearanceLvl>CLEARANCE_LEVEL.NONE || _isInControl(message, utils))){
         var calendars= utils.settings.get(message.guild, 'calendars')
         if(!Boolean(calendars)){
             message.author.send(`[${message.guild.name}][calendar]{${args[0]}} - nothing to update`)
@@ -1013,11 +1027,11 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         }
 
         var b= false
-        for (var cal_id of Object.keys(calendars)){
+        for (var cal_id in calendars){
             var chan_obj= undefined
             if (Boolean(cal_id) && Boolean(chan_obj=calendars[cal_id])){
                 try{
-                    b= b || (Boolean(await update_calendar(message.guild, utils, cal_id)))
+                    b= (Boolean(await update_calendar(message.guild, utils, cal_id))) || b
                 }
                 catch (err){
                     hereLog(`[update] error while updating calendar '${cal_id}' - ${err}`)
@@ -1026,6 +1040,60 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         }
 
         return b
+    }
+    else if (args[0]==="role" && (clearanceLvl>CLEARANCE_LEVEL.NONE)){
+        var cal_role= utils.settings.get(message.guild, 'role')
+
+        if(args.length===1 || ['what','which'].includes(args[1])){
+            if(Boolean(cal_role)){
+                var role= message.guild.roles.cache.get(cal_role)
+                if (Boolean(role)){
+                    message.author.send(`[${message.guild.name}][calendar]{${args[0]}} - control role is "*${role.name}*"`)
+
+                    return true
+                }
+                else{
+                    hereLog(`[role](error) - couldn't not fetch control role…`)
+                    return false
+                }
+            }
+            else{
+                message.author.send(`[${message.guild.name}][calendar]{${args[0]}} - no control role is set…`)
+
+                return true                
+            }
+        }
+        else if(['clean', 'clear','removes', 'remove', 'delete', 'del', 'rm'].includes(args[1])){
+            if(Boolean(cal_role)){
+                var role= message.guild.roles.cache.get(cal_role)
+                if (Boolean(role)){
+                    utils.settings.remove(message.guild, 'role')
+
+                    return true
+                }
+                else{
+                    hereLog(`[role](error) - couldn't not fetch control role…`)
+                    return false
+                }
+            }
+            else{
+                message.author.send(`[${message.guild.name}][calendar]{${args[0]}-${args[1]}} - no control role is to remove…`)
+
+                return true                
+            }
+        }
+        else{
+            var role= undefined
+            if(!Boolean(message.mentions) || !Boolean(message.mentions.roles) || !Boolean(role=message.mentions.roles.first())){
+                message.member.send("[${message.guild.name}][calendar]{${args[0]}} - No mention to any role found… Format is:\n\t`!calendar role @rolemention`");
+    
+                return false;
+            }
+            
+            utils.settings.set(message.guild, 'role', role.id)
+
+            return true
+        }
     }
     else{
         message.author.send(`[${message.guild.name}][calendar]{${args[0]}} - unknown command`)
@@ -1036,8 +1104,9 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
 function cmd_help(cmdObj, clearanceLvl){
     var prt_cmd= "calendar"
-
-    cmdObj.msg_obj.author.send(
+    var message= cmdObj.msg_obj
+    
+    message.author.send(
         "========\n\n"+
         `__**calendar** command__:\n\n`+
         ((clearanceLvl<=CLEARANCE_LEVEL.NONE)? "": (
@@ -1049,42 +1118,32 @@ function cmd_help(cmdObj, clearanceLvl){
             `\tRemove all links (if no \`#channel-mention\` is provided) of a calendar to all channels it was previously linked with.\n`+
             `\tIf a \`#channel-mention\` parameter is given, only remove links of the calendar with this specific channel.\n\n`+
             `\t\`!${prt_cmd} update\` **[Admins only]**\n\n`+
-            `\tManually forces an update of all linked calendars.\n`
+            `\tManually forces an update of all linked calendars.\n\n`+
+            `\t\`!${prt_cmd} role <@role_mention>\` **[Admins only]**\n\n`+
+            `\tSets the control role for calendars. Member that have this role will be able to update calendar and manage tags & categories\n\n`+
+            `\t\`!${prt_cmd} role which\` **[Admins only]**\n\n`+
+            `\tInforms on which role is currently set to be the control role\n\n`+
+            `\t\`!${prt_cmd} role clean\` **[Admins only]**\n\n`+
+            `\tDiscard the currently set control role\n\n`
         )) +
         `\t\`!${prt_cmd} test <calendar_id@gmail.com>\`\n\n`+
         `\tTests if, for a given calendar, all its event are accessible for reading.\n\n`+
         `\t\`!${prt_cmd} tags ls\`\n\n`+
         `\tLists all availabe calendar tags along with their associated emotes.\n\n`+
-        ((clearanceLvl<=CLEARANCE_LEVEL.NONE)?
-                ""
-            :   (`\t\`!${prt_cmd} tags remove <tag_name>\` **[Admins only]**\n\n`+
-                    `\tRemoves a given available calendar tag\n\n`)
-        )+
-        ((clearanceLvl<=CLEARANCE_LEVEL.NONE)?
-                ""
-            :   (`\t\`!${prt_cmd} tags <tag_name> <:emoji:>\` **[Admins only]**\n\n`+
-                    `\tAdds a given tag with a given associated emoji to the list of availabe tags\n\n`)
-        )+
+        `\t\`!${prt_cmd} tags remove <tag_name>\` **[Ctrl Role only]**\n\n`+
+        `\tRemoves a given available calendar tag\n\n`+
+        `\t\`!${prt_cmd} tags <tag_name> <:emoji:>\` **[Ctrl Role only]**\n\n`+
+        `\tAdds a given tag with a given associated emoji to the list of availabe tags\n\n`+
         `\t\`!${prt_cmd} categories ls\`\n\n`+
-        `\tLists all availabe calendar item categories.\n\n`+
-        ((clearanceLvl<=CLEARANCE_LEVEL.NONE)?
-                ""
-            :   (`\t\`!${prt_cmd} categories remove <category_name>\` **[Admins only]**\n\n`+
-                    `\tRemoves a given available calendar  item category\n\n`)
-        )+
-        ((clearanceLvl<=CLEARANCE_LEVEL.NONE)?
-                ""
-            :   (`\t\`!${prt_cmd} categories default <category_name>\` **[Admins only]**\n\n`+
-                    `\tSets a given existing category as the new default category\n`+
-                    `\t(The default category is the category given to an event which as none specified.`+
-                    `\tThe default category is the earliest shown in the category list.)\n\n`)
-        )+
-        ((clearanceLvl<=CLEARANCE_LEVEL.NONE)?
-                ""
-            :   (`\t\`!${prt_cmd} categories <category_name> [default]\` **[Admins only]**\n\n`+
-                    `\tAdds a given item categories to the list of availabe catagories\n`+
-                    `If \`default\` parameter is given, the new category will be set as the new default category.\n\n`)
-        ),
+        `\tLists all availabe calendar item categories.\n\n`+`\t\`!${prt_cmd} categories remove <category_name>\` **[Ctrl Role only]**\n\n`+
+        `\tRemoves a given available calendar  item category\n\n`+
+        `\t\`!${prt_cmd} categories default <category_name>\` **[Ctrl Role only]**\n\n`+
+        `\tSets a given existing category as the new default category\n`+
+        `\t(The default category is the category given to an event which as none specified.`+
+        `\tThe default category is the earliest shown in the category list.)\n\n`+
+        `\t\`!${prt_cmd} categories <category_name> [default]\` **[Ctrl Role only]**\n\n`+
+        `\tAdds a given item categories to the list of availabe catagories\n`+
+        `\tIf \`default\` parameter is given, the new category will be set as the new default category.\n\n`,
         {split: true}
     )
 
