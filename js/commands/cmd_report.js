@@ -738,7 +738,7 @@ async function _reportCmdRoles(guild, utils){
                         for(var em_txt in obj.roles){
                             msg+= `<li>`
                             let simpleEmojiRegex= /(?:[\u2700-\u27bf]|(?:\ud83c[\udde6-\uddff]){2}|[\ud800-\udbff][\udc00-\udfff]|[\u0023-\u0039]\ufe0f?\u20e3|\u3299|\u3297|\u303d|\u3030|\u24c2|\ud83c[\udd70-\udd71]|\ud83c[\udd7e-\udd7f]|\ud83c\udd8e|\ud83c[\udd91-\udd9a]|\ud83c[\udde6-\uddff]|\ud83c[\ude01-\ude02]|\ud83c\ude1a|\ud83c\ude2f|\ud83c[\ude32-\ude3a]|\ud83c[\ude50-\ude51]|\u203c|\u2049|[\u25aa-\u25ab]|\u25b6|\u25c0|[\u25fb-\u25fe]|\u00a9|\u00ae|\u2122|\u2139|\ud83c\udc04|[\u2600-\u26FF]|\u2b05|\u2b06|\u2b07|\u2b1b|\u2b1c|\u2b50|\u2b55|\u231a|\u231b|\u2328|\u23cf|[\u23e9-\u23f3]|[\u23f8-\u23fa]|\ud83c\udccf|\u2934|\u2935|[\u2190-\u21ff])/g;
-                            if(!Boolean(em_txt.match(simpleEmojiRegex)) &&
+                            if(!Boolean(em_txt.match(simpleEmojiRegex)) ||
                                 !Boolean([...guild.emojis.cache.values()].find( e => {return e.toString()===em_txt})))
                             {
                                 var _msg= `Invalid role giving emoji ${em_txt} for react message ${msg_id} on channel ${ch_id}`
@@ -902,6 +902,319 @@ async function _reportCmdRoles(guild, utils){
     return report_str
 }
 
+async function _reportCmdCalendars(guild, utils){
+    let G_MAIL_REGEX= /^[a-z0-9](\.?[a-z0-9]){5,}@g(oogle)?mail\.com$/
+
+    var data_calendars= utils.settings.get(guild, 'calendars', 'calendar')
+    var data_update_check= utils.settings.get(guild, 'update_check', 'calendar')
+
+    var report_str= `<h4>cmd calendar:</h4>\n`
+
+    report_str+=`<h5>Linked calendars:</h5>`
+
+    var msg=""
+    if(!Boolean(data_calendars)){
+        var _msg= `No calendar data found…`
+        problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+        msg+= _msg
+    }
+    else{
+        msg+= '<ul>'
+        for(var calendar_id in data_calendars){
+            msg+= '<li>'
+            if(!Boolean(calendar_id.match(G_MAIL_REGEX))){
+                var _msg= `"${calendar_id}" doesn't seem to be a valid calendar id…`
+                problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+
+                msg+= _msg
+            }
+            else{
+                msg+= `${calendar_id}`
+
+                var chan_obj= data_calendars[calendar_id]
+                if((!Boolean(chan_obj)) || Object.keys(chan_obj).length<=0){
+                    var _msg= `"${calendar_id}" has no linked channel data…`
+                    problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+
+                    msg+= `: ${_msg}`
+                }
+                else{
+                    msg+= `:\n<ul>`
+
+                    for (var chan_id in chan_obj){
+                        problems.add(guild.id, `"${calendar_id}" linked to channel #${chan_id}`, ProblemCount.TYPES.INFO)
+
+                        var channel= undefined
+                        if(!Boolean(channel=guild.channels.cache.get(chan_id))){
+                            var _msg= `"${calendar_id}" tried to link to channel ${channel}, which doesn't seem to exist…`
+                            problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+
+                            msg+=  `<li>${_msg}</li>`
+                        }
+                        else{
+                            var msg_list= chan_obj[chan_id]
+
+                            if((!Boolean(msg_list)) || msg_list.length<=0){
+                                var duc_cid= undefined
+                                if((!Boolean(data_update_check)) || (!Boolean(duc_cid=data_update_check[calendar_id])) ||
+                                    (Boolean(duc_cid.unnecessary))
+                                ){
+                                    var _msg= `no message referenced in channel ${channel}, yet "${calendar_id}" is not referenced for update (no events?).`
+                                    problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+
+                                    msg+=  `<li>${_msg}</li>`
+                                }
+                                else{
+                                    var _msg= `no message referenced in channel ${channel}, although "${calendar_id}" is referenced for update (maybe it will be updated?).`
+                                    problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+
+                                    msg+=  `<li>${_msg}</li>`
+                                }
+                            }
+                            else{
+                                var b_ok= true
+                                for (var msg_id of msg_list){
+                                    var f_msg= undefined
+                                    try{
+                                        f_msg= (Boolean(msg_id) && Boolean(f_msg=(await (channel.messages.fetch(msg_id)))))? f_msg : undefined 
+                                    } catch(err){
+                                        f_msg= undefined
+                                    }
+                                    if(!Boolean(f_msg)){
+                                        if((!Boolean(data_update_check)) || (!Boolean(duc_cid=data_update_check[calendar_id])) ||
+                                            (Boolean(duc_cid.unnecessary))
+                                        ){
+                                            var _msg= `unable to fetch message ${msg_id} in channel ${channel} for "${calendar_id}" which isn't flagged for update`
+                                            problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+
+                                            msg+= `<li>${_msg}</li> (${JSON.stringify(msg_list)})`
+                                        }
+                                        else{
+                                            var _msg= `unable to fetch message ${msg_id} in channel ${channel} for "${calendar_id}" although it's flagged for update`
+                                            problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+    
+                                            msg+= `<li>${_msg}</li> (${JSON.stringify(msg_list)})`
+                                        }
+
+                                        b_ok= false
+                                    }
+                                }
+                                if(b_ok){
+                                    var _msg= `in channel ${channel}, "${calendar_id}" is displayed though: ${JSON.stringify(msg_list)}`
+                                    problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
+
+                                    msg+= `<li>${_msg}</li>`
+                                }
+                            }
+                        }
+                    }
+
+                    msg+= `</ul>\n`
+                }
+            }
+            msg+= '</li>\n'
+        }
+        msg+= '</ul>'
+    }
+
+    report_str+= `${msg}</br>`
+    msg= ""
+
+    report_str+=`<h5>update checks:</h5>`
+
+    if(!Boolean(data_update_check)){
+        var _msg= `No update check data found…`
+        problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+        msg+= _msg
+    }
+    else if(Object.keys(data_update_check).length<=0){
+        var _msg= `No update check data set…`
+        problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+        msg+= _msg
+    }
+    else{
+        msg+= `<ul>`
+        
+        for(var cal_id in data_update_check){
+            msg+= `<li>`
+
+            if(!Boolean(cal_id.match(G_MAIL_REGEX))){
+                var _msg= `"${cal_id}" doesn't seem to be a valid calendar id…`
+                hereLog(`[test] data_update_check: ${JSON.stringify(data_update_check)}`)
+                problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+
+                msg+= _msg
+            }
+            else{
+                var cal_update_obj= data_update_check[cal_id]
+                if(!Boolean(cal_update_obj)){
+                    var _msg= `No update check data set for "${cal_id}"`
+                    problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+
+                    msg+= _msg
+                } 
+                else if(Object.keys(cal_update_obj).length<=0){
+                    var _msg= `Empty update check data set for "${cal_id}"`
+                    problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+
+                    msg+= _msg
+                }
+                else{
+                    msg+= `For "${cal_id}":\n<ul>`
+
+                    var _lst_d= undefined
+                    if(!Boolean(cal_update_obj.lastTime)){
+                        var _msg= `"${cal_id}" hasn't been updated yet (no 'lastTime' data)…`
+                        problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+    
+                        msg+= `<li>${_msg}</li>\n`
+                    }
+                    else if(isNaN((_lst_d=new Date(cal_update_obj.lastTime)).getTime())){
+                        var _msg= `"${cal_id}" has invalid time has last update…`
+                        problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+    
+                        msg+= `<li>${_msg}</li>\n`
+                    }
+                    else{
+                        var _msg= `"${cal_id}" has been updated last on "${_lst_d.toLocaleDateString('fr-FR',"Paris/Europe")}"`
+                        problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
+    
+                        msg+= `<li>${_msg}</li>\n`
+                    }
+
+                    if(cal_update_obj.unnecessary===undefined){
+                        var _msg= `"${cal_id}" no update necessity check boolean…`
+                        problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+    
+                        msg+= `<li>${_msg}</li>\n`
+                    }
+                    else{
+                        var _msg= `"${cal_id}" is ${(cal_update_obj.unnecessary)?"":"NOT "} set for an update on next scheduled check…`
+                        problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
+    
+                        msg+= `<li>${_msg}</li>\n`
+                    }
+
+                    if(!Boolean(cal_update_obj.nextDiscardTime)){
+                        var _msg= `"${cal_id}" doesn't seem to have an expiring event in the future (no 'nextDiscardTime' data)…`
+                        problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+    
+                        msg+= `<li>${_msg}</li>\n`
+                    }
+                    else if(isNaN((_lst_d=new Date(cal_update_obj.nextDiscardTime)).getTime())){
+                        var _msg= `"${cal_id}" has invalid time for next expiring event (bad 'nextDiscardTime' data)…`
+                        problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+    
+                        msg+= `<li>${_msg}</li>\n`
+                    }
+                    else{
+                        var _msg= `"${cal_id}" seems to have an expiring event on "${_lst_d.toLocaleDateString('fr-FR',"Paris/Europe")}"`
+                        problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
+    
+                        msg+= `<li>${_msg}</li>\n`
+                    }
+
+                    msg+= `</ul>\n`
+                }
+            }
+
+            msg+= `</li>\n`
+        }
+
+        msg+= `</ul>`
+    }
+
+    report_str+= `${msg}</br>`
+    msg= ""
+
+
+    var data_tags= utils.settings.get(guild, 'tags', 'calendar')
+
+    report_str+=`<h5>Calendar tags:</h5>`
+
+    if(!Boolean(data_tags)){
+        var _msg= `No calendar tags data…`
+        problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+
+        msg+= _msg
+    }
+    if(Object.keys(data_tags).length<=0){
+        var _msg= `Empty calendar tags data…`
+        problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+
+        msg+= _msg
+    }
+    else{
+        msg+= `<ul>`
+        
+        for(var tag in data_tags){
+            var emote= data_tags[tag]
+            if(!Boolean(emote)){
+                var _msg= `Tag "${tag}" is register but not associated to a valid emoji ('${emote}')`
+                problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+
+                msg+= `<li>${_msg}</li>\n`
+            }
+            else{
+                let simpleEmojiRegex= /(?:[\u2700-\u27bf]|(?:\ud83c[\udde6-\uddff]){2}|[\ud800-\udbff][\udc00-\udfff]|[\u0023-\u0039]\ufe0f?\u20e3|\u3299|\u3297|\u303d|\u3030|\u24c2|\ud83c[\udd70-\udd71]|\ud83c[\udd7e-\udd7f]|\ud83c\udd8e|\ud83c[\udd91-\udd9a]|\ud83c[\udde6-\uddff]|\ud83c[\ude01-\ude02]|\ud83c\ude1a|\ud83c\ude2f|\ud83c[\ude32-\ude3a]|\ud83c[\ude50-\ude51]|\u203c|\u2049|[\u25aa-\u25ab]|\u25b6|\u25c0|[\u25fb-\u25fe]|\u00a9|\u00ae|\u2122|\u2139|\ud83c\udc04|[\u2600-\u26FF]|\u2b05|\u2b06|\u2b07|\u2b1b|\u2b1c|\u2b50|\u2b55|\u231a|\u231b|\u2328|\u23cf|[\u23e9-\u23f3]|[\u23f8-\u23fa]|\ud83c\udccf|\u2934|\u2935|[\u2190-\u21ff])/g;
+                if(!Boolean(emote.match(simpleEmojiRegex)) &&
+                    !Boolean([...guild.emojis.cache.values()].find( e => {hereLog(`[test] e.toString() is ${e.toString()}`);return e.toString()===emote})))
+                {
+                    var _msg= `Tag "${tag}" is register but associated to an invalid emoji ('${emote}')`
+                    hereLog(`[test] tags emojis? ${JSON.stringify([...guild.emojis.cache.values()])}`)
+                    hereLog(`[test] Boolean(emote.match(simpleEmojiRegex)? ${Boolean(emote.match(simpleEmojiRegex))}`)
+                    problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+
+                    msg+= `<li>${_msg}</li>\n`
+                }
+                else{
+                    var _msg= `Tag "${tag}" -> '${emote}'`
+                    problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
+
+                    msg+= `<li>${_msg}</li>\n`
+                }
+            }
+        }
+
+        msg+= `</ul>\n`
+    }
+
+    report_str+= `${msg}</br>`
+    msg= ""
+
+
+
+    var data_category= utils.settings.get(guild, 'categories', 'calendar')
+    
+    report_str+=`<h5>Category checks:</h5>`
+
+    if(!Boolean(data_category)){
+        var _msg= `No calendar category data…`
+        problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+
+        msg+= _msg        
+    }
+    if(data_category.length<=0){
+        var _msg= `Empty calendar category data…`
+        problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+
+        msg+= _msg
+    }
+    else{
+        msg+= `Categories: `
+        for (var cat of data_category){
+            problems.add(guild.id, `category '${cat}' found`, ProblemCount.TYPES.INFO)
+
+            msg+= ` '${cat}';`
+        }
+    }
+
+    report_str+= `${msg}</br>`
+    
+
+    return report_str
+}
+
 async function _runReportGuild(guild, utils, sendToUser= undefined){
     var report_fileName= `report_${guild.name.replace(' ','_')}_${Date.now()}.html`;
     var html_path= `data/${report_fileName}`;
@@ -913,9 +1226,14 @@ async function _runReportGuild(guild, utils, sendToUser= undefined){
         if(!Boolean(user)) return false
     }
 
-    var clean= () =>{
+    let clean= () =>{
         if(fs.existsSync(html_path)) fs.unlinkSync(html_path);
     };
+
+    let moduleExists= (modName) => {
+        hereLog(`[test] exists? '${__dirname}/cmd_${modName}.js'`)
+        return fs.existsSync(`${__dirname}/cmd_${modName}.js`)
+    }
 
     problems.clear(guild.id)
 
@@ -927,29 +1245,50 @@ async function _runReportGuild(guild, utils, sendToUser= undefined){
     });
     report_str+= `</tbody>\n</table>\n\n`;
 
-    report_str+= await _reportCmdPunishRole(guild, utils);
+    if(moduleExists('punish_role')){
+        report_str+= await _reportCmdPunishRole(guild, utils);
     
-    report_str+= `<br/>\n`
+        report_str+= `<br/>\n`
+    }
 
-    report_str+= _reportCmdWelcome(guild, utils);
-    
-    report_str+= `<br/>\n`
+    if(moduleExists('welcome')){
+        report_str+= _reportCmdWelcome(guild, utils);
+        
+        report_str+= `<br/>\n`
+    }
+    else{
+        hereLog('[test] welcome mod? nooooooo')
+    }
 
-    report_str+= _reportCmdMain(guild, utils);
-    
-    report_str+= `<br/>\n`
+    if(moduleExists('main')){
+        report_str+= _reportCmdMain(guild, utils);
+        
+        report_str+= `<br/>\n`
+    }
 
-    report_str+= _reportCmdKart(guild, utils);
-    
-    report_str+= `<br/>\n`
+    if(moduleExists('kart')){
+        report_str+= _reportCmdKart(guild, utils);
+        
+        report_str+= `<br/>\n`
+    }
 
-    report_str+= await _reportCmdPlayer(guild, utils);
-    
-    report_str+= `<br/>\n`
+    if(moduleExists('player')){
+        report_str+= await _reportCmdPlayer(guild, utils);
+        
+        report_str+= `<br/>\n`
+    }
 
-    report_str+= await _reportCmdRoles(guild, utils);
-    
-    report_str+= `<br/>\n`
+    if(moduleExists('roles')){
+        report_str+= await _reportCmdRoles(guild, utils);
+        
+        report_str+= `<br/>\n`
+    }
+
+    if(moduleExists('calendar')){
+        report_str+= await _reportCmdCalendars(guild, utils);
+        
+        report_str+= `<br/>\n`
+    }
 
     report_str+= problems.printGuildProblemsSummary(guild.id)
 

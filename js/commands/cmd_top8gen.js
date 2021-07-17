@@ -240,7 +240,7 @@ async function _generateTop8(template, genInfos, channel){
         var cmd= `${genInfos.svg_bin} ${svg} --export-png=${outpng}`
         try{
             hereLog(`[rasterize func] calling command '${cmd}'`)
-            child_process.execSync(cmd, {timeout: 24000});
+            child_process.execSync(cmd, {timeout: 64000});
         } catch(error){
             hereLog(`[rast_func] error invoking rasterizing command \`${cmd}\`!\n\t${error}`)
             b= false;
@@ -984,7 +984,7 @@ function cmd_help(cmdObj, clearanceLvl){
         `\tFor character roster informations about players, the data is lookup in the database of the guild (see \`!player\` & \`!roster\` commands)\n`+
         `\tIf a smashgg Url is provided, then top8 data will be fetch from this smash.gg tournament.\n\n`+
         `\t⚠️ This assumes that the tournament is completed, and that the provided smash.gg Url points to a '*Singles' event.\n`+
-        `\t\t__Example:__ \`!${prt_cmd} template https://smash.gg/tournament/scarlet-arena-4/event/singles ?title="4th edition"\n\n`+
+        `\t\t__Example:__ \`!${prt_cmd} template https://smash.gg/tournament/scarlet-arena-4/event/singles ?title="4th edition"\`\n\n`+
         `\t\`!${prt_cmd} test <template> [smashggUrl] [options…]\`\n\n`+
         `\tThe goal of the commands is to test out parameters and options to ensure their validity before making an actual`+
         `call to the \`!top8\` command.\n` +
