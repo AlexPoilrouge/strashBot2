@@ -19,7 +19,7 @@ const G_AUTH_URL_CALENDAR= 'https://www.googleapis.com/auth/calendar'
 
 const G_SERVICE_ACCOUNT_FILEPATH= "./calendar/keyfile.json"
 
-let G_MAIL_REGEX= /^[a-z0-9](\.?[a-z0-9]){5,}@g(oogle)?mail\.com$/
+let G_MAIL_REGEX= /^[a-z0-9](\.?[a-z0-9]){5,}@((g(oogle)?mail)|((group\.calendar\.)?google))\.com$/
 
 const DEFAULT_TIMEZONE= "Europe/Paris"
 
