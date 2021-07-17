@@ -384,8 +384,8 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
 
     var cat= "unknown"
     var _usedDate= (Boolean(endDate))? endDate : startDate
-    var _tmpDate= new Date(_usedDate.getTime()-(_usedDate.getTime()%DayTime))
-    if((Date.now()-_tmpDate.getTime())>=DayTime){
+    var _tmpDate= new Date(_usedDate.getTime()-(_usedDate.getTime()%DayTime)-1)
+    if((Date.now()-_tmpDate.getTime())>=(DayTime-1)){
         cat= "outdated"
     }
     else if(Boolean(descInfo.tags) && descInfo.tags.length>0){
