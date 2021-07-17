@@ -361,6 +361,9 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
                 endDate= undefined
             }
         }
+        else{
+            endDate= undefined
+        }
     }
     var startDateTxt= `${startDate.toLocaleDateString('fr-Fr',{timeZone: displayTimezone})}`
     var endDateTxt= (Boolean(endDate))? `${endDate.toLocaleDateString('fr-Fr',{timeZone: displayTimezone})}` : undefined
@@ -1112,7 +1115,7 @@ function cmd_event(eventName, utils){
 
         return false
     }
-    else if("messageDelete"){
+    else if(eventName==="messageDelete"){
         var message= arguments[2];
 
         var calendars_object= utils.settings.get(message.guild, 'calendars')
