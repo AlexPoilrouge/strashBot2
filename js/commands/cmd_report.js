@@ -1075,7 +1075,7 @@ async function _reportCmdCalendars(guild, utils){
                         msg+= `<li>${_msg}</li>\n`
                     }
                     else{
-                        var _msg= `"${cal_id}" has been updated last on "${_lst_d.toLocaleDateString('fr-FR',"Paris/Europe")}"`
+                        var _msg= `"${cal_id}" has been updated last on "${_lst_d}"`
                         problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
     
                         msg+= `<li>${_msg}</li>\n`
@@ -1107,7 +1107,7 @@ async function _reportCmdCalendars(guild, utils){
                         msg+= `<li>${_msg}</li>\n`
                     }
                     else{
-                        var _msg= `"${cal_id}" seems to have an expiring event on "${_lst_d.toLocaleDateString('fr-FR',"Paris/Europe")}"`
+                        var _msg= `"${cal_id}" seems to have an expiring event on "${_lst_d}"`
                         problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
     
                         msg+= `<li>${_msg}</li>\n`
