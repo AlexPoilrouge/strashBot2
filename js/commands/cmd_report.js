@@ -738,7 +738,7 @@ async function _reportCmdRoles(guild, utils){
                         for(var em_txt in obj.roles){
                             msg+= `<li>`
                             let simpleEmojiRegex= /(?:[\u2700-\u27bf]|(?:\ud83c[\udde6-\uddff]){2}|[\ud800-\udbff][\udc00-\udfff]|[\u0023-\u0039]\ufe0f?\u20e3|\u3299|\u3297|\u303d|\u3030|\u24c2|\ud83c[\udd70-\udd71]|\ud83c[\udd7e-\udd7f]|\ud83c\udd8e|\ud83c[\udd91-\udd9a]|\ud83c[\udde6-\uddff]|\ud83c[\ude01-\ude02]|\ud83c\ude1a|\ud83c\ude2f|\ud83c[\ude32-\ude3a]|\ud83c[\ude50-\ude51]|\u203c|\u2049|[\u25aa-\u25ab]|\u25b6|\u25c0|[\u25fb-\u25fe]|\u00a9|\u00ae|\u2122|\u2139|\ud83c\udc04|[\u2600-\u26FF]|\u2b05|\u2b06|\u2b07|\u2b1b|\u2b1c|\u2b50|\u2b55|\u231a|\u231b|\u2328|\u23cf|[\u23e9-\u23f3]|[\u23f8-\u23fa]|\ud83c\udccf|\u2934|\u2935|[\u2190-\u21ff])/g;
-                            if(!Boolean(em_txt.match(simpleEmojiRegex)) ||
+                            if(!Boolean(em_txt.match(simpleEmojiRegex)) &&
                                 !Boolean([...guild.emojis.cache.values()].find( e => {return e.toString()===em_txt})))
                             {
                                 var _msg= `Invalid role giving emoji ${em_txt} for react message ${msg_id} on channel ${ch_id}`
@@ -1040,7 +1040,6 @@ async function _reportCmdCalendars(guild, utils){
 
             if(!Boolean(cal_id.match(G_MAIL_REGEX))){
                 var _msg= `"${cal_id}" doesn't seem to be a valid calendar id…`
-                hereLog(`[test] data_update_check: ${JSON.stringify(data_update_check)}`)
                 problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
 
                 msg+= _msg
@@ -1157,12 +1156,10 @@ async function _reportCmdCalendars(guild, utils){
             }
             else{
                 let simpleEmojiRegex= /(?:[\u2700-\u27bf]|(?:\ud83c[\udde6-\uddff]){2}|[\ud800-\udbff][\udc00-\udfff]|[\u0023-\u0039]\ufe0f?\u20e3|\u3299|\u3297|\u303d|\u3030|\u24c2|\ud83c[\udd70-\udd71]|\ud83c[\udd7e-\udd7f]|\ud83c\udd8e|\ud83c[\udd91-\udd9a]|\ud83c[\udde6-\uddff]|\ud83c[\ude01-\ude02]|\ud83c\ude1a|\ud83c\ude2f|\ud83c[\ude32-\ude3a]|\ud83c[\ude50-\ude51]|\u203c|\u2049|[\u25aa-\u25ab]|\u25b6|\u25c0|[\u25fb-\u25fe]|\u00a9|\u00ae|\u2122|\u2139|\ud83c\udc04|[\u2600-\u26FF]|\u2b05|\u2b06|\u2b07|\u2b1b|\u2b1c|\u2b50|\u2b55|\u231a|\u231b|\u2328|\u23cf|[\u23e9-\u23f3]|[\u23f8-\u23fa]|\ud83c\udccf|\u2934|\u2935|[\u2190-\u21ff])/g;
-                if(!Boolean(emote.match(simpleEmojiRegex)) ||
-                    !Boolean([...guild.emojis.cache.values()].find( e => {hereLog(`[test] e.toString() is ${e.toString()}`);return e.toString()===emote})))
+                if(!Boolean(emote.match(simpleEmojiRegex)) &&
+                    !Boolean([...guild.emojis.cache.values()].find( e => {return e.toString()===emote})))
                 {
                     var _msg= `Tag "${tag}" is register but associated to an invalid emoji ('${emote}')`
-                    hereLog(`[test] tags emojis? ${JSON.stringify([...guild.emojis.cache.values()])}`)
-                    hereLog(`[test] Boolean(emote.match(simpleEmojiRegex)? ${Boolean(emote.match(simpleEmojiRegex))}`)
                     problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
 
                     msg+= `<li>${_msg}</li>\n`
@@ -1260,7 +1257,6 @@ async function _runReportGuild(guild, utils, sendToUser= undefined){
     };
 
     let moduleExists= (modName) => {
-        hereLog(`[test] exists? '${__dirname}/cmd_${modName}.js'`)
         return fs.existsSync(`${__dirname}/cmd_${modName}.js`)
     }
 
@@ -1284,9 +1280,6 @@ async function _runReportGuild(guild, utils, sendToUser= undefined){
         report_str+= _reportCmdWelcome(guild, utils);
         
         report_str+= `<br/>\n`
-    }
-    else{
-        hereLog('[test] welcome mod? nooooooo')
     }
 
     if(moduleExists('main')){
