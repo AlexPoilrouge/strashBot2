@@ -1183,7 +1183,6 @@ async function _reportCmdCalendars(guild, utils){
     msg= ""
 
 
-
     var data_category= utils.settings.get(guild, 'categories', 'calendar')
     
     report_str+=`<h5>Category checks:</h5>`
@@ -1192,7 +1191,7 @@ async function _reportCmdCalendars(guild, utils){
         var _msg= `No calendar category data…`
         problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
 
-        msg+= _msg        
+        msg+= _msg
     }
     if(data_category.length<=0){
         var _msg= `Empty calendar category data…`
@@ -1206,6 +1205,36 @@ async function _reportCmdCalendars(guild, utils){
             problems.add(guild.id, `category '${cat}' found`, ProblemCount.TYPES.INFO)
 
             msg+= ` '${cat}';`
+        }
+    }
+
+    report_str+= `${msg}</br>`
+    msg= ""
+
+
+    var ctrl_role= utils.settings.get(guild, 'role', 'calendar')
+    
+    report_str+=`<h5>Control role:</h5>`
+
+    if(!Boolean(ctrl_role)){
+        var _msg= `no control role is set…`
+        problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+
+        msg+= _msg        
+    }
+    else{
+        var role= guild.roles.cache.get(ctrl_role)
+        if(!Boolean(role)){
+            var _msg= `Set control role is badly written or non existing`
+            problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+
+            msg+= _msg
+        }
+        else{
+            var _msg= `Control role: ${role.name} (id: ${role.id})`
+            problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
+
+            msg+= _msg
         }
     }
 
