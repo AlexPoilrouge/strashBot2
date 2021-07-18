@@ -1189,7 +1189,7 @@ function cmd_event(eventName, utils){
                                     var update_check= utils.settings.get(message.guild,'update_check')
                                     update_check= (Boolean(update_check))? update_check: {}
                                     if(!Boolean(update_check[cal_id])) update_check[cal_id]= {}
-                                    update_check['unnecessary']= false
+                                    update_check[cal_id]['unnecessary']= false
 
                                     utils.settings.set(message.guild,'update_check',update_check)
 
