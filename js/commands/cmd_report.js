@@ -903,7 +903,7 @@ async function _reportCmdRoles(guild, utils){
 }
 
 async function _reportCmdCalendars(guild, utils){
-    let G_MAIL_REGEX= /^[a-z0-9](\.?[a-z0-9]){5,}@g(oogle)?mail\.com$/
+    let G_MAIL_REGEX= /^[a-z0-9](\.?[a-z0-9]){5,}@((g(oogle)?mail)|((group\.calendar\.)?google))\.com$/
 
     var data_calendars= utils.settings.get(guild, 'calendars', 'calendar')
     var data_update_check= utils.settings.get(guild, 'update_check', 'calendar')
