@@ -297,8 +297,11 @@ function ___getEmoteBulletFromTagList(tagList, bulletTagDict, defaultBullet='ðŸ”
 }
 
 function ___getCategoryFromTagList(tagList, catList){
-    if (catList.length<=0){
+    if ((!Boolean(catList)) || (catList.length<=0)){
         return "unknown"
+    }
+    else if((!Boolean(tagList)) || (tagList.length<=0)){
+        return catList[0]
     }
 
     for (var tag of tagList){
@@ -404,10 +407,12 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
     if((Date.now()-_tmpDate.getTime())>=(DayTime-1)){
         cat= "outdated"
     }
-    else if(Boolean(descInfo.tags) && descInfo.tags.length>0){
+    else{
         var catList= utils.settings.get(guild, 'categories')
         if(!Boolean(catList)) catList=[];
+        hereLog(`[test] ---> calling ___getCategoryFromTagList(${descInfo.tags}, ${catList})`)
         cat= ___getCategoryFromTagList(descInfo.tags, catList)
+        hereLog(`[test] ---> got ${cat}`)
     }
     
     // return {text: resp, category: cat, discardTime: discardDate.getTime()};
