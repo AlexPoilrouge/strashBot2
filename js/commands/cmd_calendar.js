@@ -410,9 +410,7 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
     else{
         var catList= utils.settings.get(guild, 'categories')
         if(!Boolean(catList)) catList=[];
-        hereLog(`[test] ---> calling ___getCategoryFromTagList(${descInfo.tags}, ${catList})`)
         cat= ___getCategoryFromTagList(descInfo.tags, catList)
-        hereLog(`[test] ---> got ${cat}`)
     }
     
     // return {text: resp, category: cat, discardTime: discardDate.getTime()};
