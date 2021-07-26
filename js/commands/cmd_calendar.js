@@ -96,10 +96,9 @@ async function _request_JWTClient(){
     })
 }
 
-function _request_calendarEventsInfos(cal_id, monthsBack=1){
-    hereLog(`[_request_calendarEventsInfos]{${cal_id},${monthsBack}}`)
+function _request_calendarEventsInfos(cal_id, daysBack=7){
     var dateMin= new Date()
-    dateMin.setMonth(dateMin.getMonth()-monthsBack)
+    dateMin.setDate(dateMin.getDate()-daysBack)
 
     return new Promise( (resolve, reject) =>{
         _request_JWTClient().then((jwtClient) => {
