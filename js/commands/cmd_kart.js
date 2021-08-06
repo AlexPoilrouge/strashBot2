@@ -1711,6 +1711,8 @@ function _getServMode(){
                 return `${c}Acrobatics`
             case "HP":
                 return `${c}HP`
+            case "CRUEL":
+                return `${c}Cruel`
             default:
                 return `${c}${s}`
         }
