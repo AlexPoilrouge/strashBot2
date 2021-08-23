@@ -2433,6 +2433,17 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                         inline: true
                     })
 
+                    if(Boolean(ss) && [2,3].includes(ss.gametype)){
+                        let speeds= ["Easy","Normal","Hard"]
+                        embed.fields.push({
+                            name: (ss.gametype===2)?'KartSpeed':'Gametype',
+                            value: (ss.gametype===2 && Boolean(ss.kartspeed))?
+                                        ( (ss.kartspeed>=0 && ss.kartspeed<=2)?speeds[ss.kartspeed]:'erreur' )
+                                :   "Battle",
+                            inline: true
+                        })
+                    }
+
                     var modes= _getServMode()
                     if(Boolean(modes) && modes.length>0){
                         embed.fields.push({
