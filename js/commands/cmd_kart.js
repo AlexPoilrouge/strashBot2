@@ -2438,7 +2438,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                         embed.fields.push({
                             name: (ss.gametype===2)?'KartSpeed':'Gametype',
                             value: (ss.gametype===2 && Boolean(ss.kartspeed))?
-                                        ( (ss.kartspeed>=0 && ss.kartspeed<=2)?speeds[ss.kartspeed]:'erreur' )
+                                    ss.kartspeed
                                 :   "Battle",
                             inline: true
                         })
