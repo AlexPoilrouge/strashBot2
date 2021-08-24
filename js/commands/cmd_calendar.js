@@ -342,6 +342,12 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
 
         return date
     }
+
+    let fdd_rx= /^[0-9]{4}\-[0-9]{2}-[0-9]{2}$/
+    var ts="", te=""
+    let _isEntireDayEvents= (Boolean(event_item.start) && Boolean(ts=event_item.start.date)) && (Boolean(ts.match(fdd_rx))
+                            && ((!(Boolean(event_item.end) && Boolean(te=event_item.end.date))) || Boolean(te.match(fdd_rx))))
+
     var startDate= __getDate()
     if(!Boolean(startDate)) return undefined;
 
@@ -367,8 +373,8 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
                         endDate= undefined
                     }
                     else{
-                        var t=0
-                        endDate= new Date((t=endDate.getTime())-(t%DayTime)-1)
+                        var t=endDate.getTime()
+                        endDate= new Date(t-(t%DayTime)-1)
                     }
                 }
             }
@@ -380,8 +386,8 @@ function __textCatObj_fromEventItem(guild, utils, event_item, eventTimezone=DEFA
             endDate= undefined
         }
     }
-    var startDateTxt= `${startDate.toLocaleDateString('fr-Fr',{timeZone: displayTimezone})}`
-    var endDateTxt= (Boolean(endDate))? `${endDate.toLocaleDateString('fr-Fr',{timeZone: displayTimezone})}` : undefined
+    var startDateTxt= `${startDate.toLocaleDateString('fr-Fr',{timeZone: ((_isEntireDayEvents)?'UTC':displayTimezone)})}`
+    var endDateTxt= (Boolean(endDate))? `${endDate.toLocaleDateString('fr-Fr',{timeZone: ((_isEntireDayEvents)?'UTC':displayTimezone)})}` : undefined
     var dateTxt= `${startDateTxt}${(Boolean(endDateTxt) && (endDateTxt!==startDateTxt))?` - ${endDateTxt}`:''}`
 
     // var discardDate= (Boolean(endDate)?endDate:DateFromTimeZone(`${startDate.getFullYear()}/${startDate.getMonth()+1}/${startDate.getDate()}`))
@@ -545,7 +551,6 @@ async function _update_calendar_channel(calendar_id, channel, utils, message_id_
 }
 
 async function update_calendar(guild, utils, calendar_id){
-    hereLog(`[test] update_calendar(${guild}, utils, ${calendar_id})`)
     var events= (await _request_calendarEventsInfos(calendar_id))
     if (!Boolean(events)){
         hereLog(`[update_calendar]{${calendar_id}} bad fetch of events for calendar '${calendar_id}'`)
