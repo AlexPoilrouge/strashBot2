@@ -2434,7 +2434,6 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                     })
 
                     if(Boolean(ss) && [2,3].includes(ss.gametype)){
-                        let speeds= ["Easy","Normal","Hard"]
                         embed.fields.push({
                             name: (ss.gametype===2)?'KartSpeed':'Gametype',
                             value: (ss.gametype===2 && Boolean(ss.kartspeed))?
