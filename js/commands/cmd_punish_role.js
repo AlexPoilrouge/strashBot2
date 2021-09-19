@@ -57,8 +57,8 @@ async function __punish_func(guild, member, p_role, utils){
         old_sr= s_mbr.roles;
     }
 
+    var saved_roles= old_sr;
     if(Boolean(member.roles)){
-        var saved_roles= old_sr;
         member.roles.cache.forEach(role =>{
             if( !saved_roles.includes(role.id) && (role.id!==p_role.id)
                     && (!Boolean(spared) || !spared.includes(role.id)) && (!mains.includes(role.id))
@@ -67,9 +67,8 @@ async function __punish_func(guild, member, p_role, utils){
                 saved_roles.push(role.id);
             }
         });
-        if(Boolean(old_s)){
-            saved_roles= saved_roles.filter(e => {return e!==old_s && e!==p_role.id;});
-        }
+
+        saved_roles= saved_roles.filter(e => {return (e!==p_role.id && e!==old_s)});
         s_mbr['roles']= saved_roles;
     }
     s_mbr['sentence']= p_role.id;
@@ -83,7 +82,9 @@ async function __punish_func(guild, member, p_role, utils){
     hereLog(`addRole ${p_role.name}`)
     await member.roles.add(p_role).catch(err=>{hereLog(err);});
     hereLog(`[2] removesRole ${saved_roles}`)
-    await member.roles.remove(saved_roles).catch(err=>{hereLog(err);});
+    if (saved_roles){
+        await member.roles.remove(saved_roles).catch(err=>{hereLog(err);});
+    }
 }
 
 async function __cmd_punish(cmdObj, clearanceLvl, punishment, utils){
