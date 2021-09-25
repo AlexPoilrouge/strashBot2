@@ -1721,6 +1721,189 @@ function _getServMode(){
     return t
 }
 
+function __cmd_fetchJsonInfo(kcmd){
+    if(!Boolean(kcmd)){
+        hereLog(`[fetchInfos] bad cmd config…`);
+        return undefined;
+    }
+
+    var str= undefined
+    try{
+        var cmd= __kartCmd(kcmd);
+        str= child_process.execSync(`${cmd}`, {timeout: 32000}).toString();
+    }
+    catch(err){
+        hereLog(`Error while fetching maps infos…\n\t${err}`);
+        str= undefined
+    }
+
+
+    if(!Boolean(str)) return undefined
+
+    var obj= undefined
+    try{
+        obj= JSON.parse(str)
+    } catch(err){
+        hereLog(`[setServMode] couldn't get server mode info:\n\t${err}`)
+        obj= undefined
+    }
+    return obj
+}
+
+function _cmd_mapInfo(cmdObj,clearanceLvl,utils){
+    let message= cmdObj.msg_obj;
+    let sub_cmd= cmdObj.args[0]
+    let args= cmdObj.args.slice(1);
+
+    if(!Boolean(kart_settings) || !Boolean(kart_settings.config_commands)){
+        hereLog(`[fetchInfos] bad config…`);
+        return false;
+    }
+
+    var mapObj= __cmd_fetchJsonInfo(kart_settings.config_commands.maps_info)
+
+    if(!(Boolean(mapObj)) || !(Boolean(mapObj.maps))){
+        hereLog(`[mapInfos] couldn't fetch maps infos…`)
+        return false
+    }
+
+    var mapsData= Object.keys(mapObj.maps)
+    var ret= []
+
+    for (mapId in mapsData){
+        var resp= ""
+        map= mapsData[mapID]
+
+        resp+= `🔹 [${mapId}]: *${map.title} ${map.zone}* (*${map.subtitle}*) ${(Boolean(map.hell))?"> HELL <":""}`
+        var t= (Boolean(map.type))?map.type.toLowerCase():""
+        if (t=="race"){
+            resp+= `{${(map.sections)?"Section r":"R"}ace}`
+        }
+        else if(t=="battle"){
+            resp+= "{Battle}"
+        }
+        else{
+            resp= `~~${resp}~~`
+            resp+= "{Discarded}"
+        }
+
+        ret.push(resp)
+    }
+
+    var n_ret= []
+
+    var b_num= ['num','much','count','n','number'].includes(args[0])
+    if (b_num){
+        args= args.slice(1)
+    }
+
+    var inc= []
+
+    if (!(args.some(a => {return a.match(/^(al?)|(eve?ry)$/)}))){
+        for (var _sa in args){
+            if (["all","a","everymap","each"].includes(_sa)){
+                inc= ["{Battle}","{Section race}","{Discarded}","> HELL <","{Race}"]
+            }
+            if (["battle","bottle","b"].includes(_sa)){
+                inc.push("{Battle}")
+            }   
+            if (["section","sec","s"].includes(_sa)){
+                inc.push("{Section race}")
+            }
+            if (["discard","discarded","ban","banned","d"].includes(_sa)){
+                inc.push("{Discarded}")
+            }
+            if (["hell","h"].includes(_sa)){
+                inc.push("> HELL <")
+            }
+        }
+
+        if (inc.length<=0) inc=["{Race}"]
+    }
+
+    if (inc.length>0 && args.length<=0){
+        n_ret= ret.filter(rl => {
+            for (var i in inc){
+                if (rl.includes(i)) return true
+            }
+
+            return false
+        })
+    }
+    else if(args.length>0){
+        n_ret= ret.filter(rl => {
+            for (var a in args){
+                if (a.some(ae => {return rl.includes(ae)})) return true
+            }
+
+            return false
+        })
+    }
+    else n_ret= ret
+
+    if (b_num)
+        message.channel.send(`Found ${n_ret.length} maps:\n\n${n_ret.join('\n')}`, {split: true})
+    else
+    message.channel.send(`Found ${n_ret.length} maps!`)
+
+    return true
+}
+
+function _cmd_skinInfo(cmdObj,clearanceLvl,utils){
+    let message= cmdObj.msg_obj;
+    let sub_cmd= cmdObj.args[0]
+    let args= cmdObj.args.slice(1);
+
+    if(!Boolean(kart_settings) || !Boolean(kart_settings.config_commands)){
+        hereLog(`[fetchInfos] bad config…`);
+        return false;
+    }
+
+    var skinObj= __cmd_fetchJsonInfo(kart_settings.config_commands.skins_info)
+
+    if((!Boolean(skinObj)) || (!Boolean(skinObj.skins))){
+        hereLog(`[mapInfos] couldn't fetch maps infos…`)
+        return false
+    }
+
+    var skinsData= Object.keys(skinObj.skins)
+    var ret= []
+
+    for (skinName in skinsData){
+        var resp= ""
+        skin= skinsData[skinName]
+
+        resp+= `🔸 *${skin.realname}* (\`${skinName}\`) [${skin.speed}, ${skin.weight}]`
+
+        ret.push(resp)
+    }
+
+    var n_ret= []
+
+    var b_num= ['num','much','count','n','number'].includes(args[0])
+    if (b_num){
+        args= args.slice(1)
+    }
+
+    if(args.length>0){
+        n_ret= ret.filter(rl => {
+            for (var a in args){
+                if (a.some(ae => {return rl.includes(ae)})) return true
+            }
+
+            return false
+        })
+    }
+    else n_ret= ret
+
+    if (b_num)
+        message.channel.send(`Found ${n_ret.length} skins:\n\n${n_ret.join('\n')}`, {split: true})
+    else
+    message.channel.send(`Found ${n_ret.length} skins!`)
+
+    return true
+}
+
 async function _cmd_clip(cmdObj, clearanceLvl, utils){
     let message= cmdObj.msg_obj;
     let sub_cmd= cmdObj.args[0]
@@ -2601,6 +2784,12 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         }
         else if(["clip","clips","replay","replays","video","vid","videos"].includes(args[0])){
             return (await _cmd_clip(cmdObj,clearanceLvl,utils));
+        }
+        else if(["map","maps","race","races","level","levels","stage","stages"].includes(args[0])){
+            return _cmd_mapInfo(cmdObj,clearanceLvl,utils);
+        }
+        else if(["skin", "skins", "char", "chara" ,"perso", "character", "racer", "racers", "characters"].includes(args[0])){
+            return _cmd_skinInfo(cmdObj,clearanceLvl,utils);
         }
         else if (args[0]==="help"){
             return cmd_help(cmdObj, clearanceLvl)
