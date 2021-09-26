@@ -1768,83 +1768,85 @@ function _cmd_mapInfo(cmdObj,clearanceLvl,utils){
     }
 
     var mapsData= Object.keys(mapObj.maps)
-    var ret= []
+    
+    
+    
+    var mapIDs= Object.keys(mapObj.maps)
+    
+    var options= args
+    var search_terms= []
+    var i_ls= args.indexOf('ls')
+    if (i_ls>=0){
+        options= args.slice(0,i_ls)
+        search_terms= args.slice(i_ls+1)
+    }
 
-    for (mapId in mapsData){
-        var resp= ""
-        map= mapsData[mapID]
-
-        resp+= `🔹 [${mapId}]: *${map.title} ${map.zone}* (*${map.subtitle}*) ${(Boolean(map.hell))?"> HELL <":""}`
-        var t= (Boolean(map.type))?map.type.toLowerCase():""
-        if (t=="race"){
-            resp+= `{${(map.sections)?"Section r":"R"}ace}`
+    var b_num= false
+    
+    var lookup_f= 0
+    for(var opt in options){
+        if (["battle","bottle","b"].includes(opt)){
+            lookup_f= lookup_f | 1
         }
-        else if(t=="battle"){
-            resp+= "{Battle}"
+        else if(["section","sec","s"].includes(opt)){
+            lookup_f= lookup_f | 2
         }
-        else{
-            resp= `~~${resp}~~`
-            resp+= "{Discarded}"
+        else if(["hell","h"].includes(opt)){
+            lookup_f= lookup_f | 4
         }
-
-        ret.push(resp)
-    }
-
-    var n_ret= []
-
-    var b_num= ['num','much','count','n','number'].includes(args[0])
-    if (b_num){
-        args= args.slice(1)
-    }
-
-    var inc= []
-
-    if (!(args.some(a => {return a.match(/^(al?)|(eve?ry)$/)}))){
-        for (var _sa in args){
-            if (["all","a","everymap","each"].includes(_sa)){
-                inc= ["{Battle}","{Section race}","{Discarded}","> HELL <","{Race}"]
-            }
-            if (["battle","bottle","b"].includes(_sa)){
-                inc.push("{Battle}")
-            }   
-            if (["section","sec","s"].includes(_sa)){
-                inc.push("{Section race}")
-            }
-            if (["discard","discarded","ban","banned","d"].includes(_sa)){
-                inc.push("{Discarded}")
-            }
-            if (["hell","h"].includes(_sa)){
-                inc.push("> HELL <")
-            }
+        else if(["discard","discarded","ban","banned","d"].includes(opt)){
+            lookup_f= lookup_f | 8
         }
-
-        if (inc.length<=0) inc=["{Race}"]
+        else if(["all","a","everymap","each"].includes(opt)){
+            lookup_f= (~ 0)
+        }
+        else {
+            b_num= ['num','much','count','n','number'].includes(opt)
+        }
     }
 
-    if (inc.length>0 && args.length<=0){
-        n_ret= ret.filter(rl => {
-            for (var i in inc){
-                if (rl.includes(i)) return true
-            }
+    mapsIDs= mapIDs.filter(mapID => {
+        var map= mapObj.maps[mapID]
+        return (
+            (lookup_f == (~0)) || (
+                ((lookup_f & 1)?(map.type=="Battle"):true) &&
+                ((lookup_f & 2)?map.sections:true) &&
+                ((lookup_f & 4)?(map.hell && (
+                        map.type=="Race" || (lookup_f & (1|8))
+                    )):true
+                ) &&
+                ((lookup_f & 8)?(map.type=="Discarded" && (
+                        map.type=="Race" || (lookup_f & 1))
+                    ):true
+                ) &&
+                (
+                    (search_terms.length<=0) || (
+                        search_terms.some(st =>{
+                            var lc_st= st.toLowerCase()
+                            return (
+                                mapID.toLowerCase().includes(lc_st) ||
+                                map.title.toLowerCase().includes(lc_st) ||
+                                map.zone.toLowerCase().includes(lc_st) ||
+                                map.subtitle.toLowerCase().includes(lc_st)
+                            )
+                        })
+                    )
+                )
+            )
+        )
+    })
 
-            return false
-        })
-    }
-    else if(args.length>0){
-        n_ret= ret.filter(rl => {
-            for (var a in args){
-                if (a.some(ae => {return rl.includes(ae)})) return true
-            }
+    var l_ret= mapsIDs.map(mapID => {
+        var map= mapObj.maps[mapID]
+        return `🔹 [${mapId}]: *${map.title} ${map.zone}*`+
+                `${(map.subtitle && map.subtitle.length>0)?` (*${map.subtitle}*)`:''}`+
+                `${(Boolean(map.hell))?" > HELL <":""}`
+    })
 
-            return false
-        })
-    }
-    else n_ret= ret
-
-    if (b_num)
-        message.channel.send(`Found ${n_ret.length} maps:\n\n${n_ret.join('\n')}`, {split: true})
+    if (l_ret.length<=0 && !b_num)
+        message.channel.send(`Found ${l_ret.length} maps:\n\n${l_ret.join('\n')}`, {split: true})
     else
-    message.channel.send(`Found ${n_ret.length} maps!`)
+        message.channel.send(`Found ${l_ret.length} maps!`)
 
     return true
 }
@@ -1866,40 +1868,70 @@ function _cmd_skinInfo(cmdObj,clearanceLvl,utils){
         return false
     }
 
-    var skinsData= Object.keys(skinObj.skins)
-    var ret= []
-
-    for (skinName in skinsData){
-        var resp= ""
-        skin= skinsData[skinName]
-
-        resp+= `🔸 *${skin.realname}* (\`${skinName}\`) [${skin.speed}, ${skin.weight}]`
-
-        ret.push(resp)
+    var skinNames= Object.keys(skinObj.skins)
+    
+    var options= args
+    var search_terms= []
+    var i_ls= args.indexOf('ls')
+    if (i_ls>=0){
+        options= args.slice(0,i_ls)
+        search_terms= args.slice(i_ls+1)
     }
 
-    var n_ret= []
-
-    var b_num= ['num','much','count','n','number'].includes(args[0])
-    if (b_num){
-        args= args.slice(1)
-    }
-
-    if(args.length>0){
-        n_ret= ret.filter(rl => {
-            for (var a in args){
-                if (a.some(ae => {return rl.includes(ae)})) return true
+    var b_num= false
+    
+    var speed_lookup= undefined
+    var weight_lookup= undefined
+    for(var opt in options){
+        var match= undefined
+        if(Boolean(match=opt.match(/^s(pe+d)?([0-9]{1,2}):?$/))){
+            var sp= Number(match[2])
+            speed_lookup= (isNaN(sp))?undefined:sp
+        }
+        else if(Boolean(match=opt.match(/^w(eigh?t?h?)?([0-9]{1,2}):?$/))){
+            var wt= Number(match[2])
+            weight_lookup= (isNaN(wt))?undefined:wt
+        }
+        else if(Boolean(match=opt.match(/^[0-9]{1,2}$/))){
+            var n= Number(match[0])
+            if (!isNaN(n)){
+                if (speed_lookup==undefined) speed_lookup= n
+                else if (weight_lookup==undefined) weight_lookup= n
             }
-
-            return false
-        })
+        }
+        else{
+            b_num= ['num','much','count','n','number'].includes(opt)
+        }
     }
-    else n_ret= ret
 
-    if (b_num)
-        message.channel.send(`Found ${n_ret.length} skins:\n\n${n_ret.join('\n')}`, {split: true})
+    skinNames= skinNames.filter(skinName => {
+        skin= skinNames[skinName]
+
+        return (
+            (speed_lookup==undefined || skin.speed==speed_lookup) &&
+            (weight_lookup==undefined || skin.weight==weight_lookup) &&
+            (search_terms.length<=0 || (
+                search_terms.some(st =>{
+                    var lc_st= st.toLowerCase()
+                    return (
+                        skinName.toLowerCase().includes(lc_st) ||
+                        skin.realname.toLowerCase().includes(lc_st)
+                    )
+                })
+            ))
+        )
+    })
+
+    var l_ret= skinNames.map(skinName =>{
+        skin= skinNames[skinName]
+
+        return `🔸 *${skin.realname}* (\`${skinName}\`) [${skin.speed}, ${skin.weight}]`
+    })
+
+    if (l_ret.length<=0 && !b_num)
+        message.channel.send(`Found ${l_ret.length} skins:\n\n${l_ret.join('\n')}`, {split: true})
     else
-    message.channel.send(`Found ${n_ret.length} skins!`)
+        message.channel.send(`Found ${l_ret.length} skins!`)
 
     return true
 }
@@ -2847,7 +2879,8 @@ function cmd_help(cmdObj, clearanceLvl){
         "\t`!kart source`\n\n"+
         "\tSource code for the used server manager\n\n"+
         "\t`!kart help`\n\n"+
-        "\tDisplay this help (PM)\n\n"
+        "\tDisplay this help (PM)\n\n",
+        {split: true}
     );
     cmdObj.msg_obj.author.send(
         "---\n*SRB2Kart server's addons management:*\n\n"+
