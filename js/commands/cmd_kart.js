@@ -1757,6 +1757,7 @@ function _cmd_mapInfo(cmdObj,clearanceLvl,utils){
 
     if(!Boolean(kart_settings) || !Boolean(kart_settings.config_commands)){
         hereLog(`[fetchInfos] bad config…`);
+        message.channel.send("❌ Internal error")
         return false;
     }
 
@@ -1764,11 +1765,9 @@ function _cmd_mapInfo(cmdObj,clearanceLvl,utils){
 
     if(!(Boolean(mapObj)) || !(Boolean(mapObj.maps))){
         hereLog(`[mapInfos] couldn't fetch maps infos…`)
+        message.channel.send("❌ Data access error")
         return false
-    }
-
-    var mapsData= Object.keys(mapObj.maps)
-    
+    }    
     
     
     var mapIDs= Object.keys(mapObj.maps)
@@ -1784,7 +1783,7 @@ function _cmd_mapInfo(cmdObj,clearanceLvl,utils){
     var b_num= false
     
     var lookup_f= 0
-    for(var opt in options){
+    for(var opt of options){
         if (["battle","bottle","b"].includes(opt)){
             lookup_f= lookup_f | 1
         }
@@ -1805,48 +1804,49 @@ function _cmd_mapInfo(cmdObj,clearanceLvl,utils){
         }
     }
 
-    mapsIDs= mapIDs.filter(mapID => {
+    var mapIDs= mapIDs.filter(mapID => {
         var map= mapObj.maps[mapID]
+
+        var matching_f= 
+            ((map.type=='Battle')?1:0) | ((map.sections)?2:0) |
+            ((map.hell)?4:0) | (map.type=="Discarded"?8:0)
+
         return (
-            (lookup_f == (~0)) || (
-                ((lookup_f & 1)?(map.type=="Battle"):true) &&
-                ((lookup_f & 2)?map.sections:true) &&
-                ((lookup_f & 4)?(map.hell && (
-                        map.type=="Race" || (lookup_f & (1|8))
-                    )):true
-                ) &&
-                ((lookup_f & 8)?(map.type=="Discarded" && (
-                        map.type=="Race" || (lookup_f & 1))
-                    ):true
-                ) &&
-                (
-                    (search_terms.length<=0) || (
-                        search_terms.some(st =>{
-                            var lc_st= st.toLowerCase()
-                            return (
-                                mapID.toLowerCase().includes(lc_st) ||
-                                map.title.toLowerCase().includes(lc_st) ||
-                                map.zone.toLowerCase().includes(lc_st) ||
-                                map.subtitle.toLowerCase().includes(lc_st)
-                            )
-                        })
-                    )
+            ( (lookup_f==(~0)) ||
+                matching_f==lookup_f ||
+                (map.type=="Race" && (!((matching_f & (1|8|4)) || (lookup_f & (1|8|4)))) &&
+                    ((!(lookup_f & 2)) || (matching_f & 2))
+                )
+            ) &&
+            (
+                (search_terms.length<=0) || (
+                    search_terms.some(st =>{
+                        var lc_st= st.toLowerCase()
+                        return (
+                            mapID.toLowerCase().includes(lc_st) ||
+                            map.title.toLowerCase().includes(lc_st) ||
+                            map.zone.toLowerCase().includes(lc_st) ||
+                            map.subtitle.toLowerCase().includes(lc_st)
+                        )
+                    })
                 )
             )
         )
     })
 
-    var l_ret= mapsIDs.map(mapID => {
+    var l_ret= mapIDs.map(mapID => {
         var map= mapObj.maps[mapID]
-        return `🔹 [${mapId}]: *${map.title} ${map.zone}*`+
+        return `🔹 [MAP${mapID}]: *${map.title} ${map.zone}*`+
                 `${(map.subtitle && map.subtitle.length>0)?` (*${map.subtitle}*)`:''}`+
                 `${(Boolean(map.hell))?" > HELL <":""}`
     })
 
-    if (l_ret.length<=0 && !b_num)
+    if (l_ret.length>0 && !b_num)
         message.channel.send(`Found ${l_ret.length} maps:\n\n${l_ret.join('\n')}`, {split: true})
-    else
+    else if (l_ret.length>0)
         message.channel.send(`Found ${l_ret.length} maps!`)
+    else
+        message.channel.send(`No map found…`)
 
     return true
 }
@@ -1858,6 +1858,7 @@ function _cmd_skinInfo(cmdObj,clearanceLvl,utils){
 
     if(!Boolean(kart_settings) || !Boolean(kart_settings.config_commands)){
         hereLog(`[fetchInfos] bad config…`);
+        message.channel.send("❌ Internal error")
         return false;
     }
 
@@ -1865,6 +1866,7 @@ function _cmd_skinInfo(cmdObj,clearanceLvl,utils){
 
     if((!Boolean(skinObj)) || (!Boolean(skinObj.skins))){
         hereLog(`[mapInfos] couldn't fetch maps infos…`)
+        message.channel.send("❌ Data access error")
         return false
     }
 
@@ -1882,7 +1884,7 @@ function _cmd_skinInfo(cmdObj,clearanceLvl,utils){
     
     var speed_lookup= undefined
     var weight_lookup= undefined
-    for(var opt in options){
+    for(var opt of options){
         var match= undefined
         if(Boolean(match=opt.match(/^s(pe+d)?([0-9]{1,2}):?$/))){
             var sp= Number(match[2])
@@ -1905,7 +1907,7 @@ function _cmd_skinInfo(cmdObj,clearanceLvl,utils){
     }
 
     skinNames= skinNames.filter(skinName => {
-        skin= skinNames[skinName]
+        skin= skinObj.skins[skinName]
 
         return (
             (speed_lookup==undefined || skin.speed==speed_lookup) &&
@@ -1923,15 +1925,17 @@ function _cmd_skinInfo(cmdObj,clearanceLvl,utils){
     })
 
     var l_ret= skinNames.map(skinName =>{
-        skin= skinNames[skinName]
+        skin= skinObj.skins[skinName]
 
         return `🔸 *${skin.realname}* (\`${skinName}\`) [${skin.speed}, ${skin.weight}]`
     })
 
-    if (l_ret.length<=0 && !b_num)
+    if (l_ret.length>0 && !b_num)
         message.channel.send(`Found ${l_ret.length} skins:\n\n${l_ret.join('\n')}`, {split: true})
-    else
+    else if (l_ret.length>0)
         message.channel.send(`Found ${l_ret.length} skins!`)
+    else
+        message.channel.send(`No skin found…`)
 
     return true
 }
@@ -2818,6 +2822,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             return (await _cmd_clip(cmdObj,clearanceLvl,utils));
         }
         else if(["map","maps","race","races","level","levels","stage","stages"].includes(args[0])){
+            hereLog("djaidjzeidzaji")
             return _cmd_mapInfo(cmdObj,clearanceLvl,utils);
         }
         else if(["skin", "skins", "char", "chara" ,"perso", "character", "racer", "racers", "characters"].includes(args[0])){
