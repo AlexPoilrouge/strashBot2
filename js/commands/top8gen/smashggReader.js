@@ -246,11 +246,12 @@ class SmashGG_Top8Reader{
         }
 
         nodes.sort((n1,n2) => {return (n1.placement-n2.placement)})
+        let sep= " | "
         return {numEntrants: standingsQueryRes.numEntrants,
                 top8: nodes.map(n => {return {
                         placement: n.placement,
-                        name: ((n.entrant.name.includes(" | "))? n.entrant.name.split(" | ")[1]: n.entrant.name),
-                        team: ((n.entrant.name.includes(" | "))? n.entrant.name.split(" | ")[0]: undefined),
+                        name: ((n.entrant.name.includes(sep))? n.entrant.name.split(sep).at(-1): n.entrant.name),
+                        team: ((n.entrant.name.includes(sep))? n.entrant.name.split(sep).slice(0,-1).join(' | '): undefined),
                         twitter: (Boolean(n.entrant.participants[0].user.authorizations) && Boolean(n.entrant.participants[0].user.authorizations[0]))?
                                     n.entrant.participants[0].user.authorizations[0]['externalUsername']
                                 :   undefined
