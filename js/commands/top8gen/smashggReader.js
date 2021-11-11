@@ -246,10 +246,13 @@ class SmashGG_Top8Reader{
         }
 
         nodes.sort((n1,n2) => {return (n1.placement-n2.placement)})
-        let sep= " | "
-        let names= n.entrant.name.split(sep)
+        
         return {numEntrants: standingsQueryRes.numEntrants,
-                top8: nodes.map(n => {return {
+                top8: nodes.map(n => {
+                    let sep= " | "
+                    let names= n.entrant.name.split(sep)
+                    
+                    return {
                         placement: n.placement,
                         name: ((names.length>0)? names[names.length-1]: n.entrant.name),
                         team: ((names.length>1)? names.slice(0,-1).join(sep): undefined),
