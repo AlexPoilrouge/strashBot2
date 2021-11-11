@@ -14,11 +14,17 @@ let _ADDR="127.0.0.1"
 let _PORT=5029
 
 const REQUESTS={
-    ASKINFO:           {code: 12, name:"ASKINFO"},
-    SERVERINFO:        {code: 13, name:"SERVERINFO"},
-    PLAYERINFO:        {code: 14, name:"PLAYERINFO"},
-    TELLFILESNEEDED:   {code: 32, name:"TELLFILESNEEDED"},
-    MOREFILESNEEDED:   {code: 33, name:"MOREFILESNEEDED"}
+    ASKINFO:           {code: 12,   name:"ASKINFO"},
+    SERVERINFO:        {code: 13,   name:"SERVERINFO"},
+    PLAYERINFO:        {code: 14,   name:"PLAYERINFO"},
+    TELLFILESNEEDED:   {code: 32,   name:"TELLFILESNEEDED"},
+    MOREFILESNEEDED:   {code: 33,   name:"MOREFILESNEEDED"}
+}
+
+const CONTROLS={
+    RACE:              {code: 2,    name:"RACE"},
+    MATCH:              {code: 3,    name:"MATCH"},
+    SPEEDMASK:         {code: 0x03, name:"SPEEDMASK"}
 }
 
 const PK_FORMATS={
@@ -289,6 +295,15 @@ class KartServInfo{
         if(req.code===REQUESTS.SERVERINFO.code){
             this.servinfo= undefined
             this.servinfo= this.processData(req,buf,offset)
+            
+            if(this.servinfo['gametype']===CONTROLS.RACE.code){
+                let speeds= ['Easy','Normal','Hard']
+
+                var c= this.servinfo['isdedicated']
+                var speed= speeds[(c & CONTROLS.SPEEDMASK.code)]
+                this.servinfo['kartspeed']= (Boolean(speed))? speed : 'Too fast'
+            }
+
             res= this.servinfo
         }
         else if(req.code===REQUESTS.PLAYERINFO.code){
@@ -429,6 +444,8 @@ function ServerInfo_Promise(addr, port, timeout=10000,decolorize=true){
 
 // var addr="193.70.41.86" //strash
 // var addr="146.59.237.103" //pata
+// var addr="178.33.85.177" //mocha's cafe
+// var addr="135.148.37.209" //CubeD Army (BM)
 // ServerInfo_Promise(addr, _PORT).then(info=>{
 //     hereLog(`Okay so I got: ${JSON.stringify(info)}`)
 // }).catch(reason=>{

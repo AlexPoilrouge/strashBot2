@@ -737,7 +737,13 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
         if(Boolean(args[1])){
             var resp= _removeAddonsConfig(args[1]);
             if(Boolean(resp) && resp[0] && Boolean(resp[1])){
-                message.channel.send("Removed addons for srb2kart server:\n"+resp[1]);
+                if(resp[1]==="SCHEDULED_FOR_REMOVAL\n"){
+                    message.channel.send("Addons will be removed on server restart:\n\t"+args[1]);
+                    return true
+                }
+                else{
+                    message.channel.send("Removed addons for srb2kart server:\n"+resp[1]);
+                }
                 if(_updateAddonsConfig()){
                     return true;
                 }
@@ -1703,12 +1709,239 @@ function _getServMode(){
                 return `${c}JuiceBox`
             case "ACRO":
                 return `${c}Acrobatics`
+            case "HP":
+                return `${c}HP`
+            case "CRUEL":
+                return `${c}Cruel`
             default:
                 return `${c}${s}`
         }
     })
 
     return t
+}
+
+function __cmd_fetchJsonInfo(kcmd){
+    if(!Boolean(kcmd)){
+        hereLog(`[fetchInfos] bad cmd config…`);
+        return undefined;
+    }
+
+    var str= undefined
+    try{
+        var cmd= __kartCmd(kcmd);
+        str= child_process.execSync(`${cmd}`, {timeout: 32000}).toString();
+    }
+    catch(err){
+        hereLog(`Error while fetching maps infos…\n\t${err}`);
+        str= undefined
+    }
+
+
+    if(!Boolean(str)) return undefined
+
+    var obj= undefined
+    try{
+        obj= JSON.parse(str)
+    } catch(err){
+        hereLog(`[setServMode] couldn't get server mode info:\n\t${err}`)
+        obj= undefined
+    }
+    return obj
+}
+
+function _cmd_mapInfo(cmdObj,clearanceLvl,utils){
+    let message= cmdObj.msg_obj;
+    let sub_cmd= cmdObj.args[0]
+    let args= cmdObj.args.slice(1);
+    
+    // if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`, clearanceLvl)) return false
+
+    if(!Boolean(kart_settings) || !Boolean(kart_settings.config_commands)){
+        hereLog(`[fetchInfos] bad config…`);
+        message.channel.send("❌ Internal error")
+        return false;
+    }
+
+    var mapObj= __cmd_fetchJsonInfo(kart_settings.config_commands.maps_info)
+
+    if(!(Boolean(mapObj)) || !(Boolean(mapObj.maps))){
+        hereLog(`[mapInfos] couldn't fetch maps infos…`)
+        message.channel.send("❌ Data access error")
+        return false
+    }    
+    
+    
+    var mapIDs= Object.keys(mapObj.maps)
+    
+    var options= args
+    var search_terms= []
+    var i_ls= args.indexOf('ls')
+    if (i_ls>=0){
+        options= args.slice(0,i_ls)
+        search_terms= args.slice(i_ls+1)
+    }
+
+    var b_num= false
+    
+    var lookup_f= 0
+    for(var opt of options){
+        if (["battle","bottle","b"].includes(opt)){
+            lookup_f= lookup_f | 1
+        }
+        else if(["section","sec","s"].includes(opt)){
+            lookup_f= lookup_f | 2
+        }
+        else if(["hell","h"].includes(opt)){
+            lookup_f= lookup_f | 4
+        }
+        else if(["discard","discarded","ban","banned","d"].includes(opt)){
+            lookup_f= lookup_f | 8
+        }
+        else if(["all","a","everymap","each"].includes(opt)){
+            lookup_f= (~ 0)
+        }
+        else {
+            b_num= ['num','much','count','n','number'].includes(opt)
+        }
+    }
+
+    var mapIDs= mapIDs.filter(mapID => {
+        var map= mapObj.maps[mapID]
+
+        var matching_f= 
+            ((map.type=='Battle')?1:0) | ((map.sections)?2:0) |
+            ((map.hell)?4:0) | (map.type=="Discarded"?8:0)
+
+        return (
+            ( (lookup_f==(~0)) || (
+                    ( (matching_f & (1|4|8))==(lookup_f & (1|4|8)) ) &&
+                    ( ((!(lookup_f & 2)) || (map.sections)) ) //&& 
+                    //map.type=="Race"
+                )
+            ) &&
+            (
+                (search_terms.length<=0) || (
+                    search_terms.some(st =>{
+                        var lc_st= st.toLowerCase()
+                        return (
+                            mapID.toLowerCase().includes(lc_st) ||
+                            map.title.toLowerCase().includes(lc_st) ||
+                            map.zone.toLowerCase().includes(lc_st) ||
+                            map.subtitle.toLowerCase().includes(lc_st)
+                        )
+                    })
+                )
+            )
+        )
+    })
+
+    var l_ret= mapIDs.map(mapID => {
+        var map= mapObj.maps[mapID]
+        return `🔹 [MAP${mapID}]: *${map.title} ${map.zone}*`+
+                `${(map.subtitle && map.subtitle.length>0)?` (*${map.subtitle}*)`:''}`+
+                `${(Boolean(map.hell))?" > HELL <":""}`
+    })
+
+    if (l_ret.length>0 && !b_num)
+        message.channel.send(`Found ${l_ret.length} maps:\n\n${l_ret.join('\n')}`, {split: true})
+    else if (l_ret.length>0)
+        message.channel.send(`Found ${l_ret.length} maps!`)
+    else
+        message.channel.send(`No map found…`)
+
+    return true
+}
+
+function _cmd_skinInfo(cmdObj,clearanceLvl,utils){
+    let message= cmdObj.msg_obj;
+    let sub_cmd= cmdObj.args[0]
+    let args= cmdObj.args.slice(1);
+
+    // if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`, clearanceLvl)) return false
+
+    if(!Boolean(kart_settings) || !Boolean(kart_settings.config_commands)){
+        hereLog(`[fetchInfos] bad config…`);
+        message.channel.send("❌ Internal error")
+        return false;
+    }
+
+    var skinObj= __cmd_fetchJsonInfo(kart_settings.config_commands.skins_info)
+
+    if((!Boolean(skinObj)) || (!Boolean(skinObj.skins))){
+        hereLog(`[mapInfos] couldn't fetch maps infos…`)
+        message.channel.send("❌ Data access error")
+        return false
+    }
+
+    var skinNames= Object.keys(skinObj.skins)
+    
+    var options= args
+    var search_terms= []
+    var i_ls= args.indexOf('ls')
+    if (i_ls>=0){
+        options= args.slice(0,i_ls)
+        search_terms= args.slice(i_ls+1)
+    }
+
+    var b_num= false
+    
+    var speed_lookup= undefined
+    var weight_lookup= undefined
+    for(var opt of options){
+        var match= undefined
+        if(Boolean(match=opt.match(/^s(pe+d)?([0-9]{1,2}):?$/))){
+            var sp= Number(match[2])
+            speed_lookup= (isNaN(sp))?undefined:sp
+        }
+        else if(Boolean(match=opt.match(/^w(eigh?t?h?)?([0-9]{1,2}):?$/))){
+            var wt= Number(match[2])
+            weight_lookup= (isNaN(wt))?undefined:wt
+        }
+        else if(Boolean(match=opt.match(/^[0-9]{1,2}$/))){
+            var n= Number(match[0])
+            if (!isNaN(n)){
+                if (speed_lookup==undefined) speed_lookup= n
+                else if (weight_lookup==undefined) weight_lookup= n
+            }
+        }
+        else{
+            b_num= ['num','much','count','n','number'].includes(opt)
+        }
+    }
+
+    skinNames= skinNames.filter(skinName => {
+        skin= skinObj.skins[skinName]
+
+        return (
+            (speed_lookup==undefined || skin.speed==speed_lookup) &&
+            (weight_lookup==undefined || skin.weight==weight_lookup) &&
+            (search_terms.length<=0 || (
+                search_terms.some(st =>{
+                    var lc_st= st.toLowerCase()
+                    return (
+                        skinName.toLowerCase().includes(lc_st) ||
+                        skin.realname.toLowerCase().includes(lc_st)
+                    )
+                })
+            ))
+        )
+    })
+
+    var l_ret= skinNames.map(skinName =>{
+        skin= skinObj.skins[skinName]
+
+        return `🔸 *${skin.realname}* (\`${skinName}\`) [${skin.speed}, ${skin.weight}]`
+    })
+
+    if (l_ret.length>0 && !b_num)
+        message.channel.send(`Found ${l_ret.length} skins:\n\n${l_ret.join('\n')}`, {split: true})
+    else if (l_ret.length>0)
+        message.channel.send(`Found ${l_ret.length} skins!`)
+    else
+        message.channel.send(`No skin found…`)
+
+    return true
 }
 
 async function _cmd_clip(cmdObj, clearanceLvl, utils){
@@ -2423,6 +2656,16 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                         inline: true
                     })
 
+                    if(Boolean(ss) && [2,3].includes(ss.gametype)){
+                        embed.fields.push({
+                            name: (ss.gametype===2)?'KartSpeed':'Gametype',
+                            value: (ss.gametype===2 && Boolean(ss.kartspeed))?
+                                    ss.kartspeed
+                                :   "Battle",
+                            inline: true
+                        })
+                    }
+
                     var modes= _getServMode()
                     if(Boolean(modes) && modes.length>0){
                         embed.fields.push({
@@ -2581,6 +2824,12 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         else if(["clip","clips","replay","replays","video","vid","videos"].includes(args[0])){
             return (await _cmd_clip(cmdObj,clearanceLvl,utils));
         }
+        else if(["map","maps","race","races","level","levels","stage","stages"].includes(args[0])){
+            return _cmd_mapInfo(cmdObj,clearanceLvl,utils);
+        }
+        else if(["skin", "skins", "char", "chara" ,"perso", "character", "racer", "racers", "characters"].includes(args[0])){
+            return _cmd_skinInfo(cmdObj,clearanceLvl,utils);
+        }
         else if (args[0]==="help"){
             return cmd_help(cmdObj, clearanceLvl)
         }
@@ -2632,12 +2881,22 @@ function cmd_help(cmdObj, clearanceLvl){
         "\t`!kart info`\n\n"+
         "\tDisplay whether of not the SRB2Kart server is running along with its ownership\n"+
         "\tAlso displays the server's ip address.\n\n"+
+        "\t`!kart maps ['hell'] ['ban'] ['section'] ['battle'] [ls <pattern>]`\n\n"+
+        "\tDisplays a list of maps installed on the srb2kart server\n"+
+        "\t\t- Use options `hell`, `ban`, `section`, `battle` to respectively display 'hell maps', 'banned map', section 'maps' or 'battle maps'.\n"+
+        "\t\t- Use options the `ls` subcommand to look for a map corresponding to a text pattern. Example:\n"+
+        "\t\t\t`!kart maps ls green`\n\n"+
+        "\t`!kart skins [[w]{0-9}] [ls <pattern>]`\n\n"+
+        "\tDisplays a list of skins installed on the srb2kart server\n"+
+        "\t\t- Use options the `ls` subcommand to look for a skin corresponding to a text pattern. Example:\n"+
+        "\t\t\t`!kart skins ls sonic`\n\n"+
         "\t`!kart log`\n\n"+
         "\tAllows to download the latest log file generated by the server.\n\n"+
         "\t`!kart source`\n\n"+
         "\tSource code for the used server manager\n\n"+
         "\t`!kart help`\n\n"+
-        "\tDisplay this help (PM)\n\n"
+        "\tDisplay this help (PM)\n\n",
+        {split: true}
     );
     cmdObj.msg_obj.author.send(
         "---\n*SRB2Kart server's addons management:*\n\n"+

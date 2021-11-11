@@ -353,6 +353,14 @@
 	},
 	"pyra_mythra":{
 		"number": "80d",
-		"regex": "^((p[iy]+h?r+h?a+h?)[\\s\\_\\-\\.]*((a?nd?)|(\\&)|((é|e)+t?))?[\\s\\_\\-\\.]*(m[iy]+th?r+h?a+h?))|((m[iy]+th?r+h?a+h?)[\\s\\_\\-\\.]*((a?nd?)|(\\&)|((é|e)+t?))?[\\s\\_\\-\\.]*(p[iy]+h?r+h?a+h?))$"
+		"regex": "^((p[iy]+h?r+h?a+h?)[\\s\\_\\-\\.]*((a?nd?)|(\\&)|((é|e)+t?))?[\\s\\_\\-\\.]*(m[iy]+th?r+h?a+h?))$"
+	},
+	"mythra_pyra":{
+		"number": "80p",
+		"regex": "^((m[iy]+th?r+h?a+h?)[\\s\\_\\-\\.]*((a?nd?)|(\\&)|((é|e)+t?))?[\\s\\_\\-\\.]*(p[iy]+h?r+h?a+h?))$"
+	},
+	"kazuya":{
+		"number": "81",
+		"regex": "^[kc]+[ao]+[sz]o?u(i|ï|y|(ill))[ao]+h?([\\s\\_\\-\\.]*mi+[cs]hi+m+[ao]+h?)?$"
 	}
 }

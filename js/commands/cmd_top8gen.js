@@ -240,7 +240,7 @@ async function _generateTop8(template, genInfos, channel){
         var cmd= `${genInfos.svg_bin} ${svg} --export-png=${outpng}`
         try{
             hereLog(`[rasterize func] calling command '${cmd}'`)
-            child_process.execSync(cmd, {timeout: 24000});
+            child_process.execSync(cmd, {timeout: 256000});
         } catch(error){
             hereLog(`[rast_func] error invoking rasterizing command \`${cmd}\`!\n\t${error}`)
             b= false;
@@ -325,7 +325,8 @@ async function _generateTop8(template, genInfos, channel){
 
         if(b_svg){
             channel.send(
-                ((z_b)?`Source at: <${genInfos.http_addr}/top8.zip>`:''),
+                // ((z_b)?`Source at: <${genInfos.http_addr}/top8.zip>`:''),
+                `Generated top8 image: `,
                 { files : [ `${genInfos.destination_dir}/top8.png` ] }
             )
         }
@@ -339,7 +340,7 @@ async function _generateTop8(template, genInfos, channel){
 
 
 function __rosterCharNameProcess(str){
-    var num_match= str.match(/^([0-9]*[1-9][ae]?)(\.[0-9]+)?$/)
+    var num_match= str.toLowerCase().match(/^([0-9]*[1-9][ae]?)(\.[0-9]+)?$/)
     if(Boolean(num_match) && Boolean(num_match[1])){
         return `${num_match[1]}${(Boolean(num_match[2]))?`${num_match[2]}`:''}`
     }
@@ -356,7 +357,7 @@ function __rosterCharNameProcess(str){
             for (var key of keys){
                 var fighter= fightersOBJ[key]
                 var regex= (Boolean(fighter) && Boolean(fighter.regex))?(new RegExp(fighter.regex)):undefined
-                if(Boolean(regex) && (Boolean(input.toLowerCase().match(regex)) || Boolean(input===fighter.number))){
+                if(Boolean(regex) && (Boolean(input.toLowerCase().match(regex)) || Boolean(input.toLowerCase()===fighter.number))){
                     return `${fighter.number}${(Boolean(skin_test) && Boolean(skin_test[1]))?`.${skin_test[1]}`:''}`
                 }
             }
@@ -388,7 +389,7 @@ async function _fetchSmashGGInfos(url){
         var r_obj= {
             numEntrants: r.numEntrants,
             venueAdress: r.venueAdress,
-            date: r.date,
+            date: (Boolean(r.date.toLocaleDateString))?r.date.toLocaleDateString('fr-FR'):d.date,
             top8: {}
         }
 
@@ -442,14 +443,14 @@ async function _evaluateArgsOptions(args, options, guild, user){
         var player_infos= undefined;
 
         if(!Boolean(option_name) || !Boolean(option_value=options[option_name])){
-            if(Boolean(sgg_infos) && Boolean(sgg_infos[p]) && Boolean(sgg_infos[p].name)){
+            if(Boolean(sgg_infos) && Boolean(sgg_infos.top8) && Boolean(sgg_infos.top8[p]) && Boolean(sgg_infos.top8[p].name)){
                 if(Boolean(p_db)){
-                    player_infos= (await p_db.getPlayerInfos(sgg_infos[p].name))
+                    player_infos= (await p_db.getPlayerInfos(sgg_infos.top8[p].name))
                     rep.infos[option_name]= `Player ${p} name is: "${player_infos.name}"`
                     test_infos[p]['name']= player_infos.name;
                 }
                 else{
-                    rep.infos[`smashgg${p}-name`]= `Player ${p} name is: "${sgg_infos[p].name}"`
+                    rep.infos[`smashgg${p}-name`]= `Player ${p} name is: "${sgg_infos.top8[p].name}"`
                     test_infos[p]['name']= player_infos.name;
                 }
             }
@@ -473,9 +474,9 @@ async function _evaluateArgsOptions(args, options, guild, user){
 
         option_name= `top${p}-twitter`;
         if(!Boolean(option_name) || !Boolean(option_value=options[option_name])){
-            if(Boolean(sgg_infos) && Boolean(sgg_infos[p]) && Boolean(sgg_infos[p].twitter)){
-                rep.infos[`smashgg${p}-twitter`]= `Player ${p} ${f_pname} twitter set to ${sgg_infos[p].twitter}`
-                test_infos[p]['twitter']= sgg_infos[p].twitter;
+            if(Boolean(sgg_infos) && Boolean(sgg_infos.top8) && Boolean(sgg_infos.top8[p]) && Boolean(sgg_infos.top8[p].twitter)){
+                rep.infos[`smashgg${p}-twitter`]= `Player ${p} ${f_pname} twitter set to ${sgg_infos.top8[p].twitter}`
+                test_infos[p]['twitter']= sgg_infos.top8[p].twitter;
             }
             else{
                 rep.warnings[option_name]= `No twitter set for player ${p} ${f_pname}; Use option \`?${option_name}="@twitter"\` to add it manually`
@@ -489,9 +490,9 @@ async function _evaluateArgsOptions(args, options, guild, user){
         option_name= `top${p}-team`
         if(Boolean(option_value=options[option_name])) player_infos.team= option_value;
         if(!Boolean(player_infos) || !Boolean(player_infos.team)){
-            if(Boolean(sgg_infos) && Boolean(sgg_infos[p]) && Boolean(sgg_infos[p].team)){
-                rep.infos[`smashgg${p}-team`]= `Player ${p} ${f_pname} team set to ${sgg_infos[p].team}`
-                test_infos[p]['team']= sgg_infos[p].team               
+            if(Boolean(sgg_infos) && Boolean(sgg_infos.top8) && Boolean(sgg_infos.top8[p]) && Boolean(sgg_infos.top8[p].team)){
+                rep.infos[`smashgg${p}-team`]= `Player ${p} ${f_pname} team set to ${sgg_infos.top8[p].team}`
+                test_infos[p]['team']= sgg_infos.top8[p].team               
             }
             else{
                 rep.warnings[option_name]= `No team found for player ${p} ${f_pname} in DataBase; Use option \`?${tmp}="team"\` to add it manually`
@@ -708,7 +709,7 @@ async function _evaluateArgsOptions(args, options, guild, user){
                     }
                     else if(Boolean(ch_match=ch_input.match(/^((.+)[\s\.]([0-9]{1,2}))|(.+)$/))){
                         var n_match= (Boolean(ch_match[2]))?ch_match[2]:ch_match[4]
-                        if(Boolean(ch_key=ch_keys.find(k => {return Boolean(n_match.match(RegExp(fightersOBJ[k].regex)))}))){
+                        if(Boolean(ch_key=ch_keys.find(k => {return Boolean(n_match.toLowerCase().match(RegExp(fightersOBJ[k].regex)))}))){
                             character= {name: ch_key}
                             if(Boolean(ch_match[3])){
                                 character['skin']= ch_match[3];
@@ -779,7 +780,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
             return true
         }
-        else if(Boolean(args[0]) && args[0].match(/^groups?$/)){
+        else if(Boolean(args[0]) && args[0].match(/^roles?$/)){
             if(clearanceLvl<CLEARANCE_LEVEL.CONTROL_CHANNEL){
                 return false;
             }
@@ -867,7 +868,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 for(var i=1; i<=4; ++i){
                     var roster_opt= getOpt(`top${topNum}-char${i}`,undefined)
                     if(Boolean(roster_opt)){
-                        r[i-1]= __rosterCharNameProcess(roster_opt)
+                        r[i-1]= __rosterCharNameProcess(roster_opt.toLowerCase())
                     }
                 }
                 return r
@@ -968,7 +969,7 @@ function cmd_help(cmdObj, clearanceLvl){
         "========\n\n"+
         `__**top8** command__:\n\n`+
         ((clearanceLvl<CLEARANCE_LEVEL.ADMIN)? "": ("**Admins only:**\n\n"+
-            `\t\`!${prt_cmd} group #role-mention\`\n\n`+
+            `\t\`!${prt_cmd} role #role-mention\`\n\n`+
             `\tsets which role (additionally to Admins) can have its members use the \`!top8\` command\n\n`+
             `\t\`!${prt_cmd} group\`\n\n`+
             `\ttells which is the designated group\n\n`+
@@ -983,7 +984,7 @@ function cmd_help(cmdObj, clearanceLvl){
         `\tFor character roster informations about players, the data is lookup in the database of the guild (see \`!player\` & \`!roster\` commands)\n`+
         `\tIf a smashgg Url is provided, then top8 data will be fetch from this smash.gg tournament.\n\n`+
         `\t⚠️ This assumes that the tournament is completed, and that the provided smash.gg Url points to a '*Singles' event.\n`+
-        `\t\t__Example:__ \`!${prt_cmd} template https://smash.gg/tournament/scarlet-arena-4/event/singles ?title="4th edition"\n\n`+
+        `\t\t__Example:__ \`!${prt_cmd} template https://smash.gg/tournament/scarlet-arena-4/event/singles ?title="4th edition"\`\n\n`+
         `\t\`!${prt_cmd} test <template> [smashggUrl] [options…]\`\n\n`+
         `\tThe goal of the commands is to test out parameters and options to ensure their validity before making an actual`+
         `call to the \`!top8\` command.\n` +

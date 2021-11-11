@@ -48,7 +48,9 @@
             "clip_remove":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh CLIP_RM",
             "clip_info":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh CLIP_INFO",
             "outdated_clips":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh OUTDATED_CLIPS",
-            "clip_edit_description":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh EDIT_DESCRIPTION"
+            "clip_edit_description":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh EDIT_DESCRIPTION",
+            "maps_info":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh INFO_MAPS",
+            "skins_info":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh INFO_SKINS"
     },
     "source_url":"${SRB2K_SERV_SOURCE_URL}"
 }
