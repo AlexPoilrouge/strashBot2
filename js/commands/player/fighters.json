@@ -362,5 +362,9 @@
 	"kazuya":{
 		"number": "81",
 		"regex": "^[kc]+[ao]+[sz]o?u(i|ï|y|(ill))[ao]+h?([\\s\\_\\-\\.]*mi+[cs]hi+m+[ao]+h?)?$"
+	},
+	"sora":{
+		"number": "82",
+		"regex": "^s+[aoe]*r+[aoe]*$"
 	}
 }
