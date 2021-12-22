@@ -814,7 +814,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         else if(Boolean(args[0]) && args[0].match(/^test(ing)?$/)){
             var role_id= utils.settings.get(message.guild, "top8role")
             if(clearanceLvl<CLEARANCE_LEVEL.CONTROL_CHANNEL &&
-                    !(Boolean(role_id) && Boolean(message.member.roles.get(role_id)))
+                    !(Boolean(role_id) && Boolean(message.member.roles.cache.get(role_id)))
             ){
                 return false;
             }
@@ -826,7 +826,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         else{
             var role_id= utils.settings.get(message.guild, "top8role")
             if(clearanceLvl<CLEARANCE_LEVEL.CONTROL_CHANNEL &&
-                    !(Boolean(role_id) && Boolean(message.member.roles.get(role_id)))
+                    !(Boolean(role_id) && Boolean(message.member.roles.cache.get(role_id)))
             ){
                 return false;
             }
