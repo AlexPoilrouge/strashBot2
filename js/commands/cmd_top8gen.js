@@ -88,7 +88,7 @@ class PlayerDB{
 
         var res= {name: playerName, team: "", roster: []};
 
-        var tmp= ( await (this._db.__getQuery(`SELECT * FROM players WHERE name LIKE '%${playerName.toLowerCase()}%'`)))
+        var tmp= ( await (this._db.__getQuery(`SELECT * FROM players WHERE name LIKE '${playerName.toLowerCase()}'`)))
         if(Boolean(tmp)){
             res.name= (Boolean(tmp.name))?tmp.name:playerName
             res.team= (Boolean(tmp.team))?tmp.team:""
