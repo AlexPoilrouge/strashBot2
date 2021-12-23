@@ -699,7 +699,7 @@ async function _evaluateArgsOptions(args, options, guild, user){
                     }
                     var ch_key= undefined
                     var ch_keys= Object.keys(fightersOBJ)
-                    if(Boolean(ch_match=ch_input.match(/^([1-9]?[0-9][ae]?)([\s\.]([0-9]{1,2}))?$/))){
+                    if(Boolean(ch_match=ch_input.match(/^([1-9]?[0-9][a-z]?)([\s\.]([0-9]{1,2}))?$/))){
                         if(Boolean(ch_key=ch_keys.find(k => {return fightersOBJ[k].number===ch_match[1]}))){
                             character= {name: ch_key}
                             if(Boolean(ch_match[3])){
