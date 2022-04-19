@@ -1934,13 +1934,24 @@ function _cmd_skinInfo(cmdObj,clearanceLvl,utils){
         return `🔸 *${skin.realname}* (\`${skinName}\`) [${skin.speed}, ${skin.weight}]`
     })
 
-    if (l_ret.length>0 && !b_num)
-        message.channel.send(`Found ${l_ret.length} skins:\n\n${l_ret.join('\n')}`, {split: true})
-    else if (l_ret.length>0)
-        message.channel.send(`Found ${l_ret.length} skins!`)
-    else
-        message.channel.send(`No skin found…`)
 
+    var response= `No skin found…`
+    if (l_ret.length>0)
+        response= `Found ${l_ret.length} skins!`
+
+    var alert= undefined
+    if (Boolean(skinObj.alert) && (alert=Number(skinObj.alert))
+        && !isNaN(alert) && alert>127
+    ){
+        response+= `!\n\t⚠ Skins limit (*some skins might be missing*)!`
+    }
+
+    if (l_ret.length>0 && !b_num)
+        response+= `\n\n${l_ret.join('\n')}`
+        
+
+    message.channel.send(response, {split: true})
+    
     return true
 }
 
