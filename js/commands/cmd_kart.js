@@ -1943,7 +1943,7 @@ function _cmd_skinInfo(cmdObj,clearanceLvl,utils){
     if (Boolean(skinObj.alert) && (alert=Number(skinObj.alert))
         && !isNaN(alert) && alert>127
     ){
-        response+= `!\n\t⚠ Skins limit (*some skins might be missing*)!`
+        response+= `!\n\t⚠ Skins limit reached (*some skins might be missing*)!`
     }
 
     if (l_ret.length>0 && !b_num)
@@ -1951,7 +1951,7 @@ function _cmd_skinInfo(cmdObj,clearanceLvl,utils){
         
 
     message.channel.send(response, {split: true})
-    
+
     return true
 }
 
