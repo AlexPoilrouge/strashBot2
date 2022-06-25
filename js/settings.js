@@ -27,22 +27,28 @@ class Settings{
 
     checkGuildsSetup(){
         var data= fs.readFileSync(this.guildConfigs.file);
-        if(Boolean(data)){
-            this.guildConfigs.settings= JSON.parse(data);
-        }
-        else{
-            hereLog(`Error reading data from '${this.guildConfigs.file}'`);
-        }
-
-        if(!Boolean(this.guildConfigs.settings)) this.guildConfigs.settings= {};
-
-        this._bot.guilds.cache.forEach((guild) => {
-            if(!(Boolean(this.guildConfigs.settings[guild.id]))){
-                this.guildConfigs.settings[guild.id]= {};
+        try{
+            if(Boolean(data)){
+                this.guildConfigs.settings= JSON.parse(data);
             }
-        });
+            else{
+                hereLog(`Error reading data from '${this.guildConfigs.file}'`);
+            }
+            
 
-        this.saveGuildsSetup();
+            if(!Boolean(this.guildConfigs.settings)) this.guildConfigs.settings= {};
+
+            this._bot.guilds.cache.forEach((guild) => {
+                if(!(Boolean(this.guildConfigs.settings[guild.id]))){
+                    this.guildConfigs.settings[guild.id]= {};
+                }
+            });
+
+            this.saveGuildsSetup();
+        }
+        catch(error){
+            hereLog(`Error reading and/or initializing data from '${this.guildConfigs.settings}' - ${error}`);
+        }
     }
 
     get guildsSettings(){
