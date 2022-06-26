@@ -308,111 +308,116 @@ function _reportCmdMain(guild, utils){
     var obj_MainChans= utils.settings.get(guild,"channelCharacter","main");
     
     var msg="";
-    var channels= undefined
-    if(!Boolean(obj_MainChans) || !(channels=Object.keys(obj_MainChans)).length>0){
-        msg= "No data available regarding channel characters"
-        problems.add(guild.id, msg, ProblemCount.TYPES.ERROR)
-    }
-    else{
-        channels.forEach(chan_id => {
-            var channel= undefined;
-            if (!Boolean(chan_id) || !Boolean(channel=guild.channels.cache.get(chan_id))){
-                var _msg= `Invalid channel #${chan_id}`
-                problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
-                msg+= _msg+"<br/>"
-            }
-            else{
-                var obj_character= obj_MainChans[chan_id]['character']
-                if(!Boolean(obj_character) || obj_character.length<=0){
-                    var _msg= `No character associated to listed channel #${channel.name}(#${chan_id})`
-                    problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
-                    msg+= _msg+'; '
-                }
-                else{
-                    msg+= `channel associated to character <em>${obj_character}</em>; `
-                }
+    // var channels= undefined
+    // if(!Boolean(obj_MainChans) || !(channels=Object.keys(obj_MainChans)).length>0){
+    //     msg= "No data available regarding channel characters"
+    //     problems.add(guild.id, msg, ProblemCount.TYPES.ERROR)
+    // }
+    // else{
+    //     channels.forEach(chan_id => {
+    //         var channel= undefined;
+    //         if (!Boolean(chan_id) || !Boolean(channel=guild.channels.cache.get(chan_id))){
+    //             var _msg= `Invalid channel #${chan_id}`
+    //             problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+    //             msg+= _msg+"<br/>"
+    //         }
+    //         else{
+    //             var obj_character= obj_MainChans[chan_id]['character']
+    //             if(!Boolean(obj_character) || obj_character.length<=0){
+    //                 var _msg= `No character associated to listed channel #${channel.name}(#${chan_id})`
+    //                 problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+    //                 msg+= _msg+'; '
+    //             }
+    //             else{
+    //                 msg+= `channel associated to character <em>${obj_character}</em>; `
+    //             }
 
-                var obj_mainRole= obj_MainChans[chan_id]['role'];
-                var role= undefined
-                if(!Boolean(obj_mainRole)){
-                    var _msg= `no role yet associated to channel #${channel.name}(#${chan_id})`
-                    problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
-                    msg+= _msg+'; '
-                }
-                else if(!Boolean(role=guild.roles.cache.get(obj_mainRole))){
-                    var _msg= `Invalid main role (@${obj_mainRole}) associated to channel #${channel.name}(#${chan_id})`
-                    problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
-                    msg+= _msg+'; '
-                }
-                else{
-                    msg+= `linked to role <a href="#${obj_mainRole}">${role.name}</a>(@${obj_mainRole}); `
-                }
+    //             var obj_mainRole= obj_MainChans[chan_id]['role'];
+    //             var role= undefined
+    //             if(!Boolean(obj_mainRole)){
+    //                 var _msg= `no role yet associated to channel #${channel.name}(#${chan_id})`
+    //                 problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
+    //                 msg+= _msg+'; '
+    //             }
+    //             else if(!Boolean(role=guild.roles.cache.get(obj_mainRole))){
+    //                 var _msg= `Invalid main role (@${obj_mainRole}) associated to channel #${channel.name}(#${chan_id})`
+    //                 problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+    //                 msg+= _msg+'; '
+    //             }
+    //             else{
+    //                 msg+= `linked to role <a href="#${obj_mainRole}">${role.name}</a>(@${obj_mainRole}); `
+    //             }
 
-                var obj_colorMessage= obj_MainChans[chan_id]['color_message'];
-                var message= undefined
-                if(!Boolean(obj_colorMessage)){
-                    var _msg= `no role color message generated for channel #${channel.name}(#${chan_id})`
-                    problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
-                    msg+= _msg+'; '
-                }
-                else if(!Boolean(message=channel.messages.cache.get(obj_colorMessage))){
-                    var _msg= `color message (\\${obj_colorMessage}) invalid or not found on channel #${channel.name}(#${chan_id})`
-                    problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
-                    msg+= _msg+'; '
-                }
-                else{
-                    msg+= `color_message \\${obj_colorMessage} generated and found; `
-                }
-            }
-            msg+="<br/>\n"
-        });
+    //             var obj_colorMessage= obj_MainChans[chan_id]['color_message'];
+    //             var message= undefined
+    //             if(!Boolean(obj_colorMessage)){
+    //                 var _msg= `no role color message generated for channel #${channel.name}(#${chan_id})`
+    //                 problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
+    //                 msg+= _msg+'; '
+    //             }
+    //             else if(!Boolean(message=channel.messages.cache.get(obj_colorMessage))){
+    //                 var _msg= `color message (\\${obj_colorMessage}) invalid or not found on channel #${channel.name}(#${chan_id})`
+    //                 problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+    //                 msg+= _msg+'; '
+    //             }
+    //             else{
+    //                 msg+= `color_message \\${obj_colorMessage} generated and found; `
+    //             }
+    //         }
+    //         msg+="<br/>\n"
+    //     });
 
-        report_str+= `<b>Channel mains:</b><br/>\n${msg}<br/>\n`
-    }
+    //     report_str+= `<b>Channel mains:</b><br/>\n${msg}<br/>\n`
+    // }
 
     
-    var obj_stalledMembers= utils.settings.get(guild,"stalledMembers","main");
-    var msg="";
-    if(!Boolean(obj_stalledMembers) || Object.keys(obj_stalledMembers).length<=0){
-        msg= "No stalled member data"
-        problems.add(guild.id, msg, ProblemCount.TYPES.INFO)
-    }
-    else{
-        var obj_date= obj_stalledMembers['date']
-        if(!Boolean(obj_date) || !Boolean(String(obj_date).match(/[0-9]{13}/g))){
-            var _msg= "Missing of invalid stalled date"
-            problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
-            msg+= _msg+'; '
-        }
-        else{
-            msg+= `last set date: <em>${Date(obj_date)}</em>; `
-        }
+    // var obj_stalledMembers= utils.settings.get(guild,"stalledMembers","main");
+    // var msg="";
+    // if(!Boolean(obj_stalledMembers) || Object.keys(obj_stalledMembers).length<=0){
+    //     msg= "No stalled member data"
+    //     problems.add(guild.id, msg, ProblemCount.TYPES.INFO)
+    // }
+    // else{
+    //     var obj_date= obj_stalledMembers['date']
+    //     if(!Boolean(obj_date) || !Boolean(String(obj_date).match(/[0-9]{13}/g))){
+    //         var _msg= "Missing of invalid stalled date"
+    //         problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+    //         msg+= _msg+'; '
+    //     }
+    //     else{
+    //         msg+= `last set date: <em>${Date(obj_date)}</em>; `
+    //     }
 
-        var obj_members= obj_stalledMembers['members'];
-        if(!Boolean(obj_members) || obj_members.length<=0){
-            var _msg= "No members actually stalled"
-            problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
-            msg+= _msg+'; '
-        }
-        else{
-            msg+= "[ "
-            obj_members.forEach( member_id => {
-                var member= undefined;
-                if(!Boolean(member_id) || !Boolean(member=guild.members.cache.get(member_id))){
-                    var _msg= `Invalid or gone stalled user @${member_id}`
-                    problems.add(guild.id, _msg);
-                    msg= _msg+'; '
-                }
-                else{
-                    msg+= `${member.user.username}(aka ${member.nickname} @${member_id})`
-                }
-                msg+=';'
-            });
-            msg+= " ]"
-        }
+    //     var obj_members= obj_stalledMembers['members'];
+    //     if(!Boolean(obj_members) || obj_members.length<=0){
+    //         var _msg= "No members actually stalled"
+    //         problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
+    //         msg+= _msg+'; '
+    //     }
+    //     else{
+    //         msg+= "[ "
+    //         obj_members.forEach( member_id => {
+    //             var member= undefined;
+    //             if(!Boolean(member_id) || !Boolean(member=guild.members.cache.get(member_id))){
+    //                 var _msg= `Invalid or gone stalled user @${member_id}`
+    //                 problems.add(guild.id, _msg);
+    //                 msg= _msg+'; '
+    //             }
+    //             else{
+    //                 msg+= `${member.user.username}(aka ${member.nickname} @${member_id})`
+    //             }
+    //             msg+=';'
+    //         });
+    //         msg+= " ]"
+    //     }
 
-        report_str+= `<b>stalled members:</b> ${msg}<br/>\n`
-    }
+    //     report_str+= `<b>stalled members:</b> ${msg}<br/>\n`
+    // }
+    
+    msg= "the '!main' command has been discontinued...";
+    problems.add(guild.id, msg);
+
+    report_str+= `<b> Warning:</b>\n${msg}<br/>\n`;
 
     return report_str
 }
