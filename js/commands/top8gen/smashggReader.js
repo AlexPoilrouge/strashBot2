@@ -256,9 +256,12 @@ class SmashGG_Top8Reader{
                         placement: n.placement,
                         name: ((names.length>0)? names[names.length-1]: n.entrant.name),
                         team: ((names.length>1)? names.slice(0,-1).join(sep): undefined),
-                        twitter: (Boolean(n.entrant.participants[0].user.authorizations) && Boolean(n.entrant.participants[0].user.authorizations[0]))?
-                                    n.entrant.participants[0].user.authorizations[0]['externalUsername']
-                                :   undefined
+                        twitter:    (   Boolean(n.entrant.participants[0].user)
+                                        && Boolean(n.entrant.participants[0].user.authorizations)
+                                        && Boolean(n.entrant.participants[0].user.authorizations[0])
+                                    )?
+                                        n.entrant.participants[0].user.authorizations[0]['externalUsername']
+                                    :   undefined
                     }})
                 }
     }
