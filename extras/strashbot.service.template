@@ -4,6 +4,7 @@ After=network-online.target
  
 [Service]
 Type=simple
+OOMScoreAdjust=-1000
 
  
 User=${STRASHBOT_USER}
