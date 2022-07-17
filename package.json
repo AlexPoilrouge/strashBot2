@@ -1,6 +1,6 @@
 {
   "name": "strashbot",
-  "version": "0.2.0",
+  "version": "0.2.14",
   "description": "",
   "main": "bot_main.js",
   "scripts": {
@@ -9,6 +9,7 @@
   "author": "Dr_Nope",
   "license": "ISC",
   "dependencies": {
+    "axios": "^0.27.2",
     "config": "^3.2.5",
     "discord.js": "^12.3.1",
     "fs": "0.0.1-security",

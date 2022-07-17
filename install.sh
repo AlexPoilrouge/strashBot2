@@ -160,6 +160,7 @@ install extras/launch.sh "${ROOT_DIR}/${STRASHBOT_DIR}"
 GUILD_CONFIG_FILE="${ROOT_DIR}/${STRASHBOT_DIR}/data/guildConfigs.json"
 echoerr "gcf= ${GUILD_CONFIG_FILE}"
 if ! [ -f "${GUILD_CONFIG_FILE}" ] || [ "$( cat "${GUILD_CONFIG_FILE}" )" == "" ]; then
+    mkdir -p "$( realpath "$( dirname "${GUILD_CONFIG_FILE}" )" )"
     echo "{}" > "${GUILD_CONFIG_FILE}"
     echoerr "echo \"{}\" > \"${GUILD_CONFIG_FILE}\""
 fi

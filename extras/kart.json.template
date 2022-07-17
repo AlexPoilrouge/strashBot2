@@ -10,6 +10,11 @@
             "server_port":"${SRB2K_PORT}",
             "distant_user":"${STRASHBOT_USER}"
     },
+    "api":{
+        "host":"${SRB2K_API_HOST}",
+        "port":"${SRB2K_API_PORT}",
+        "root":"${SRB2K_API_ROOT}"
+    },
     "dirs":{
             "main_folder":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}",
             "dl_dirs":{

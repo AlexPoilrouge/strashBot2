@@ -20,6 +20,8 @@ const cron= require('node-cron');
 
 const {Attachment} = require('discord.js');
 
+const axios= require('axios');
+
 
 let hereLog= (...args) => {console.log("[cmd_kart]", ...args);};
 
@@ -179,7 +181,8 @@ function _isServerRunning(){
         b= false;
     }
 
-    return b;
+    // return b;
+    return true;
 }
 
 function _initAddonsConfig(){
@@ -311,25 +314,37 @@ function _autoStartServer(utils){
 
 var _oldServInfos= undefined;
 
-async function _checkServerStatus(utils){
-    var servInfo= (await _askServInfos())
-    if(Boolean(servInfo) && Boolean(servInfo.server) && servInfo.server.numberofplayer!==undefined &&
-        ( !Boolean(_oldServInfos) || !Boolean(_oldServInfos.server)) ||
-        ( servInfo.server.numberofplayer !== _oldServInfos.server.numberofplayer )
-    ){
-        var bot= utils.getBotClient();
-        if(servInfo.server.numberofplayer>1){
-            hereLog(`Changes in srb2kart server status detected… (player count: ${servInfo.server.numberofplayer})`);
-            bot.user.setActivity('Hosting SRB2Kart Races', { type: 'PLAYING' });
-        }
-        else{
-            hereLog(`Changes in srb2kart server status detected… (not enough player though)`);
-            bot.user.setActivity('');
+function _checkServerStatus(utils){
+    _askServInfos().then(servInfo =>{
+        hereLog("_checkServerStatus")
+
+        if(!(Boolean(servInfo) && Boolean(servInfo.server) && servInfo.server.numberofplayer!==undefined)){
+            throw "Fetched bad servinfo";
         }
 
-        _oldServInfos= servInfo;
-    }
-    hereLog("_checkServerStatus")
+        if( ( !Boolean(_oldServInfos) || !Boolean(_oldServInfos.server)) ||
+            ( servInfo.server.numberofplayer !== _oldServInfos.server.numberofplayer )
+        ){
+            var bot= utils.getBotClient();
+            if(servInfo.server.numberofplayer>1){
+                hereLog(`Changes in srb2kart server status detected… (player count: ${servInfo.server.numberofplayer})`);
+                bot.user.setActivity('Hosting SRB2Kart Races', { type: 'PLAYING' });
+            }
+            else{
+                hereLog(`Changes in srb2kart server status detected… (not enough player though)`);
+                bot.user.setActivity('');
+            }
+
+            _oldServInfos= servInfo;
+        }
+    }).catch(err =>{
+        var bot= utils.getBotClient();
+        bot.user.setActivity('');
+
+        _oldServInfos= undefined;
+        hereLog(`Error while checking status of SRB2Kart server… - ${err}`);
+    })
+
 }
 
 var stop_job= undefined;
@@ -1635,30 +1650,50 @@ async function _cmd_register(cmdObj, clearanceLvl, utils){
     }
 }
 
-async function _askServInfos(){
-    if(!Boolean(kart_settings) || !Boolean(kart_settings.server_commands)
-        || !Boolean(kart_settings.server_commands.server_ip)
-        || (kart_settings.server_commands.server_ip.length<=0)
-    ){
-        hereLog(`[askServInfos] bad config…`);
-        return undefined;
+function _askServInfos(address=undefined, port=undefined){
+    var a= address, p= port;
+    var m= undefined;
+    if(Boolean(a) && Boolean(m=a.match(/(.*)\:([0-9]+)$/))){
+        a= m[1];
+        p= m[2];
     }
+    var p= (Boolean(port))?port:p;
 
-    var r= undefined
-    try{
-        var addr= kart_settings.server_commands.server_ip
-        var port= kart_settings.server_commands.server_port
-        port= ((!Boolean(port)) || (port.length<=0))?
-            KART_DEFAULT_SERV_PORT : port
-        r= (await KartServerInfo(addr, port, 16000))
-    }
-    catch(err){
-        hereLog(`[askServInfos] couldn't get server info at `
-            +`${addr}:${port} - ${err}`)
-        r= undefined
-    }
+    var query=""
+    if(Boolean(a))
+        query+= `address=${a}`
+    if(Boolean(p))
+        query+= `${Boolean(query)?'&':''}port=${p}`
+    query= (Boolean(query)?`?`:'')+query
 
-    return r
+    return new Promise( (resolve, reject) => {
+        if (!Boolean(kart_settings)){
+            hereLog(`[askServInfos] bad config…`);
+            reject("Bad info - couldn't access kart_settings…")
+        }
+
+        if(Boolean(kart_settings.api) && Boolean(kart_settings.api.host)){
+            api_addr=`${kart_settings.api.host}${(Boolean(kart_settings.api.port)?`:${kart_settings.api.port}`:'')}${kart_settings.api.root}/info${query}`
+
+            hereLog(`[askServInfo] Asking API ${api_addr}…`);
+            axios.get(api_addr)
+                .then(response => {
+                    if(response.status!=200){
+                        hereLog(`[askServInfo] API ${api_addr} bad response`);
+                        reject("Bad API response")
+                    }
+
+                    resolve(response.data)
+                }).catch(err => {
+                    hereLog(`[askServInfo] API ${api_addr} error - ${err}`)
+                    reject(`Error API - ${err}`)
+                });
+        }
+        else{
+            hereLog(`[askServInfos] bad api settings…`);
+            reject("Bad api - no api set in settings…")
+        }
+    })
 }
 
 function _getServMode(){
@@ -2564,70 +2599,15 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         }
         else if(["server","info","about","?"].includes(args[0])){
             var embed= {}
-            embed.title= "StrashBot server"
+            embed.title=
+                (Boolean(args[1]))?
+                        `${args[1]}${(Boolean(args[2]))?`:${args[2]}`:''}`
+                    :   "Strashbot server";
             embed.color= 0xff0000 //that's red (i hope? this rgba, right?)
-            if(_isServerRunning()){
-                if((Boolean(kart_settings) && Boolean(kart_settings.server_commands)
-                    && Boolean(kart_settings.server_commands.server_addr))
-                ){
-                    embed.thumbnail= {
-                        url: `http://${kart_settings.server_commands.server_addr}/img/server/active_thumb.png`
-                    }
-                }
 
-                embed.fields=[]
+            return await _askServInfos(args[1], args[2]).then(serverInfos => {
+                embed.fields=[];
 
-                var servOwner= utils.settings.get(message.guild, "serv_owner")
-                var owner= undefined;
-                if(Boolean(servOwner) && Boolean(owner= await utils.getBotClient().users.fetch(servOwner))){
-                    embed.fields.push({
-                        name: 'Responsable',
-                        value: `${owner.username}`,
-                        inline: true
-                    })
-                }
-                else{
-                    embed.fields.push({
-                        name: 'Responsable',
-                        value: `aucun`,
-                        inline: true
-                    })
-                }
-
-                if (Boolean(kart_settings) && Boolean(kart_settings.server_commands)
-                    && Boolean(kart_settings.server_commands.through_ssh)
-                ){
-                    var _ip= kart_settings.server_commands.server_ip;
-                    var _ipValid= Boolean(_ip) && Boolean(_ip.match(/^([0-9]{1,3}\.){3}[0-9]{1,3}$/))
-                    var _addr= kart_settings.server_commands.server_addr;
-
-                    embed.fields.push({
-                        name: 'Adresse de connexion',
-                        value: (
-                            (Boolean(_addr)?
-                                (`\`${_addr}\``
-                                    +`${_ipValid?` (ou \`${_ip}\`)`:''}`
-                                )
-                            :   (_ipValid?_ip:"inconnue")
-                            )
-                        ),
-                        inline: true
-                    })
-                }
-                else{
-                    var net= undefined;
-                    if(Boolean(ifaces) && Boolean(ifaces['eth0']) && ifaces['eth0'].length>0 &&
-                        ( net= ifaces['eth0'].find(nif => {return Boolean(nif['address'].match(/^([0-9]{1,3}\.){3}[0-9]{1,3}$/))}) )
-                    ){
-                        embed.fields.push({
-                            name: 'Adresse de connexion',
-                            value: `\`${net['address']}\``,
-                            inline: true
-                        })
-                    }
-                }
-
-                var serverInfos= (await _askServInfos())
                 if(Boolean(serverInfos)){
                     var ss= serverInfos.server
                     if(Boolean(ss) && Boolean(ss.servername)
@@ -2646,6 +2626,20 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                                 :   ''
                                 }`
                         }
+                    }
+
+                    if(Boolean(serverInfos) && Boolean(serverInfos.thumbnail)){
+                        embed.thumbnail= {
+                            url: serverInfos.thumbnail
+                        }
+                    }
+
+                    if(Boolean(serverInfos) && Boolean(serverInfos.address)){
+                        embed.fields.push({
+                            name: 'Adresse de connexion',
+                            value: `\`${serverInfos.address}\``,
+                            inline: true
+                        })
                     }
 
                     embed.fields.push({
@@ -2677,7 +2671,10 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                         })
                     }
 
-                    var modes= _getServMode()
+                    var modes= 
+                        (Boolean(serverInfos.modes) && Boolean(serverInfos.modes.status=="OK"))?
+                            ( Boolean(serverInfos.modes.modes)? serverInfos.modes.modes : [] )
+                        :   undefined;
                     if(Boolean(modes) && modes.length>0){
                         embed.fields.push({
                             name: "Modes",
@@ -2685,7 +2682,6 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                             inline: false
                         })
                     }
-
 
                     var players= [], spectators= []
                     var sp= serverInfos.players
@@ -2729,31 +2725,40 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                     })
                 }
                 else{
+                    hereLog(`[ !kart info ] Bad info from API…`)
+
+                    embed.color= 0x808080
+                    message.channel.send({embed: embed})
+                    embed.fields=[]
                     embed.fields.push({
-                        name: 'Statut',
-                        value: '⚠️ ne répond pas!',
-                        inline: true
+                        name: "Erreur",
+                        value: "Problème lors de la récupération des infos…",
+                        inline: false
                     })
-                }
-            }
-            else{
-                if((Boolean(kart_settings) && Boolean(kart_settings.server_commands)
-                    && Boolean(kart_settings.server_commands.server_addr))
-                ){
                     embed.thumbnail= {
-                        url: `http://${kart_settings.server_commands.server_addr}/img/server/inactive_thumb.png`
+                        url: 'https://cdn-icons-png.flaticon.com/512/7706/7706689.png'
                     }
                 }
+
+                message.channel.send({embed: embed})
+
+                return true;
+            }).catch(err => {
+                hereLog(`[ !kart info ] No serv info - ${err}`)
+                embed.color= 0x808080
                 embed.fields=[]
                 embed.fields.push({
                     name: "Offline",
-                    value: "Le serveur semble inactif…",
+                    value: "Le serveur semble injoignable…",
                     inline: false
                 })
-            }
-
-            message.channel.send({embed: embed})
-            return true
+                embed.thumbnail= {
+                    url: 'https://cdn-icons-png.flaticon.com/512/8018/8018865.png'
+                }
+                
+                message.channel.send({embed: embed})
+                return true;
+            }) 
         }
         else if(["code","source","git"].includes(args[0])){
             if(Boolean(kart_settings) && Boolean(kart_settings.source_url)){

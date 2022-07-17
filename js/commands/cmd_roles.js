@@ -895,7 +895,8 @@ async function cmd_event(eventName, utils){
     else if(eventName==="messageDelete"){
         var message= arguments[2];
         var data_msg_react_role= utils.settings.get(message.guild, 'msg_react_role')
-        if(!(Object.keys(data_msg_react_role).some(k=>{return k.endsWith(`_${message.id}`)}))) return
+        if(!(Boolean(data_msg_react_role) && Object.keys(data_msg_react_role).some(k=>{return k.endsWith(`_${message.id}`)})))
+            return;
 
         if(message.partial){
             try{
