@@ -181,8 +181,40 @@ function _isServerRunning(){
         b= false;
     }
 
-    // return b;
-    return true;
+    return b;
+}
+
+function _serverRunningStatus_API(){
+    return new Promise( (resolve, reject) => {
+        if (!Boolean(kart_settings)){
+            hereLog(`[server status] bad config…`);
+            reject("Bad info - couldn't access kart_settings…")
+        }
+
+        if(Boolean(kart_settings.api) && Boolean(kart_settings.api.host)){
+            api_addr=`${kart_settings.api.host}${(Boolean(kart_settings.api.port)?`:${kart_settings.api.port}`:'')}${kart_settings.api.root}/service`
+    
+            axios.get(api_addr)
+                .then(response => {
+                    if( response.status===200 &&
+                        Boolean(response.data) && Boolean(response.data.status)
+                    ){
+                        hereLog(`[server status] from ${kart_settings.api.root}/service: ${response.data.status.toUpperCase()}`)
+                        resolve(response.data.status.toUpperCase());
+                    }
+
+                    resolve('UNAVAILABLE');
+                }).catch(err => {
+                    hereLog(`[server status] API ${api_addr} error - ${err}`)
+
+                    resolve('UNAVAILABLE');
+                });
+        }
+        else{
+            hereLog(`[server status] bad api settings…`);
+            reject("Bad api - no api set in settings…")
+        }
+    });
 }
 
 function _initAddonsConfig(){
@@ -315,36 +347,43 @@ function _autoStartServer(utils){
 var _oldServInfos= undefined;
 
 function _checkServerStatus(utils){
+    var bot= utils.getBotClient();
+
     _askServInfos().then(servInfo =>{
         hereLog("_checkServerStatus")
 
-        if(!(Boolean(servInfo) && Boolean(servInfo.server) && servInfo.server.numberofplayer!==undefined)){
-            throw "Fetched bad servinfo";
+        if((!Boolean(servInfo.service_status)) || (servInfo.service_status!=='UP')){
+            hereLog(`SRB2Kart server service status is '${servInfo.service_status}'`);
+            bot.user.setActivity('');
+        
+            _oldServInfos= undefined;
         }
-
-        if( ( !Boolean(_oldServInfos) || !Boolean(_oldServInfos.server)) ||
-            ( servInfo.server.numberofplayer !== _oldServInfos.server.numberofplayer )
-        ){
-            var bot= utils.getBotClient();
-            if(servInfo.server.numberofplayer>1){
-                hereLog(`Changes in srb2kart server status detected… (player count: ${servInfo.server.numberofplayer})`);
-                bot.user.setActivity('Hosting SRB2Kart Races', { type: 'PLAYING' });
-            }
-            else{
-                hereLog(`Changes in srb2kart server status detected… (not enough player though)`);
-                bot.user.setActivity('');
+        else{
+            if(!(Boolean(servInfo) && Boolean(servInfo.server) && servInfo.server.numberofplayer!==undefined)){
+                throw "Fetched bad servinfo";
             }
 
-            _oldServInfos= servInfo;
+            if( ( !Boolean(_oldServInfos) || !Boolean(_oldServInfos.server)) ||
+                ( servInfo.server.numberofplayer !== _oldServInfos.server.numberofplayer )
+            ){
+                if(servInfo.server.numberofplayer>1){
+                    hereLog(`Changes in srb2kart server status detected… (player count: ${servInfo.server.numberofplayer})`);
+                    bot.user.setActivity('Hosting SRB2Kart Races', { type: 'PLAYING' });
+                }
+                else{
+                    hereLog(`Changes in srb2kart server status detected… (not enough player though)`);
+                    bot.user.setActivity('');
+                }
+
+                _oldServInfos= servInfo;
+            }
         }
     }).catch(err =>{
-        var bot= utils.getBotClient();
         bot.user.setActivity('');
 
         _oldServInfos= undefined;
         hereLog(`Error while checking status of SRB2Kart server… - ${err}`);
     })
-
 }
 
 var stop_job= undefined;
@@ -1657,7 +1696,7 @@ function _askServInfos(address=undefined, port=undefined){
         a= m[1];
         p= m[2];
     }
-    var p= (Boolean(port))?port:p;
+    var p= (Boolean(port) && Boolean(port.match(/^[0-9]+$/)))? port : p;
 
     var query=""
     if(Boolean(a))
@@ -1673,21 +1712,40 @@ function _askServInfos(address=undefined, port=undefined){
         }
 
         if(Boolean(kart_settings.api) && Boolean(kart_settings.api.host)){
-            api_addr=`${kart_settings.api.host}${(Boolean(kart_settings.api.port)?`:${kart_settings.api.port}`:'')}${kart_settings.api.root}/info${query}`
+            ( ( Boolean(p) || Boolean(a))?
+                    new Promise( (res, rej) => {rej("SKIP");} )
+                :   _serverRunningStatus_API()
+            )
+                .catch(e => {
+                    if (e==="SKIP") return { status: "SKIP" }
+                    return { status: 'UNAVAILABLE' }
+                })
+                .then( service_res => {
+                    let api_info_addr=`${kart_settings.api.host}${(Boolean(kart_settings.api.port)?`:${kart_settings.api.port}`:'')}${kart_settings.api.root}/info${query}`
 
-            hereLog(`[askServInfo] Asking API ${api_addr}…`);
-            axios.get(api_addr)
-                .then(response => {
-                    if(response.status!=200){
-                        hereLog(`[askServInfo] API ${api_addr} bad response`);
-                        reject("Bad API response")
+                    if (service_res==='DOWN') resolve( {service_status: 'DOWN'} );
+                    else {
+                        hereLog(`[askServInfo] Asking API ${api_info_addr}…`);
+                        axios.get(api_info_addr)
+                            .then(response => {
+                                if(response.status!=200){
+                                    hereLog(`[askServInfo] API ${api_info_addr} bad response`);
+                                    reject("Bad API response")
+                                }
+
+                                response.data.service_status= service_res.status
+
+                                resolve(response.data)
+                            }).catch(err => {
+                                hereLog(`[askServInfo] API ${api_info_addr} error - ${err}`)
+                                reject(`Error API /info - ${err}`)
+                            });
                     }
-
-                    resolve(response.data)
-                }).catch(err => {
-                    hereLog(`[askServInfo] API ${api_addr} error - ${err}`)
-                    reject(`Error API - ${err}`)
-                });
+                } )
+                .catch(err => {
+                    hereLog(`[askServInfo] API ${api_service_addr} error - ${err}`)
+                    reject(`Error API /service - ${err}`)
+                })
         }
         else{
             hereLog(`[askServInfos] bad api settings…`);
@@ -2608,7 +2666,19 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             return await _askServInfos(args[1], args[2]).then(serverInfos => {
                 embed.fields=[];
 
-                if(Boolean(serverInfos)){
+                if(Boolean(serverInfos.service_status) && serverInfos.service_status==="DOWN"){
+                    embed.color= 0x808080
+                    embed.fields=[]
+                    embed.fields.push({
+                        name: "Strashbot server",
+                        value: "Le serveur semble inactif…",
+                        inline: false
+                    })
+                    embed.thumbnail= {
+                        url: 'http://strashbot.fr/img/server/inactive_thumb.png'
+                    }
+                }
+                else if(Boolean(serverInfos)){
                     var ss= serverInfos.server
                     if(Boolean(ss) && Boolean(ss.servername)
                         && ss.servername.length>0
@@ -2728,7 +2798,6 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                     hereLog(`[ !kart info ] Bad info from API…`)
 
                     embed.color= 0x808080
-                    message.channel.send({embed: embed})
                     embed.fields=[]
                     embed.fields.push({
                         name: "Erreur",
