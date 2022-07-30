@@ -264,128 +264,131 @@ async function _free(cmdObj, member, utils){
 
 
 function cmd_init(utils){
-    hereLog(`cmd init`);
-    l_guilds= [];
+    // hereLog(`cmd init`);
+    // l_guilds= [];
 }
 
 async function cmd_init_per_guild(utils, guild){
-    l_guilds.push(guild);
-    hereLog(`cmd init for guild ${guild}`);
-    var p_r_id= utils.settings.get(guild, 'prison_role');
-    var s_r_id= utils.settings.get(guild, 'silence_role');
-    var punished= utils.settings.get(guild, 'punished');
-    if(Boolean(p_r_id) && !Boolean(guild.roles.cache.get(p_r_id))){
-        utils.settings.remove(guild, 'prison_role');
-    }
-    if(Boolean(s_r_id) && !Boolean(guild.roles.cache.get(s_r_id))){
-        utils.settings.remove(guild, 'silence_role');
-    }
-    if(Boolean(punished)){
-        var punished_keys= Object.keys(punished);
-        for(var k_m_id of punished_keys){
-            var pun_m= punished[k_m_id];
-            await guild.members.fetch(k_m_id).then( m =>{
-                var m_sent= Boolean(pun_m)? pun_m.sentence : undefined;
+    // l_guilds.push(guild);
+    // hereLog(`cmd init for guild ${guild}`);
+    // var p_r_id= utils.settings.get(guild, 'prison_role');
+    // var s_r_id= utils.settings.get(guild, 'silence_role');
+    // var punished= utils.settings.get(guild, 'punished');
+    // if(Boolean(p_r_id) && !Boolean(guild.roles.cache.get(p_r_id))){
+    //     utils.settings.remove(guild, 'prison_role');
+    // }
+    // if(Boolean(s_r_id) && !Boolean(guild.roles.cache.get(s_r_id))){
+    //     utils.settings.remove(guild, 'silence_role');
+    // }
+    // if(Boolean(punished)){
+    //     var punished_keys= Object.keys(punished);
+    //     for(var k_m_id of punished_keys){
+    //         var pun_m= punished[k_m_id];
+    //         await guild.members.fetch(k_m_id).then( m =>{
+    //             var m_sent= Boolean(pun_m)? pun_m.sentence : undefined;
 
-                var r= undefined;
-                if(!Boolean(m_sent) || !Boolean(r=m.roles.cache.get(m_sent))){
-                    if(Boolean(pun_m.roles)){
-                        hereLog(`tmp add roles ${pun_m.roles}`)
-                        m.roles.add(pun_m.roles).catch(err => {hereLog(err);});
-                    }
+    //             var r= undefined;
+    //             if(!Boolean(m_sent) || !Boolean(r=m.roles.cache.get(m_sent))){
+    //                 if(Boolean(pun_m.roles)){
+    //                     hereLog(`tmp add roles ${pun_m.roles}`)
+    //                     m.roles.add(pun_m.roles).catch(err => {hereLog(err);});
+    //                 }
 
-                    delete punished[k_m_id];
-                }
-                else{
-                    __punish_func(guild,m,r,utils);
-                }
-            })
-            .catch(err => hereLog(err))
-        };
+    //                 delete punished[k_m_id];
+    //             }
+    //             else{
+    //                 __punish_func(guild,m,r,utils);
+    //             }
+    //         })
+    //         .catch(err => hereLog(err))
+    //     };
 
-        await guild.members.fetch().then(g_m=>{
-            g_m.forEach(m=>{
-                var pun_m= undefined;
-                if((Boolean(r=m.roles.cache.get(p_r_id)) || Boolean(r=m.roles.cache.get(s_r_id))) &&
-                    !(Boolean(pun_m=punished[m.id]) && Boolean(pun_m.sentence))
-                ){
-                    __punish_func(guild,m,r,utils);
-                }
-            });
-        })
-        utils.settings.set(guild,'punished',punished);
-    }
-    var spared= utils.settings.get(guild, 'spared-roles');
-    if(Boolean(spared) && spared.length>0){
-        var f_s= spared, b=false;
-        spared.forEach(s_r=>{
-            if(!Boolean(guild.roles.cache.get(s_r))){
-                f_s= f_s.filter(r =>{return r!==s_r});
-                b= true;
-            }
-        });
-        if(b){
-            utils.settings.set(guild, 'spared-roles', f_s);
-        }
-    }
+    //     await guild.members.fetch().then(g_m=>{
+    //         g_m.forEach(m=>{
+    //             var pun_m= undefined;
+    //             if((Boolean(r=m.roles.cache.get(p_r_id)) || Boolean(r=m.roles.cache.get(s_r_id))) &&
+    //                 !(Boolean(pun_m=punished[m.id]) && Boolean(pun_m.sentence))
+    //             ){
+    //                 __punish_func(guild,m,r,utils);
+    //             }
+    //         });
+    //     })
+    //     utils.settings.set(guild,'punished',punished);
+    // }
+    // var spared= utils.settings.get(guild, 'spared-roles');
+    // if(Boolean(spared) && spared.length>0){
+    //     var f_s= spared, b=false;
+    //     spared.forEach(s_r=>{
+    //         if(!Boolean(guild.roles.cache.get(s_r))){
+    //             f_s= f_s.filter(r =>{return r!==s_r});
+    //             b= true;
+    //         }
+    //     });
+    //     if(b){
+    //         utils.settings.set(guild, 'spared-roles', f_s);
+    //     }
+    // }
 }
 
 async function cmd_main(cmdObj, clearanceLvl, utils){
     let command= cmdObj.command;
     let message= cmdObj.msg_obj;
-    hereLog(`${command} command called (clearance: ${clearanceLvl}) by ${cmdObj.msg_obj.author} on ${cmdObj.msg_obj.channel}`)
 
-    if(clearanceLvl<=CLEARANCE_LEVEL.NONE) return false;
-
-    if(command==="prison"){
-        return await _cmd_prison(cmdObj, clearanceLvl, utils);
-    }
-    else if(["silence","tg","ftg","chut"].includes(command)){
-        return await _cmd_silence(cmdObj, clearanceLvl, utils);
-    }
-    else if(command==="free"){
-        var members= undefined;
-        if(!Boolean(message.mentions) || !Boolean(members=message.mentions.members)){
-            cmdObj.msg_obj.author.send("No mention to any filthy criminal detected…");
-            return false;
-        };
-        
-        var b= false;
-        members.forEach(member =>{
-            b= b || _free(cmdObj, member, utils);
-        })
-
-        return b;
-    }
-    else if(command==="convicts"){
-        var punished= utils.settings.get(message.guild, 'punished');
-        var convicts= undefined
-        if(!Boolean(punished) || !Boolean(convicts=Object.keys(punished)) || convicts.length<=0){
-            message.author.send("No convicts found (maybe they broke out??? 😱 )");
-            return true;
-        }
-
-        str= "Convicts list:\n\n";
-        convicts.forEach(con => {
-            var con_obj= punished[con];
-            str+= `\t[ ${(Boolean(con) && Boolean(con_obj.sentence))?message.guild.roles.cache.get(con_obj.sentence).name:'???'} ] <@${con}>`;
-            str+= (Boolean(con) && Boolean(con_obj.roles))?"( stripped from "+con_obj.roles.map(r=>{
-                            var r_obj= undefined;
-                            return (Boolean(r_obj=message.guild.roles.cache.get(r)))?
-                                        r_obj.name :
-                                        "[ deleted role ]";
-                        }
-                    )+" )":'';
-        });
-        message.author.send(str);
-
-        return true;
-    }
-    else if(command==="help"){
-        return cmd_help(cmdObj, clearanceLvl);
-    }
-
+    message.author.send(`Sorry, the punishement commands (!prison, !silence, !free, etc.) have been discontinued... :()`);
     return false;
+    // hereLog(`${command} command called (clearance: ${clearanceLvl}) by ${cmdObj.msg_obj.author} on ${cmdObj.msg_obj.channel}`)
+
+    // if(clearanceLvl<=CLEARANCE_LEVEL.NONE) return false;
+
+    // if(command==="prison"){
+    //     return await _cmd_prison(cmdObj, clearanceLvl, utils);
+    // }
+    // else if(["silence","tg","ftg","chut"].includes(command)){
+    //     return await _cmd_silence(cmdObj, clearanceLvl, utils);
+    // }
+    // else if(command==="free"){
+    //     var members= undefined;
+    //     if(!Boolean(message.mentions) || !Boolean(members=message.mentions.members)){
+    //         cmdObj.msg_obj.author.send("No mention to any filthy criminal detected…");
+    //         return false;
+    //     };
+        
+    //     var b= false;
+    //     members.forEach(member =>{
+    //         b= b || _free(cmdObj, member, utils);
+    //     })
+
+    //     return b;
+    // }
+    // else if(command==="convicts"){
+    //     var punished= utils.settings.get(message.guild, 'punished');
+    //     var convicts= undefined
+    //     if(!Boolean(punished) || !Boolean(convicts=Object.keys(punished)) || convicts.length<=0){
+    //         message.author.send("No convicts found (maybe they broke out??? 😱 )");
+    //         return true;
+    //     }
+
+    //     str= "Convicts list:\n\n";
+    //     convicts.forEach(con => {
+    //         var con_obj= punished[con];
+    //         str+= `\t[ ${(Boolean(con) && Boolean(con_obj.sentence))?message.guild.roles.cache.get(con_obj.sentence).name:'???'} ] <@${con}>`;
+    //         str+= (Boolean(con) && Boolean(con_obj.roles))?"( stripped from "+con_obj.roles.map(r=>{
+    //                         var r_obj= undefined;
+    //                         return (Boolean(r_obj=message.guild.roles.cache.get(r)))?
+    //                                     r_obj.name :
+    //                                     "[ deleted role ]";
+    //                     }
+    //                 )+" )":'';
+    //     });
+    //     message.author.send(str);
+
+    //     return true;
+    // }
+    // else if(command==="help"){
+    //     return cmd_help(cmdObj, clearanceLvl);
+    // }
+
+    // return false;
 }
 
 function cmd_help(cmdObj, clearanceLvl){
@@ -397,96 +400,97 @@ function cmd_help(cmdObj, clearanceLvl){
     message.author.send(
         `__**punishment** command family___:\n\n`+
         `**Admin Roles and/or Control Channels only:**\n\n`+
-        `\t\`!prison role <@role>\`\n\n`+
-        `\tSets the mentioned role associated with the 'prison' command.\n\n`+
-        `\t\`!prison which\`\n\n`+
-        `\tShows which role is associated with the 'prison' command (along with the 'glued roles').\n\n`+
-        `\t\`!prison glue <@role>\`\n\n`+
-        `\tSets the mentioned role as a 'glued role', a role that can't be stripped during punishment…\n\n`+
-        `\t\`!prison unglue <@role>\`\n\n`+
-        `\tRemove the mentioned role, from the 'glued roles'…\n\n`+
-        `\t\`!prison <@usermention>\`\n\n`+
-        `\tGives the "prison" punishment to the mentioned user, stripping him of all of his roles, leaving him only`+
-        `with the 'prison' associated role…\n\n`+
-        `\t\`!silence\`\n\n`+
-        `\tThe 'silence' command is used is the exact same fashion as the 'prison' command (with same subcommand and options)\n`+
-        `\tInstead of managing the role associated with the 'prison' punishment, it is used to manage the one associated with the 'silence' punishment.\n\n`+
-        `\t\`!convicts\`\n\n`+
-        `\tList all of the convicted users…\n\n`+
-        `\t\`!free <@usermention>\`\n\n`+
-        `\tRelease the mentionned user of his/her punishment.\n(Manually removing his/her "punishment role" should also work…)\n`
+        `\t🚫 Sorry, the punishement commands (!prison, !silence, !free, etc.) have been discontinued…\n\n`
+    //     `\t\`!prison role <@role>\`\n\n`+
+    //     `\tSets the mentioned role associated with the 'prison' command.\n\n`+
+    //     `\t\`!prison which\`\n\n`+
+    //     `\tShows which role is associated with the 'prison' command (along with the 'glued roles').\n\n`+
+    //     `\t\`!prison glue <@role>\`\n\n`+
+    //     `\tSets the mentioned role as a 'glued role', a role that can't be stripped during punishment…\n\n`+
+    //     `\t\`!prison unglue <@role>\`\n\n`+
+    //     `\tRemove the mentioned role, from the 'glued roles'…\n\n`+
+    //     `\t\`!prison <@usermention>\`\n\n`+
+    //     `\tGives the "prison" punishment to the mentioned user, stripping him of all of his roles, leaving him only`+
+    //     `with the 'prison' associated role…\n\n`+
+    //     `\t\`!silence\`\n\n`+
+    //     `\tThe 'silence' command is used is the exact same fashion as the 'prison' command (with same subcommand and options)\n`+
+    //     `\tInstead of managing the role associated with the 'prison' punishment, it is used to manage the one associated with the 'silence' punishment.\n\n`+
+    //     `\t\`!convicts\`\n\n`+
+    //     `\tList all of the convicted users…\n\n`+
+    //     `\t\`!free <@usermention>\`\n\n`+
+    //     `\tRelease the mentionned user of his/her punishment.\n(Manually removing his/her "punishment role" should also work…)\n`
     );
 
     return true;
 }
 
 function cmd_event(eventName, utils){
-    if(eventName==="guildMemberUpdate"){
-        var oldMember= arguments[2];
-        var newMember= arguments[3];
+    // if(eventName==="guildMemberUpdate"){
+    //     var oldMember= arguments[2];
+    //     var newMember= arguments[3];
 
 
-        var punished= utils.settings.get(newMember.guild, 'punished');
+    //     var punished= utils.settings.get(newMember.guild, 'punished');
 
-        if (oldMember.roles.cache.size > newMember.roles.cache.size) {
-            var suprRoles= oldMember.roles.cache.filter(r => {return !newMember.roles.cache.has(r.id);});
+    //     if (oldMember.roles.cache.size > newMember.roles.cache.size) {
+    //         var suprRoles= oldMember.roles.cache.filter(r => {return !newMember.roles.cache.has(r.id);});
 
-            var p_sent= (Boolean(punished) && Boolean(p_sent=punished[newMember.id]))? p_sent.sentence: undefined;
-            if(Boolean(p_sent) && suprRoles.some(s_role => {return s_role.id===p_sent;})){
-                var punished= utils.settings.get(newMember.guild, 'punished');
-                var old_roles= undefined, con= undefined;
-                if(Boolean(punished) && Boolean(con=punished[newMember.id]) && Boolean(old_roles=con.roles)){
-                    hereLog(`tmp add roles ${old_roles}`)
-                    newMember.roles.add(old_roles).catch(err => {hereLog(err);});
-                }
+    //         var p_sent= (Boolean(punished) && Boolean(p_sent=punished[newMember.id]))? p_sent.sentence: undefined;
+    //         if(Boolean(p_sent) && suprRoles.some(s_role => {return s_role.id===p_sent;})){
+    //             var punished= utils.settings.get(newMember.guild, 'punished');
+    //             var old_roles= undefined, con= undefined;
+    //             if(Boolean(punished) && Boolean(con=punished[newMember.id]) && Boolean(old_roles=con.roles)){
+    //                 hereLog(`tmp add roles ${old_roles}`)
+    //                 newMember.roles.add(old_roles).catch(err => {hereLog(err);});
+    //             }
 
-                delete punished[newMember.id];
-                utils.settings.set(newMember.guild, 'punished',punished);
-            }
-        }
-        else if(oldMember.roles.size < newMember.roles.size){
-            var addedRoles= newMember.roles.cache.filter(r => {return !oldMember.roles.cache.has(r.id);});
+    //             delete punished[newMember.id];
+    //             utils.settings.set(newMember.guild, 'punished',punished);
+    //         }
+    //     }
+    //     else if(oldMember.roles.size < newMember.roles.size){
+    //         var addedRoles= newMember.roles.cache.filter(r => {return !oldMember.roles.cache.has(r.id);});
 
-            var pris_r= utils.settings.get(newMember.guild, 'prison_role');
-            var sil_r= utils.settings.get(newMember.guild, 'silence_role');
-            var punish_r= undefined
-            if( (Boolean(pris_r) || Boolean(sil_r)) &&
-                (punish_r=addedRoles.find(s_role => {return (s_role.id===pris_r || s_role.id===sil_r);}))
-            ){
-                if(utils.getMemberClearanceLevel(newMember)<CLEARANCE_LEVEL.ADMIN_ROLE){
-                    __punish_func(newMember.guild, newMember, punish_r, utils);
-                }
-            }
-        }
-    }
-    else if(eventName==="roleDelete"){
-        var role= arguments[2];
+    //         var pris_r= utils.settings.get(newMember.guild, 'prison_role');
+    //         var sil_r= utils.settings.get(newMember.guild, 'silence_role');
+    //         var punish_r= undefined
+    //         if( (Boolean(pris_r) || Boolean(sil_r)) &&
+    //             (punish_r=addedRoles.find(s_role => {return (s_role.id===pris_r || s_role.id===sil_r);}))
+    //         ){
+    //             if(utils.getMemberClearanceLevel(newMember)<CLEARANCE_LEVEL.ADMIN_ROLE){
+    //                 __punish_func(newMember.guild, newMember, punish_r, utils);
+    //             }
+    //         }
+    //     }
+    // }
+    // else if(eventName==="roleDelete"){
+    //     var role= arguments[2];
 
-        var s_r= utils.settings.get(role.guild, 'spared-roles');
-        if(Boolean(s_r) && s_r.length>0){
-            s_r.filter(sr =>{return sr!==role.id;});
+    //     var s_r= utils.settings.get(role.guild, 'spared-roles');
+    //     if(Boolean(s_r) && s_r.length>0){
+    //         s_r.filter(sr =>{return sr!==role.id;});
 
-            utils.settings.set(role.guild, 'spared-roles', s_r);
-        }
+    //         utils.settings.set(role.guild, 'spared-roles', s_r);
+    //     }
 
-        var pris_r= utils.settings.get(role.guild, 'prison_role');
-        var sil_r= utils.settings.get(role.guild, 'silence_role');
-        if(role.id===pris_r){
-            utils.settings.remove(role.guild, 'prison_role');
-        }
-        else if(role.id===sil_r){
-            utils.settings.remove(role.guild, 'silence_role');
-        }
-    }
+    //     var pris_r= utils.settings.get(role.guild, 'prison_role');
+    //     var sil_r= utils.settings.get(role.guild, 'silence_role');
+    //     if(role.id===pris_r){
+    //         utils.settings.remove(role.guild, 'prison_role');
+    //     }
+    //     else if(role.id===sil_r){
+    //         utils.settings.remove(role.guild, 'silence_role');
+    //     }
+    // }
 }
 
 function cmd_guild_clear(guild){
-    l_guilds.filter(e => {
-        if(e.id!==guild.id) return true;
+    // l_guilds.filter(e => {
+    //     if(e.id!==guild.id) return true;
 
-        return false;
-    });
+    //     return false;
+    // });
 }
 
 module.exports.name= l_cmd;
-module.exports.command= {init: cmd_init, init_per_guild: cmd_init_per_guild, main: cmd_main, help: cmd_help, event: cmd_event, clear_guild: cmd_guild_clear};
+module.exports.command= {main: cmd_main, help: cmd_help};

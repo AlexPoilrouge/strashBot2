@@ -72,139 +72,145 @@ async function _reportCmdPunishRole(guild, utils){
     var obj_prisonRole= utils.settings.get(guild,"prison_role","punish_role");
     
     var msg="";
-    var role= undefined;
-    if (!Boolean(obj_prisonRole)){
-        msg= `prison role doesn't seem to be present in data`
-        problems.add(guild.id, msg)
-    }
-    else if (!Boolean(role=guild.roles.cache.get(obj_prisonRole))){
-        msg= `prison role (#${obj_prisonRole}) doesn't seem to be a valid role in guild`
-        problems.add(guild.id, msg, ProblemCount.TYPES.ERROR)
-    }
-    else{
-        msg= `prison role is <a href="#${obj_prisonRole}">${role.name}(#${obj_prisonRole})</a> - ✅`
-    }
+    // var role= undefined;
+    // if (!Boolean(obj_prisonRole)){
+    //     msg= `prison role doesn't seem to be present in data`
+    //     problems.add(guild.id, msg)
+    // }
+    // else if (!Boolean(role=guild.roles.cache.get(obj_prisonRole))){
+    //     msg= `prison role (#${obj_prisonRole}) doesn't seem to be a valid role in guild`
+    //     problems.add(guild.id, msg, ProblemCount.TYPES.ERROR)
+    // }
+    // else{
+    //     msg= `prison role is <a href="#${obj_prisonRole}">${role.name}(#${obj_prisonRole})</a> - ✅`
+    // }
 
-    report_str+= `<b>prison_role:</b> ${msg}<br/>\n`
+    // report_str+= `<b>prison_role:</b> ${msg}<br/>\n`
     
 
-    var obj_silenceRole= utils.settings.get(guild,"silence_role","punish_role");
+    // var obj_silenceRole= utils.settings.get(guild,"silence_role","punish_role");
     
-    msg="";
-    role= undefined;
-    if (!Boolean(obj_silenceRole)){
-        msg= `slience role doesn't seem to be present in data`
-        problems.add(guild.id, msg, ProblemCount.TYPES.ERROR)
-    }
-    else if (!Boolean(role=guild.roles.cache.get(obj_silenceRole))){
-        msg= `slience role (#${obj_silenceRole}) doesn't seem to be a valid role in guild`
-        problems.add(guild.id, msg, ProblemCount.TYPES.ERROR)
-    }
-    else{
-        msg= `slience role is <a href="#${obj_silenceRole}">${role.name}(#${obj_silenceRole})</a> - ✅`
-    }
+    // msg="";
+    // role= undefined;
+    // if (!Boolean(obj_silenceRole)){
+    //     msg= `slience role doesn't seem to be present in data`
+    //     problems.add(guild.id, msg, ProblemCount.TYPES.ERROR)
+    // }
+    // else if (!Boolean(role=guild.roles.cache.get(obj_silenceRole))){
+    //     msg= `slience role (#${obj_silenceRole}) doesn't seem to be a valid role in guild`
+    //     problems.add(guild.id, msg, ProblemCount.TYPES.ERROR)
+    // }
+    // else{
+    //     msg= `slience role is <a href="#${obj_silenceRole}">${role.name}(#${obj_silenceRole})</a> - ✅`
+    // }
 
-    report_str+= `<b>slience:</b> ${msg}<br/>\n`
+    // report_str+= `<b>slience:</b> ${msg}<br/>\n`
     
     
-    var obj_sparedRoles= utils.settings.get(guild,"spared-roles","punish_role");
+    // var obj_sparedRoles= utils.settings.get(guild,"spared-roles","punish_role");
 
-    msg="";
-    if(!Boolean(obj_sparedRoles) || obj_sparedRoles.length<=0){
-        msg="no spared roles set"
-        problems.add(guild.id, msg)
-    }
-    else{
-        obj_sparedRoles.forEach(r_id =>{
-            role= undefined
-            if(!Boolean(r_id) || !Boolean(role=guild.roles.cache.get(r_id))){
-                var _msg= `[invalid_role](#${r_id})`
-                problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
-                msg+= _msg
-            }
-            else{
-                msg+= `<a href="${r_id}">[${role.name}](#${role.id})</a>`
-            }
-            msg+='; '
-        })
-    }
+    // msg="";
+    // if(!Boolean(obj_sparedRoles) || obj_sparedRoles.length<=0){
+    //     msg="no spared roles set"
+    //     problems.add(guild.id, msg)
+    // }
+    // else{
+    //     obj_sparedRoles.forEach(r_id =>{
+    //         role= undefined
+    //         if(!Boolean(r_id) || !Boolean(role=guild.roles.cache.get(r_id))){
+    //             var _msg= `[invalid_role](#${r_id})`
+    //             problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+    //             msg+= _msg
+    //         }
+    //         else{
+    //             msg+= `<a href="${r_id}">[${role.name}](#${role.id})</a>`
+    //         }
+    //         msg+='; '
+    //     })
+    // }
 
-    report_str+= `<b>spared roles:</b> ${msg}<br/>\n`
+    // report_str+= `<b>spared roles:</b> ${msg}<br/>\n`
     
     
-    var obj_punishedUsers= utils.settings.get(guild,"punished","punish_role");
+    // var obj_punishedUsers= utils.settings.get(guild,"punished","punish_role");
 
-    msg= ""
-    if(Boolean(obj_punishedUsers)){
-        var _err= false;
-        var user_ids= Object.keys(obj_punishedUsers);
-        user_ids.forEach(u_id =>{
-            if(!Boolean(u_id)){
-                var _msg= `punished bad user id #${u_id}<br/>\n`
-                problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
-                _err= true;
-                msg+= _msg
-            }
-        });
+    // msg= ""
+    // if(Boolean(obj_punishedUsers)){
+    //     var _err= false;
+    //     var user_ids= Object.keys(obj_punishedUsers);
+    //     user_ids.forEach(u_id =>{
+    //         if(!Boolean(u_id)){
+    //             var _msg= `punished bad user id #${u_id}<br/>\n`
+    //             problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+    //             _err= true;
+    //             msg+= _msg
+    //         }
+    //     });
         
-        if(!_err){
-            await guild.members.fetch(user_ids)
+    //     if(!_err){
+    //         await guild.members.fetch(user_ids)
 
-            user_ids.forEach( u_id =>{
-                var member= undefined
-                if(!Boolean(member=guild.members.cache.get(u_id))){
-                    var _msg= `unfound member id #${u_id}`
-                    problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
-                    msg+= _msg
-                }
-                else{
-                    msg+= `Member <em>${member.user.username} (${(Boolean(member.nickname))?`aka '${member.nickname}'`:''} @${member.id})</em> punished: `
-                    var u_obj= obj_punishedUsers[u_id]
-                    if(!Boolean(u_obj)){
-                        var _msg= `member (@${member.id}) has no sentence data; `
-                        problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
-                        msg+= _msg
-                    }
-                    else{
-                        var u_sentenceObj= u_obj['sentence'];
-                        role= undefined
-                        if (!Boolean(u_sentenceObj) || !Boolean(role=guild.roles.cache.get(u_sentenceObj))){
-                            var _msg= `bad sentence - bad role (#${u_sentenceObj}); `
-                            problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
-                            msg+= _msg
-                        }
-                        else{
-                            msg+= `sentenced with role <a href="#${u_sentenceObj}">${role.name} (#${role.id})</a>; `
-                        }
+    //         user_ids.forEach( u_id =>{
+    //             var member= undefined
+    //             if(!Boolean(member=guild.members.cache.get(u_id))){
+    //                 var _msg= `unfound member id #${u_id}`
+    //                 problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+    //                 msg+= _msg
+    //             }
+    //             else{
+    //                 msg+= `Member <em>${member.user.username} (${(Boolean(member.nickname))?`aka '${member.nickname}'`:''} @${member.id})</em> punished: `
+    //                 var u_obj= obj_punishedUsers[u_id]
+    //                 if(!Boolean(u_obj)){
+    //                     var _msg= `member (@${member.id}) has no sentence data; `
+    //                     problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+    //                     msg+= _msg
+    //                 }
+    //                 else{
+    //                     var u_sentenceObj= u_obj['sentence'];
+    //                     role= undefined
+    //                     if (!Boolean(u_sentenceObj) || !Boolean(role=guild.roles.cache.get(u_sentenceObj))){
+    //                         var _msg= `bad sentence - bad role (#${u_sentenceObj}); `
+    //                         problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+    //                         msg+= _msg
+    //                     }
+    //                     else{
+    //                         msg+= `sentenced with role <a href="#${u_sentenceObj}">${role.name} (#${role.id})</a>; `
+    //                     }
 
-                        var u_rolesObj= u_obj['roles'];
-                        if (!Boolean(u_rolesObj) || u_rolesObj.length<=0){
-                            var _msg= `no saved role; `
-                            problems.add(guild.id, _msg)
-                            msg+= _msg
-                        }
-                        else{
-                            msg+= `saved roles: [`
-                            u_rolesObj.forEach(r_id => {
-                                role= undefined
-                                if (!Boolean(r_id) || !Boolean(role=guild.roles.cache.get(r_id))){
-                                    var _msg= `bad saved role (#${r_id}); `
-                                    problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
-                                    msg+= _msg
-                                }
-                                else{
-                                    msg+= `<a href="#${r_id}">${role.name} (#${role.id})</a>; `
-                                }
-                            });
-                            msg+= `]`
-                        }
-                        msg+= `<br/>\n`
-                    }
-                }
-            });
-        }
-    }
-    report_str+= `<b>punished:</b><br/>\n${msg}<br/>\n`
+    //                     var u_rolesObj= u_obj['roles'];
+    //                     if (!Boolean(u_rolesObj) || u_rolesObj.length<=0){
+    //                         var _msg= `no saved role; `
+    //                         problems.add(guild.id, _msg)
+    //                         msg+= _msg
+    //                     }
+    //                     else{
+    //                         msg+= `saved roles: [`
+    //                         u_rolesObj.forEach(r_id => {
+    //                             role= undefined
+    //                             if (!Boolean(r_id) || !Boolean(role=guild.roles.cache.get(r_id))){
+    //                                 var _msg= `bad saved role (#${r_id}); `
+    //                                 problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+    //                                 msg+= _msg
+    //                             }
+    //                             else{
+    //                                 msg+= `<a href="#${r_id}">${role.name} (#${role.id})</a>; `
+    //                             }
+    //                         });
+    //                         msg+= `]`
+    //                     }
+    //                     msg+= `<br/>\n`
+    //                 }
+    //             }
+    //         });
+    //     }
+    // }
+    // report_str+= `<b>punished:</b><br/>\n${msg}<br/>\n`
+
+
+    msg= "the punishment commands (!prison, !silence, !free, etc.) have been discontinued...";
+    problems.add(guild.id, msg);
+
+    report_str+= `<b> Warning:</b>\n${msg}<br/>\n`;
 
     return report_str;
 }
