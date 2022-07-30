@@ -937,8 +937,8 @@ async function cmd_event(eventName, utils){
         for(var ch_id of Object.keys(data_role_post_assign)){
             var chanObj= data_role_post_assign[ch_id]
             delete data_role_post_assign[ch_id][role.id]
-            if(Object.keys(data_role_post_assign[channel.id]).length<=0){
-                del_ch_id.push(channel.id)
+            if(Object.keys(chanObj).length<=0){
+                del_ch_id.push(ch_id)
             }
         }
         for(var ch_id of del_ch_id){
