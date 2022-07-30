@@ -331,7 +331,6 @@ async function cmd_init_per_guild(utils, guild){
 }
 
 async function cmd_main(cmdObj, clearanceLvl, utils){
-    let command= cmdObj.command;
     let message= cmdObj.msg_obj;
 
     message.author.send(`Sorry, the punishement commands (!prison, !silence, !free, etc.) have been discontinued... :()`);
@@ -490,7 +489,8 @@ function cmd_guild_clear(guild){
 
     //     return false;
     // });
+    return true
 }
 
 module.exports.name= l_cmd;
-module.exports.command= {main: cmd_main, help: cmd_help};
+module.exports.command= {init: cmd_init, init_per_guild: cmd_init_per_guild, main: cmd_main, help: cmd_help, event: cmd_event, clear_guild: cmd_guild_clear};
