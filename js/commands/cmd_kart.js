@@ -1733,7 +1733,7 @@ function _askServInfos(address=undefined, port=undefined){
                                     reject("Bad API response")
                                 }
 
-                                response.data.service_status= service_res.status
+                                response.data.service_status= service_res
 
                                 resolve(response.data)
                             }).catch(err => {
