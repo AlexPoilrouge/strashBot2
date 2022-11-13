@@ -134,6 +134,7 @@ find ./config -type f -exec install {} "${ROOT_DIR}/${STRASHBOT_DIR}/config" \;
 mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}/extras"
 find ./extras -type f -exec install {} "${ROOT_DIR}/${STRASHBOT_DIR}/extras" \;
 mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}/js/commands"
+mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}/js/postCmdTarget"
 find ./js -type f -exec bash -c 'install_file "$0" "$1"' {} "${ROOT_DIR}/${STRASHBOT_DIR}/{}" \;
 install ./bot_main.js ./README.md ./package.json ./version.txt "${ROOT_DIR}/${STRASHBOT_DIR}"
 

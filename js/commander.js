@@ -397,7 +397,7 @@ class Commander{
             var utils= this._utils(cmd_name)
 
             var pptcmd_obj={}
-            var cmd_name= path.basename(fpath);
+            var cmd_name= path.basename(file);
             var match_res= undefined
             if(match_res=cmd_name.match(/pptcmd_([0-9]+)_([a-zA-Z]+)(.js)?/)){
                 pptcmd_obj.guild_id= match_res[1]

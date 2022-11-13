@@ -1,0 +1,49 @@
+## France
+Server = http://mir.archlinux.fr/$repo/os/$arch
+## Germany
+Server = http://archlinux.eu.mirror.zoidplex.net/$repo/os/$arch
+## France
+Server = http://mirror.armbrust.me/archlinux/$repo/os/$arch
+## Germany
+Server = http://ftp.spline.inf.fu-berlin.de/mirrors/archlinux/$repo/os/$arch
+## Germany
+Server = http://arch.jensgutermuth.de/$repo/os/$arch
+## France
+Server = http://archlinux.mirrors.benatherton.com/$repo/os/$arch
+## Germany
+Server = http://mirror.23media.de/archlinux/$repo/os/$arch
+## France
+Server = http://archlinux.polymorf.fr/$repo/os/$arch
+## Romania
+Server = http://mirrors.pidginhost.com/arch/$repo/os/$arch
+## Luxembourg
+Server = http://archlinux.mirror.root.lu/$repo/os/$arch
+## Germany
+Server = http://mirror.hactar.xyz/$repo/os/$arch
+## Switzerland
+Server = http://mirror.puzzle.ch/archlinux/$repo/os/$arch
+## Germany
+Server = http://mirror.metalgamer.eu/archlinux/$repo/os/$arch
+## France
+Server = http://mirror.ibcp.fr/pub/archlinux/$repo/os/$arch
+## France
+Server = http://fooo.biz/archlinux/$repo/os/$arch
+## Germany
+Server = http://ftp.uni-bayreuth.de/linux/archlinux/$repo/os/$arch
+## Germany
+Server = http://ftp.gwdg.de/pub/linux/archlinux/$repo/os/$arch
+## Germany
+Server = http://mirror.fra10.de.leaseweb.net/archlinux/$repo/os/$arch
+## Germany
+Server = http://packages.oth-regensburg.de/archlinux/$repo/os/$arch
+## Spain
+Server = http://ftp.rediris.es/mirror/archlinux/$repo/os/$arch
+## Germany
+Server = http://mirror.ubrco.de/archlinux/$repo/os/$arch
+## Germany
+Server = http://mirror.selfnet.de/archlinux/$repo/os/$arch
+## Germany
+Server = http://arch.eckner.net/archlinux/$repo/os/$arch
+## France
+Server = http://mirrors.standaloneinstaller.com/archlinux/$repo/os/$arch
+

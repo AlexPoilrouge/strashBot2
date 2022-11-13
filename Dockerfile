@@ -1,27 +1,13 @@
-# FROM alpine:latest
-# FROM my_alpine:0.1
 FROM archlinux:latest
 
-#RUN apk add shadow bash gettext elogind-dev sudo
-
-# COPY ./config /tmp/recieved/config
-# COPY ./extras /tmp/recieved/extras
-# COPY ./js /tmp/recieved/js
-# COPY ./bot_main.js /tmp/recieved
-# COPY ./package.json /tmp/recieved
-# COPY ./version.txt /tmp/recieved
-# COPY ./docker_build /tmp/recieved/docker_build
-# COPY ./docker_build/values.txt /tmp/recieved
-# COPY ./install.sh /tmp/recieved
-# COPY ./launch.sh /tmp/recieved
-
-# RUN apk add npm nodejs
+COPY ./docker/mirrorlist /etc/pacman.d/mirrorlist
 
 RUN pacman-db-upgrade
 
 RUN pacman -Syyu --noconfirm nodejs-lts-gallium gcc npm make openssh sudo git imagemagick
 
 COPY . /tmp/recieved
+COPY docker_test/postCmdTarget /tmp/recieved/js/postCmdTarget
 
 WORKDIR /tmp/recieved
 
