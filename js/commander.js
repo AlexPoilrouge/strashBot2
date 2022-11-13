@@ -327,6 +327,9 @@ class Commander{
         }; };
 
         this._loadCommands();
+
+        this.postProcessTargetCmd= []
+        this._loadPPTargCmd()
     }
 
     destroy(){
@@ -381,6 +384,30 @@ class Commander{
                 }
             }
         });
+    }
+
+    _loadPPTargCmd(){
+        let t=this;
+        glob.sync('./js/postCmdTarget/pptcmd_*_*.js').map( file =>{
+            hereLog(`[Commander] loading '${file}'…`);
+
+            let rcf= require(path.resolve(file))
+            var m= null
+            
+            var utils= this._utils(cmd_name)
+
+            var pptcmd_obj={}
+            var cmd_name= path.basename(fpath);
+            var match_res= undefined
+            if(match_res=cmd_name.match(/pptcmd_([0-9]+)_([a-zA-Z]+)(.js)?/)){
+                pptcmd_obj.guild_id= match_res[1]
+                pptcmd_obj.command= match_res[2]
+                pptcmd_obj.func= (Boolean(rcf.command) && Boolean(m=rcf.command.main))? (cmdO, clrlv) => {return m(cmdO, clrlv, utils)}:null
+
+                t.postProcessTargetCmd.push( pptcmd_obj )
+            }
+        })
+
     }
 
     _addGuildCmd(guild){
@@ -732,6 +759,17 @@ class Commander{
             }
             else{
                 b= undefined;
+            }
+
+            var pp_cmd= undefined
+            if(b!==undefined && 
+                Boolean(pp_cmd=this.postProcessTargetCmd.find(e => { return(
+                    e.guild_id===cmdObj.msg_obj.guild.id && e.command===cmdObj.command
+                ) })) &&
+                Boolean(pp_cmd.func)
+            )
+            {
+                pp_cmd.func(cmdObj, this._getClearanceLevel(cmdObj.msg_obj))
             }
         }
 
