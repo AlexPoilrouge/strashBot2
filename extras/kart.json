@@ -50,5 +50,9 @@
             "outdated_clips":"/home/strashbot/.srb2kart/addon_script.sh OUTDATED_CLIPS",
             "clip_edit_description":"/home/strashbot/.srb2kart/addon_script.sh EDIT_DESCRIPTION"
     },
-    "source_url":"http://bogus.git"
+    "source_url":"http://bogus.git",
+    "web_page": {
+        "base_url": "https://bogus.fr",
+        "clips_page": "gallery.html"
+    }
 }

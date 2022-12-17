@@ -13,7 +13,11 @@
     "api":{
         "host":"${SRB2K_API_HOST}",
         "port":"${SRB2K_API_PORT}",
-        "root":"${SRB2K_API_ROOT}"
+        "root":"${SRB2K_API_ROOT}",
+        "token_keys": {
+                "adminkey": "${SRB2K_API_TOKEN_KEY_ADMIN}",
+                "discorduserkey": "${SRB2K_API_TOKEN_KEY_DISCORDUSER}"
+        }
     },
     "dirs":{
             "main_folder":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}",
@@ -57,5 +61,9 @@
             "maps_info":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh INFO_MAPS",
             "skins_info":"/home/${STRASHBOT_USER}/${SRB2KART_DIR}/addon_script.sh INFO_SKINS"
     },
-    "source_url":"${SRB2K_SERV_SOURCE_URL}"
+    "source_url":"${SRB2K_SERV_SOURCE_URL}",
+    "web_page": {
+        "base_url": "${STRASH_WEB_BASE_URL}",
+        "clips_page": "gallery.html"
+    }
 }

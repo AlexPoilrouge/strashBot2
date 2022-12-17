@@ -200,7 +200,7 @@ class CommandSettings{
         var perGuildSettings= undefined;
         var obj= undefined;
         if(!Boolean(commandFileSettings=this._cmdSettings[cmd_name]) ||
-            !Boolean(perGuildSettings=commandFileSettings[guild.id]) ||
+            !Boolean(guild) || !Boolean(perGuildSettings=commandFileSettings[guild.id]) ||
             !Boolean(obj=perGuildSettings['object_json'])
         ){
             return undefined;
@@ -673,7 +673,7 @@ class Commander{
                 }
             }
             else if(Boolean(l_cmd=this.loaded_commands.find(e =>{return ( (Array.isArray(e.command) && e.command.includes(cmd)) || (e.command===cmd));}))){
-                if(Boolean(l_cmd.func)){
+                if(Boolean(l_cmd.funcDM)){
                     while(l_cmd._wait_init){
                         __sleep(500);
                     }
@@ -686,7 +686,7 @@ class Commander{
                     b= await l_cmd.funcDM(cmdObj, this._getClearanceLevel(cmdObj.msg_obj), l_guilds);
                 }
                 else{
-                    b= undefined;
+                    return undefined;
                 }
             }
         }

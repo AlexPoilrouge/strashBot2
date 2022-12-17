@@ -22,6 +22,8 @@ const {Attachment} = require('discord.js');
 
 const axios= require('axios');
 
+const jwt= require("jsonwebtoken");
+
 
 let hereLog= (...args) => {console.log("[cmd_kart]", ...args);};
 
@@ -2048,20 +2050,154 @@ function _cmd_skinInfo(cmdObj,clearanceLvl,utils){
     return true
 }
 
-async function _cmd_clip(cmdObj, clearanceLvl, utils){
+function __api_generateUserPrivilegedToken(user, clearanceLvl){
+    var key= undefined
+    if(Boolean(kart_settings.api && kart_settings.api.token_keys)){
+        if(clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE &&
+            Boolean(kart_settings.api.token_keys.adminkey)
+        ){
+            key= kart_settings.api.token_keys.adminkey
+        }
+    }
+    if( (!Boolean(kart_settings.api && kart_settings.api.token_keys))
+        || (clearanceLvl<CLEARANCE_LEVEL.ADMIN_ROLE && !Boolean(key=kart_settings.api.token_keys.discorduserkey))
+        || (clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE && !Boolean(key=kart_settings.api.token_keys.adminkey))
+    ){
+        hereLog(`[api_priviledged_tokens] couldn't get proper token for clearanceLvl ${clearanceLvl}...`)
+        return undefined
+    }
+
+    let auth= {
+        role: (clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE)?'ADMIN':'DISCORD_USER',
+        id: user.id
+    }
+
+    return jwt.sign({auth}, key, {expiresIn: '1m'})
+}
+
+async function _clipsState(){
+    if(Boolean(kart_settings.api) && Boolean(kart_settings.api.host)){
+        let api_info_addr=`${kart_settings.api.host}${(Boolean(kart_settings.api.port)?`:${kart_settings.api.port}`:'')}${kart_settings.api.root}/clips?perPage=1`
+
+        hereLog(`[clipsCount] Asking API ${api_info_addr}…`);
+        return (await axios.get(api_info_addr).then(response => {
+            if(response.status===200){
+                return {
+                    clipsNumber: response.data.availableClipsCount,
+                    last_clip: response.data.clips[0]
+                }
+            }
+            else if(response.status===204){
+                hereLog(`[clipsCount] got 204 - ${JSON.stringify(response.data)}`)
+                throw "no clips found"
+            }
+            else{
+                hereLog(`[clipsCount] bad api response on '${api_info_addr}'`)
+                throw "Bad API reponse"
+            }
+        }) )
+    }
+    else {
+        hereLog(`[clipsCount] bad api settings`)
+        throw "Bad api - no api set in settings…"
+    }
+}
+
+function _send_clipsState(message){
+    return _clipsState().then(info => {
+        embed= {}
+        embed.fields= []
+        embed.title= `Strashthèque`
+        embed.description= "Collection de clips de Strashbot Karting!"
+        embed.url= `${kart_settings.web_page.base_url}/${kart_settings.web_page.clips_page}`
+        embed.fields.push({
+            name: "Number of clips",
+            value: `${info.clipsNumber}`,
+            inline: false
+        })
+        embed.fields.push({
+            name: "Last clip",
+            value: `${kart_settings.web_page.base_url}/${kart_settings.web_page.clips_page}?clip=${info.last_clip._id}`,
+            inline: true
+        })
+        embed.thumbnail= { url: "https://strashbot.fr/img/clips_thumb.png" }
+
+        message.channel.send({embed})
+
+        return true
+    }).catch(err => {
+        hereLog(`[clipState] trying to get clips state - ${err}`)
+        message.channel.send(`Error while fetching clips infos... :()`)
+
+        return false
+    })
+}
+
+async function __send_clipInfo_req(clipID, message){
+    let api_clip_addr=`${kart_settings.api.host}${(Boolean(kart_settings.api.port)?`:${kart_settings.api.port}`:'')}${kart_settings.api.root}/clip/${clipID}`
+
+    return axios.get(api_clip_addr).then(async response => {
+        if(response.status===200){
+            let clip= response.data
+
+            var embed= {}
+            embed.title= `Strashthèque clip id: ${clipID}`
+            embed.url= `${kart_settings.web_page.base_url}/${kart_settings.web_page.clips_page}?clip=${clipID}`
+            embed.timestamp=clip.timestamp
+            if(Boolean(clip.thumbnail)) embed.thumbnail= { url: clip.thumbnail }
+            if(Boolean(clip.description)) embed.description= clip.description
+            if(Boolean(clip.submitter_id)){
+                await message.guild.members.fetch(clip.submitter_id).then(m =>{
+                    var name= (Boolean(m.nickname) && m.nickname.length>0)?m.nickname:m.user.username
+
+                    embed.author= {
+                        name,
+                        iconURL: m.displayAvatarURL
+                    }
+                }).catch(err =>{
+                    hereLog(`[clip info] couldn't find user ${clip.submitter_id} on this guild ${message.guild}: ${err}`)
+                })
+            }
+            embed.fields= [
+                {name: "Type", value: clip.type, inline: false},
+                {name: "Direct link", value: clip.url, inline: true}
+            ]
+            embed.footer= { text: "Published on https://strashbot.fr/gallery.html"}
+
+            message.channel.send({embed})
+            return true
+        }
+        else{
+            hereLog(`[clipApiInfo] bad api response on '${api_clip_addr}' - status: ${response.status}`)
+            return false
+        }
+    }).catch(err =>{
+        if(err.response.status===404){
+            hereLog(`[clipApiInfo] got 404 - ${JSON.stringify(err.response.data)}`)
+
+            message.author.send(`[${message.guild}] **Clip not found**: No clip was found under id: ${clipID} …`)
+        }
+        else{
+            hereLog(`[clipApiInfo] api error on '${api_clip_addr}' - ${err}`)
+        }
+
+        return false
+    })
+}
+
+async function _cmd_clip_api(cmdObj, clearanceLvl, utils){
+    if(!(Boolean(kart_settings.api) && Boolean(kart_settings.api.host))){
+        return false
+    }
+
     let message= cmdObj.msg_obj;
     let sub_cmd= cmdObj.args[0]
     let args= cmdObj.args.slice(1);
 
-    var cmd= null;
-    var cmdType= 0
     let msg_url_rgx= /^<?(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+>?$/;
 
-    var __url_clean= (url) =>{
-        return url.replace(/^<+/,'').replace(/>+$/,'')
-    }
 
-    var __description_clean= ( async (txt, guild) =>{
+    let __description_clean= ( async (txt, guild) =>{
         var rx_customEmoji= /<:(.+?):\d+>/g
         var rx_channelMention_id= /<#(\d+)>/g
         var rx_userMention_id= /<@(\d+)>/g
@@ -2110,205 +2246,195 @@ async function _cmd_clip(cmdObj, clearanceLvl, utils){
         return r
     })
 
-    var __add_clip_cmd = (async (arg_start_idx, url) => {
-        cmdType= 1
-        cmd= `${__kartCmd(kart_settings.config_commands.clip_add)} "${url}" "${message.author.id}"`
+    let has_attachments= Boolean(message.attachments) && message.attachments.size>=1;
 
-        if(args.length>arg_start_idx){
-            var desc= (await __description_clean(args.slice(arg_start_idx).join(' ')));
-            cmd+= ` "\\\"${desc}\\\""`
-        }
-    })
-
+    var add_opt= {desc: ""}
     if(args.length>0){
         if(args[0].toLowerCase()==="info"){
-            cmdType= 3
-            cmd= `${__kartCmd(kart_settings.config_commands.clip_info)}`
-            if(args.length<2){
+            let c_id= parseInt(args[1])
+            if(isNaN(c_id)){
+                return await _send_clipsState(message)
+            }
+            else{
+                return (await __send_clipInfo_req(c_id, message))
+            }
+        }
+        else if ((!isNaN(parseInt(args[0]))) && !has_attachments){
+            return (await __send_clipInfo_req(parseInt(args[0]), message))
+        }
+        else if(["rm","del","delete","remove","delete"].includes(args[0].toLowerCase())){
+            let c_id= parseInt(args[1])
+            if(args.length<2 || isNaN(c_id)){
                 message.author.send(`[${message.guild}] command \`!kart ${sub_cmd}\` needs a "clipID" as argument`)
                 return false
             }
-            cmd+= ` "${args[1]}"`
-        }
-        else if(["rm","del","delete","remove","delete"].includes(args[0].toLowerCase())){
-            cmdType= 2
-            cmd= `${__kartCmd(kart_settings.config_commands.clip_remove)}`
-            if(args.length<2){
-                message.author.send(`[${message.guild}] command \`!${sub_cmd}\` needs a "clipID" as argument`)
+
+            let api_clip_addr=`${kart_settings.api.host}${(Boolean(kart_settings.api.port)?`:${kart_settings.api.port}`:'')}${kart_settings.api.root}/clip/${c_id}`
+
+            token= __api_generateUserPrivilegedToken(message.author, clearanceLvl)
+            if(!Boolean(token)){
+                message.author.send(`[${message.guild}] unable to grant necessary privileges to remove clip id: ${c_id}`)
+
                 return false
             }
-            cmd+= ` "${args[1]}" "${(clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE)?'ADMIN':message.author.id}"`
-        }
-        else if(["out","outdated","old","bad","unavailable","miss","missing","discarded"].includes(args[0].toLowerCase())){
-            cmdType= 4
-            cmd= `${__kartCmd(kart_settings.config_commands.outdated_clips)}`
-        }
-        else if(["edit","desc","description","text"].includes(args[0].toLowerCase())){
-            cmdType= 5
-            cmd= `${__kartCmd(kart_settings.config_commands.clip_edit_description)}`
-            if(args.length<2){
-                message.author.send(`[${message.guild}] command \`!${sub_cmd}\` needs a "clipID" as argument`)
-                return false
-            }
-            cmd+= ` "${args[1]}" "${(clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE)?'ADMIN':message.author.id}"`
-            if(args.length>=3){
-                var desc= (await __description_clean(args.slice(2).join(' ')));
-                cmd+= ` "\\\"${desc}\\\""`
-            }
-        }
-        else if(Boolean(args[0].match(msg_url_rgx))){
-            await __add_clip_cmd(1, __url_clean(args[0]))
-        }
-        else if(Boolean(message.attachments) && message.attachments.size>=1){
-            var url= message.attachments.first().url;
-            
-            await __add_clip_cmd(((args[0]==="add")?1:0), __url_clean(url))
-        }
-    }
-    else if(Boolean(message.attachments) && message.attachments.size>=1){
-        var url= message.attachments.first().url;
-        
-        await __add_clip_cmd(0,  __url_clean(url))
-    }
 
-    if (!Boolean(cmd)){
-        hereLog(`[clips] Bad command: \`${args.join(' ')}\``)
-        return false;
-    }
-
-    var str= undefined
-    try{
-        str= child_process.execSync(cmd, {timeout: 16000}).toString().replace(/\n+$/, '');
-    }
-    catch(err){
-        hereLog("[clips] Error while using command - "+err);
-        str= undefined
-    }
-
-
-    if(Boolean(str) && str.length>0){
-        res= str.split(' - ')
-        if(res[0]==="BAD_TYPE"){
-            var resp= `**Unsupported type**: only supports direct \`.gif\`, \'.webm\', \'.ogg\' or \'.mp4\' urls or uploads,\n`+
-                `*YouTube* video links or *streamable.com* video links.`;
-            message.channel.send(resp, {split: true})
-            return false;
-        }
-        else if(res[0]==="ALREADY_ADDED"){
-            var resp= `**Clip url already in database**: the url seems to be already present in database`+
-                `${(res.length>2 && res[2])?` under clip id \`${res[2]}\`…`:'…'}`
-            message.channel.send(resp, {split: true})
-            return false;
-            
-        }
-        else if(res[0]==="CLIP_ADDED"){
-            return true
-        }
-        else if(res[0]==="BAD_USER_ID"){
-            var resp= `**No access**: you can't remove or edit a clip that doesn't belong to you…`
-            message.channel.send(resp, {split: true})
-            return false;
-        }
-        else if(res[0]==="CLIP_NOT_FOUND"){
-            var resp= `**Clip not found**: No clip was found under this id…`
-            message.channel.send(resp, {split: true})
-            return false;
-        }
-        else if(res[0]==="CLIP_REMOVED"){
-            return true;
-        }
-        else if(res[0]==="CLIPS_CHECKED"){
-            return true;
-        }
-        else if(res[0]==="CLIP_INFO"){
-            var resp= `**Clip id**: ${res[1]}\n\t**url**: <${res[2]}>${(res[6]==="OUTDATED")?"(⚠ unreachable)":""}\n`+
-                    `\t**type**: ${res[3]}\n\t**date**: ${res[4]}`;
-
-            if(Boolean(res[5])){
-                var sender= null
-                await message.guild.members.fetch(res[5]).then(m =>{
-                    sender= (Boolean(m.nickname) && m.nickname.length>0)?m.nickname:m.user.username
+            return (await axios.delete(api_clip_addr, {headers: {'x-access-token': token}, data: {submitter_id: message.author.id}})
+                .then(async response => {
+                    if(response.status===200){
+                        return true
+                    }
+                    else{
+                        hereLog(`[clipApiRemove] bad api response on '${api_clip_addr}' - status: ${response.status}`)
+                        return false
+                    }
                 }).catch(err =>{
-                    hereLog(`[clip info] couldn't find user ${res[5]} on this guild ${message.guild}: ${err}`)
-                    sender= '~~unknown~~'
-                })
-                if(Boolean(sender) && sender.length>0){
-                    resp+= `\n\t*Referenced by:* ${sender}`
-                }
-            }
-
-            message.channel.send(resp)
-
-            return true
-        }
-        else if(res[0]==="OUTDATED_CLIPS"){
-            if(res.length>2){
-                var resp= `${res[1]} outdated clips!\n`
-                var data= null
-                try{
-                    data= JSON.parse(res[2])
-                }
-                catch (err){
-                    hereLog(`[clip][outdated_clips] couldn't read outdated clip from JSON response`)
-                    data= null
-                }
-
-                if(Boolean(data)){
-                    for (id in data){
-                        var obj= data[id]
-                        resp+= `**clip ${id}**: <${obj['url']}> [${obj['timestamp']}]\n`
+                    if(err.response.status===403){
+                        message.author.send(`[${message.guild}]{403} you lack necessary privileges to remove clip id: ${c_id}`)
+                    }
+                    else if(err.response.status===404){
+                        message.channel.send(`[${message.guild}]{404} **Clip not found**: No clip was found under id: ${c_id} …`)
+                    }
+                    else{
+                        hereLog(`[clipApiRemove] api error on '${api_clip_addr}' - ${err}`)
                     }
 
-                    message.channel.send(resp)
+                    return false
+                })
+            )
+        }
+        else if(["edit","desc","description","text"].includes(args[0].toLowerCase())){
+            let c_id= parseInt(args[1])
+            if(args.length<2 || isNaN(c_id)){
+                message.author.send(`[${message.guild}] command \`!kart ${sub_cmd}\` needs a "clipID" as argument`)
+                return false
+            }
 
+            let desc= ""
+            if(args.length>=3){
+                desc= await __description_clean(args.slice(2).join(' '), message.guild).then(r=> {return r})
+                        .catch(err=> {
+                            hereLog(`[clipApiDescEdit] error cleaning description: ${err}`)
+                            return ""
+                        })
+            }
+
+            let api_clip_addr=`${kart_settings.api.host}${(Boolean(kart_settings.api.port)?`:${kart_settings.api.port}`:'')}${kart_settings.api.root}/clip/${c_id}`
+
+            token= __api_generateUserPrivilegedToken(message.author, clearanceLvl)
+            if(!Boolean(token)){
+                message.author.send(`[${message.guild}] unable to grant necessary privileges to remove clip id: ${c_id}`)
+
+                return false
+            }
+
+            let data= {submitter_id: message.author.id, description: desc}
+            return (await axios.put(api_clip_addr, data, {headers: {'x-access-token': token}})
+                .then(async response => {
+                    if(response.status===200){
+                        return true
+                    }
+                    else{
+                        hereLog(`[clipApiEdit] bad api response on '${api_clip_addr}' - status: ${response.status}`)
+                        return false
+                    }
+                }).catch(err =>{
+                    if(err.response.status===403){
+                        message.author.send(`[${message.guild}]{403} you lack necessary privileges to access clip id: ${c_id}`)
+
+                        return false
+                    }
+                    else if(err.response.status===404){
+                        message.channel.send(`[${message.guild}]{404} **Clip not found**: No clip was found under id: ${c_id} …`)
+                        return false
+                    }
+                    else{
+                        hereLog(`[clipApiEdit] api error on '${api_clip_addr}' - ${err}`)
+                    }
+
+                    return false
+                })
+            )
+        }
+        else if(Boolean(args[0].match(msg_url_rgx))){
+            add_opt.url= args[0]
+            add_opt.desc= (await __description_clean(args.slice(1).join(' '), message.guild));
+        }
+        else if(Boolean(message.attachments) && message.attachments.size>=1){
+            add_opt.url= message.attachments.first().url;
+            add_opt.desc= (await __description_clean(args.join(' '), message.guild));
+        }
+    }
+    else if(has_attachments){
+        add_opt.url= message.attachments.first().url;
+    }
+    else{
+        return await _send_clipsState(message)
+    }
+
+    if(Boolean(add_opt.url)){
+        add_opt.url= add_opt.url.match(/^<*(.*)>*$/)[1]
+
+        let api_clip_addr=`${kart_settings.api.host}${(Boolean(kart_settings.api.port)?`:${kart_settings.api.port}`:'')}${kart_settings.api.root}/clip/new`
+
+        token= __api_generateUserPrivilegedToken(message.author, clearanceLvl)
+        if(!Boolean(token)){
+            message.author.send(`[${message.guild}] unable to grant necessary privileges to add new clip`)
+
+            return false
+        }
+
+
+        let data= {submitter_id: message.author.id, description: add_opt.desc, url: add_opt.url}
+        return (await axios.post(api_clip_addr, data, {headers: {'x-access-token': token}})
+            .then(async response => {
+                if(response.status===200){
                     return true
                 }
                 else{
-                    hereLog(`[clip][outdated_clips] bad response: ${str}`)
-                    message.author.send(`[*${message.guild}*] \`!kart clip\`: internal error while fetching info from database`)
+                    hereLog(`[clipApiAdd] bad api response on '${api_clip_addr}' - status: ${response.status}`)
                     return false
                 }
-            }
-            else{
-                hereLog(`[clip][outdated_clips] bad response: ${str}`)
-                message.author.send(`[*${message.guild}*] \`!kart clip\`: internal error while fetching info from database`)
-                return false
-            }
+            }).catch(err =>{
+                if(err.response.status===403){
+                    message.author.send(`[${message.guild}]{403} you lack necessary privileges to add new clip`)
+                }
+                else if(err.response.status===440){
+                    message.author.send(
+                        `[${message.guild}]{440} the url/file to try to register as clip isn't valid:\n`+
+                        `Please only:\n\t* youtube links\n\t* streamable.com links\n\t* .gif,.mp4,.webm links/file`
+                    )
+                }
+                else if(err.response.status===400){
+                    message.author.send(
+                        `[${message.guild}]{400} missing or invalid url?`
+                    )
+                }
+                else if(err.response.status===441){
+                    hereLog(`[clipApiAdd] bad identification for user ${author.id} - ${JSON.stringify(response.data)}`)
+                }
+                else if(err.response.status===409){
+                    message.author.send(
+                        `[${message.guild}]{409} clip '${add_opt.url}' already exist using url?`
+                    )
 
-        }
-        else if(res[0]==="UNEXPECTED_RESULT"){
-            hereLog(`[clip] bad response: ${str}`)
-            message.author.send(`[*${message.guild}*] \`!kart clip\`: internal error while fetching info from database`)
-            return false
-        }
-        else if(res[0]==="DESCRIPTION_UPDATED"){
-            return true;
-        }
-        else if(res[0]==="ERROR"){
-            hereLog(`[clip] bad response: ${str}`)
-            message.author.send(`[*${message.guild}*] \`!kart clip\`: internal error`)
-            return false
-        }
-        else if(res[0]==="UNKOWN_ERROR"){
-            hereLog(`[clip] bad response: ${str}`)
-            message.author.send(`[*${message.guild}*] \`!kart clip\`: unknown internal error`)
-            return false
-        }
-        else if(res[0]==="UNKOWN_RESULT"){
-            hereLog(`[clip] bad response: ${str}`)
-            message.author.send(`[*${message.guild}*] \`!kart clip\`: unknown response from server`)
-            return false
-        }
-        else{
-            hereLog(`[clip] bad response: ${str}`)
-            message.author.send(`[*${message.guild}*] \`!kart clip\`: unknown response from server`)
-            return false            
-        }
+                    if(Boolean(response.data && response.data.resource)){
+                        f_c_id= err.response.data.resource.split('/')[2]
+
+                        __send_clipInfo_req(f_c_id, message)
+                    }
+                }
+                else{
+                    hereLog(`[clipApiAdd] api error on '${api_clip_addr}' - ${err}`)
+                }
+
+                return false
+            })
+        )
     }
     else{
-        hereLog(`[clips] bad command result… (${str})`);
-        message.author.send(`[*${message.guild}*] \`!kart clip\`: internal error, bad response`)
-        return false;
+        hereLog(`[clipApi] no action found…`)
+
+        return false
     }
 }
 
@@ -2907,7 +3033,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
         }
         else if(["clip","clips","replay","replays","video","vid","videos"].includes(args[0])){
-            return (await _cmd_clip(cmdObj,clearanceLvl,utils));
+            return (await _cmd_clip_api(cmdObj,clearanceLvl,utils));
         }
         else if(["map","maps","race","races","level","levels","stage","stages"].includes(args[0])){
             return _cmd_mapInfo(cmdObj,clearanceLvl,utils);
@@ -3038,17 +3164,13 @@ function cmd_help(cmdObj, clearanceLvl){
         "----\n*SRB2Kart server's clips library management:*\n\n"+
         "\t`!kart clip`\n\n"+
         "\tAdds a clip `.gif|.ogg|.webm|.mp4`, provided as a message attachement, to the library. (Only `.gif|.ogg|.webm|.mp4` files)\n\n"+
-        "\t`!kart clip add <url>`\n\n"+
-        "\tAdds a clip, from a given url, to the libraby. The url must be *a direct* `.gif|.ogg|.webm|.mp4` *link*, a *youtube link*, or a streamable.com video link\n\n"+
-        "\t`!kart clip info <clip_id>`\n\n"+
+        "\t`!kart clip info [clip_id]`\n\n"+
         "\tPrint infos for a given clip. (The id of said clip should be displayed in the gallery page)\n\n"+
         "\t`!kart clip rm <clip_id>`\n\n"+
         "\t Removes a given clip from the gallery. (The id of said clip should be displayed in the gallery page)\n"+
         "\t __Note:__ only an admin or the person that referenced the clip in the first place can remove said clip\n\n"+
         "\t`!Kart clip description [bla bla bla]`\n\n"+
-        "\tEdit the description of a given clip. (The id of said clip should be displayed in the gallery page)\n\n"+
-        "\t`!kart clip outdated`\n\n"+
-        "\tShows which clips (if any) of the library are referenced by dead links."
+        "\tEdit the description of a given clip. (The id of said clip should be displayed in the gallery page)\n\n"
     );
     return true;
 }
