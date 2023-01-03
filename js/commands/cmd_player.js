@@ -4,6 +4,8 @@ const PlayerManager= require('./player/playerDataManager');
 const fs= require( 'fs' );
 const { post } = require('request');
 
+const my_utils= require('../utils')
+
 const cron= require('node-cron');
 
 
@@ -11,6 +13,7 @@ const cron= require('node-cron');
 let hereLog= (...args) => {console.log("[cmd_player]", ...args);};
 
 
+let E_RetCode= my_utils.Enums.CmdRetCode
 
 let playerDataManagers= {}
 
@@ -157,77 +160,142 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
     if(args[0]==="help"){
         return cmd_help(cmdObj, clearanceLvl);
     }
+    else if(args[0]==="clean"){
+        let missingAuth_f= utils.checkAuth(message, ["roster", "set"])
+        let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f)
+        if(!my_utils.AuthAllowed_noData(missingAuth_f)){
+            return auth_retCode
+        }
 
-    let _channel_cmd= (cmd_name, settings_channel_name) => {
-        if(args[0]===cmd_name){
-            var chan_id= utils.settings.get(message.guild, settings_channel_name);
-            if(["get", "which"].includes(args[1])){
-                var str= `***!player ${cmd_name}*** command: `
-                var chan= undefined
-                if (!Boolean(chan_id)){
-                    str+= `\n\tNo ${cmd_name} set…`
-                }
-                else if(!Boolean(chan=message.guild.channels.cache.get(chan_id))){
-                    str+= `\n\tPlayer ${cmd_name} not availabe (deleted?)…`
-                }
-                else{
-                    str+= `\n\tPlayer ${cmd_name} is #\"${chan.name}\" (${chan}).`
-                }
+        var chan_id= utils.settings.get(message.guild, 'post_channel');
+        var chan= message.guild.channels.cache.get(chan_id)
+        if(Boolean(chan)){
+            __cleanPostChannel(chan);
+            return auth_retCode
+        }
+        return E_RetCode.ERROR_INTERNAL
+    }
+    else if(["post-channel","post_channel"].includes(args[0])){
+        let cmd_name= args[0]
+        let missingAuth_f= utils.checkAuth(message, "channel_manage")
+        let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f, false)
+        if(!my_utils.AuthAllowed_dataOnly(missingAuth_f)){
+            return auth_retCode
+        }
 
-                message.member.send(str).catch(err=>{hereLog(err);});
-
-                return {done: true, ret: true};
+        var chan_id= utils.settings.get(message.guild, "post_channel");
+        if(["get", "which"].includes(args[1])){
+            var str= `***!player ${cmd_name}*** command: `
+            var chan= undefined
+            if (!Boolean(chan_id)){
+                str+= `\n\tNo ${cmd_name} set…`
             }
-            else if(args[1]==="clear"){
-                utils.settings.remove(message.guild, settings_channel_name)
-
-                return {done: true, ret: true};
+            else if(!Boolean(chan=message.guild.channels.cache.get(chan_id))){
+                str+= `\n\tPlayer ${cmd_name} not availabe (deleted?)…`
             }
             else{
-                var chan= undefined
-                if(!Boolean(message.mentions) || !Boolean(message.mentions.channels) || !Boolean(chan=message.mentions.channels.first())){
-                    message.member.send(`[player command] No mention to any channel found… Format is:\n\t\`!player ${cmd_name} #channelmention\``);
-        
-                    return {done: true, ret: false};;
-                }
-        
-                utils.settings.set(cmdObj.msg_obj.guild, settings_channel_name, chan.id);
-        
-                return {done: true, ret: true};
+                str+= `\n\tPlayer ${cmd_name} is #\"${chan.name}\" (${chan}).`
             }
-        }
-        return {done: false, ret: false}
-    }
 
-    if(clearanceLvl>CLEARANCE_LEVEL.NONE){
-        if(args[0]==="clean"){
-            var chan_id= utils.settings.get(message.guild, 'post_channel');
-            var chan= message.guild.channels.cache.get(chan_id)
-            if(Boolean(chan)){
-                __cleanPostChannel(chan);
-                return true
-            }
-            return false
-        }
+            message.member.send(str).catch(err=>{hereLog(err);});
 
-        for(c of [["command-channel","command_channel"],["post-channel","post_channel"]]){
-            var r= _channel_cmd(c[0],c[1])
-            if(r.done){
-                return r.ret
-            }
+            return auth_retCode;
         }
-    }
+        else if(args[1]==="clear"){
+            utils.settings.remove(message.guild, "post_channel")
+
+            return auth_retCode;
+        }
+        else{
+            var chan= undefined
+            if(!Boolean(message.mentions) || !Boolean(message.mentions.channels) || !Boolean(chan=message.mentions.channels.first())){
+                message.member.send(`[player command] No mention to any channel found… Format is:\n\t\`!player ${cmd_name} #channelmention\``);
     
-    var cmd_chan_id= utils.settings.get(message.guild, "command_channel");
-    if(cmd_chan_id===message.channel.id){
+                return E_RetCode.ERROR_INPUT;
+            }
+    
+            utils.settings.set(cmdObj.msg_obj.guild, "post_channel", chan.id);
+    
+            return auth_retCode;
+        }
+    }
+
+    // let _channel_cmd= (cmd_name, settings_channel_name) => {
+    //     if(args[0]===cmd_name){
+    //         var chan_id= utils.settings.get(message.guild, settings_channel_name);
+    //         if(["get", "which"].includes(args[1])){
+    //             var str= `***!player ${cmd_name}*** command: `
+    //             var chan= undefined
+    //             if (!Boolean(chan_id)){
+    //                 str+= `\n\tNo ${cmd_name} set…`
+    //             }
+    //             else if(!Boolean(chan=message.guild.channels.cache.get(chan_id))){
+    //                 str+= `\n\tPlayer ${cmd_name} not availabe (deleted?)…`
+    //             }
+    //             else{
+    //                 str+= `\n\tPlayer ${cmd_name} is #\"${chan.name}\" (${chan}).`
+    //             }
+
+    //             message.member.send(str).catch(err=>{hereLog(err);});
+
+    //             return {done: true, ret: true};
+    //         }
+    //         else if(args[1]==="clear"){
+    //             utils.settings.remove(message.guild, settings_channel_name)
+
+    //             return {done: true, ret: true};
+    //         }
+    //         else{
+    //             var chan= undefined
+    //             if(!Boolean(message.mentions) || !Boolean(message.mentions.channels) || !Boolean(chan=message.mentions.channels.first())){
+    //                 message.member.send(`[player command] No mention to any channel found… Format is:\n\t\`!player ${cmd_name} #channelmention\``);
+        
+    //                 return {done: true, ret: false};;
+    //             }
+        
+    //             utils.settings.set(cmdObj.msg_obj.guild, settings_channel_name, chan.id);
+        
+    //             return {done: true, ret: true};
+    //         }
+    //     }
+    //     return {done: false, ret: false}
+    // }
+
+    // if(clearanceLvl>CLEARANCE_LEVEL.NONE){
+    //     if(args[0]==="clean"){
+    //         var chan_id= utils.settings.get(message.guild, 'post_channel');
+    //         var chan= message.guild.channels.cache.get(chan_id)
+    //         if(Boolean(chan)){
+    //             __cleanPostChannel(chan);
+    //             return true
+    //         }
+    //         return false
+    //     }
+
+    //     for(var c of [["command-channel","command_channel"],["post-channel","post_channel"]]){
+    //         var r= _channel_cmd(c[0],c[1])
+    //         if(r.done){
+    //             return r.ret
+    //         }
+    //     }
+    // }
+    
+    // var cmd_chan_id= utils.settings.get(message.guild, "command_channel");
+    // if(cmd_chan_id===message.channel.id){
         if(command==="roster"){
             let _post_roster= ( await (async (playerID, channel, post_send_func=null) =>{
+                let missingAuth_f= utils.checkAuth(message, ["roster", "get"])
+                let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f)
+                if(!my_utils.AuthAllowed_noData(missingAuth_f)){
+                    return auth_retCode
+                }
+
                 var rosterPath= ( await (playerDataManager.getPlayerIconRosterPath(playerID)) )
                 if(Boolean(rosterPath)){
                     if(!fs.existsSync(rosterPath)){
                         message.member.send(`Internal error - cannot generate/send player's (${message.author}) roster...`)
 
-                        return false;
+                        return E_RetCode.ERROR_INTERNAL;
                     }
 
                     var tag= (await (playerDataManager.getPlayerTag(message.author.id)));
@@ -251,20 +319,20 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                         }
                     })
 
-                    return true;
+                    return auth_retCode;
                 }
                 else if(!( await (playerDataManager.playerHasRoster(playerID)) )){
                     message.author.send("You don't have any roster registered.")
 
-                    return false;
+                    return E_RetCode.ERROR_REFUSAL;
                 }
 
-                return false;
+                return E_RetCode.ERROR_INPUT;
             }) )
 
             if(args.length<=0){
 
-                return Boolean( await (_post_roster(message.author.id, message.channel)));
+                return await (_post_roster(message.author.id, message.channel));
             }
 
             var roster= []
@@ -284,9 +352,15 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             
             var res= (await (playerDataManager.setRosterByNameAndColor(message.author.id, roster)))
             if(!Boolean(res)){
-                return false;
+                return E_RetCode.ERROR_INTERNAL;
             }
             else{
+                let missingAuth_f= utils.checkAuth(message, ["roster", "set"])
+                let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f, false)
+                if(!my_utils.AuthAllowed_dataOnly(missingAuth_f)){
+                    return auth_retCode
+                }
+
                 var post_chan_id= utils.settings.get(message.guild, "post_channel");
                 var post_chan= undefined
                 if(Boolean(post_chan_id) && Boolean(post_chan=message.guild.channels.cache.get(post_chan_id))){
@@ -321,7 +395,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 }
 
                 if(res.length===0){
-                    return true;
+                    return auth_retCode;
                 }
                 else{
                     var str= "Could match following names with any fighter:\n\t";
@@ -329,7 +403,7 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                         str+= `\"${f.name}\"; `
                     }
                     message.member.send(str);
-                    return false;
+                    return E_RetCode.ERROR_INPUT;
                 }
             }
         }
@@ -337,6 +411,12 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             var n_args= _processArgsQuoteMarks(args);
             
             if(n_args.length>0){
+                let missingAuth_f= utils.checkAuth(message, ["player", "set"])
+                let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f, false)
+                if(!my_utils.AuthAllowed_dataOnly(missingAuth_f)){
+                    return auth_retCode
+                }
+
                 var team= ((n_args.length>1)?n_args[1]:"").slice(0,16);
                 var name= n_args[0].slice(0,64);
 
@@ -372,91 +452,97 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                     })
                 }
 
-                return n_ok;
+                return n_ok? auth_retCode : E_RetCode.ERROR_INTERNAL;
             }
             else{
+                let missingAuth_f= utils.checkAuth(message, ["player", "get"])
+                let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f)
+                if(!my_utils.AuthAllowed_noData(missingAuth_f)){
+                    return auth_retCode
+                }
+
                 var tag= (await (playerDataManager.getPlayerTag(message.author.id)))
 
                 if(Boolean(tag) && Boolean(tag.name)){
-                    message.channel.send(`You player tag:\n\t${(Boolean(tag.team))?`[${tag.team}] `:""}${tag.name}`)
+                    message.reply(`Your player tag:\n\t${(Boolean(tag.team))?`[${tag.team}] `:""}${tag.name}`)
 
-                    return true;
+                    return auth_retCode;
                 }
                 else{
-                    message.author.send(`You player tag isn't registered.`);
+                    message.author.send(`Your player tag isn't registered.`);
 
-                    return false;
+                    return E_RetCode.ERROR_REFUSAL;
                 }
             }
         }
-    }
-    else if(!Boolean(cmd_chan_id)){
-        message.member.send("[player command] no player “command-channel” is set…")
+    // }
+    // else if(!Boolean(cmd_chan_id)){
+    //     message.member.send("[player command] no player “command-channel” is set…")
 
-        return false;
-    }
-    else{
-        var cmd_chan= undefined
-        if(Boolean(cmd_chan=message.guild.channels.cache.get(cmd_chan_id))){
-            message.member.send(`[player command] \`!${command}\` should be used in dedicated channel (${cmd_chan})`)
-        }
-        else{
-            message.member.send(`[player command] Player command-channel not valid or not availabe (deleted?)… (id:${cmd_chan_id})`)
-        }
+    //     return false;
+    // }
+    // else{
+    //     var cmd_chan= undefined
+    //     if(Boolean(cmd_chan=message.guild.channels.cache.get(cmd_chan_id))){
+    //         message.member.send(`[player command] \`!${command}\` should be used in dedicated channel (${cmd_chan})`)
+    //     }
+    //     else{
+    //         message.member.send(`[player command] Player command-channel not valid or not availabe (deleted?)… (id:${cmd_chan_id})`)
+    //     }
 
-        return false;
-    }
+    //     return false;
+    // }
 
-    return false;
+    return E_RetCode.ERROR_INPUT;
 }
 
 
 async function cmd_dm(cmdObj, clearanceLvl, utils, sharedGuilds){
-    let command= cmdObj.command;
-    let message= cmdObj.msg_obj;
-    var args= _processArgsQuoteMarks(cmdObj.args);
+    // let command= cmdObj.command;
+    // let message= cmdObj.msg_obj;
+    // var args= _processArgsQuoteMarks(cmdObj.args);
 
-    if(sharedGuilds.length===0){
-        message.author.send("I don't know you...")
-        return false;
-    }
-    else{
-        let guild= undefined;
-        if(sharedGuilds.length===1){
-            guild= sharedGuilds[0];
-        }
-        else{
-            if(!Boolean(args[0].match(/^[0-9]{8,32}$/))){
-                var str= "Please tell me which guild you are from! Pass the guild's ID as first arugment. Here's the list:\n\n";
-                for(var g of sharedGuilds){
-                    str+= `\t- *${g.name}* : ${g.id}\n`;
-                }
-                str+=`\n\n__Examples:\n\t\`!${command} ${sharedGuilds[0].id} [whatever...]\``
-                str+=`\n\t\`!${command} \"${sharedGuilds[0].name}\" [whatever...]\``
+    // if(sharedGuilds.length===0){
+    //     message.author.send("I don't know you...")
+    //     return false;
+    // }
+    // else{
+    //     let guild= undefined;
+    //     if(sharedGuilds.length===1){
+    //         guild= sharedGuilds[0];
+    //     }
+    //     else{
+    //         if(!Boolean(args[0].match(/^[0-9]{8,32}$/))){
+    //             var str= "Please tell me which guild you are from! Pass the guild's ID as first arugment. Here's the list:\n\n";
+    //             for(var g of sharedGuilds){
+    //                 str+= `\t- *${g.name}* : ${g.id}\n`;
+    //             }
+    //             str+=`\n\n__Examples:\n\t\`!${command} ${sharedGuilds[0].id} [whatever...]\``
+    //             str+=`\n\t\`!${command} \"${sharedGuilds[0].name}\" [whatever...]\``
 
-                message.author.send(str);
+    //             message.author.send(str);
 
-                return false;
-            }
-            else{
-                var rg= sharedGuilds.find(g => {return (g.id===args[0] || g.name===args[0])})
-                if(Boolean(rg)){
-                    guild= rg;
-                    args= args.slice(0, -1);
-                }
-            }
-        }
+    //             return false;
+    //         }
+    //         else{
+    //             var rg= sharedGuilds.find(g => {return (g.id===args[0] || g.name===args[0])})
+    //             if(Boolean(rg)){
+    //                 guild= rg;
+    //                 args= args.slice(0, -1);
+    //             }
+    //         }
+    //     }
 
-        if(Boolean(guild)){
-            let playerDataManager= playerDataManagers[guild.id]
+    //     if(Boolean(guild)){
+    //         let playerDataManager= playerDataManagers[guild.id]
 
-            /** TODO
-                Maybe...
-            */
-        }
-    }
+    //         /** TODO
+    //             Maybe...
+    //         */
+    //     }
+    // }
 
-    return false
+    // return false
 }
 
 
@@ -476,23 +562,22 @@ function cmd_help(cmdObj, clearanceLvl){
     cmdObj.msg_obj.author.send(
         "========\n\n"+
         `__**player** & **roster** command__:\n\n`+
-        ((clearanceLvl<CLEARANCE_LEVEL.ADMIN)? "": ("**Admins only:**\n\n"+
-            `\t\`!${prt_cmd} command-channel #channelmention\`\n\n`+
-            `\tset which channel gets to be the *designated channel* where users can post \`!player\` & \`!roster\` commands\n\n`+
-            `\t\`!${prt_cmd} command-channel clear\`\n\n`+
-            `\tunset the designated command channel\n\n`+
-            `\t\`!${prt_cmd} command-channel which\`\n\n`+
-            `\ttells which channel is set as the designated command channel\n\n`+
-            `\t\`!${prt_cmd} post-channel #channelmention\`\n\n`+
-            `\tset which channel gets to be the channel where the bot post the results of \`!player\` & \`!roster\` commands\n\n`+
-            `\t\`!${prt_cmd} post-channel clear\`\n\n`+
-            `\tunset the designated post channel\n\n`+
-            `\t\`!${prt_cmd} post-channel which\`\n\n`+
-            `\ttells which channel is set as the designated post channel\n\n`+
-            `\t\`!${prt_cmd} clean\`\n\n`+
-            `\tremoves messages from the designated 'post-channel' that are no longer referenced by/for any player\n\n`+
-            "**All users commands:**\n"
-        ))+
+        "**Admins only:**\n\n"+
+        // `\t\`!${prt_cmd} command-channel #channelmention\`\n\n`+
+        // `\tset which channel gets to be the *designated channel* where users can post \`!player\` & \`!roster\` commands\n\n`+
+        // `\t\`!${prt_cmd} command-channel clear\`\n\n`+
+        // `\tunset the designated command channel\n\n`+
+        // `\t\`!${prt_cmd} command-channel which\`\n\n`+
+        // `\ttells which channel is set as the designated command channel\n\n`+
+        `\t\`!${prt_cmd} post-channel #channelmention\`\n\n`+
+        `\tset which channel gets to be the channel where the bot post the results of \`!player\` & \`!roster\` commands\n\n`+
+        `\t\`!${prt_cmd} post-channel clear\`\n\n`+
+        `\tunset the designated post channel\n\n`+
+        `\t\`!${prt_cmd} post-channel which\`\n\n`+
+        `\ttells which channel is set as the designated post channel\n\n`+
+        `\t\`!${prt_cmd} clean\`\n\n`+
+        `\tremoves messages from the designated 'post-channel' that are no longer referenced by/for any player\n\n`+
+        "**All users commands:**\n"+
         `\n**Following commands are only usable in the designated \"command channel\"!**\n\n`+
         `\t\`!roster\`\n\n`+
         `\tdisplay your currently registered roster\n\n`+

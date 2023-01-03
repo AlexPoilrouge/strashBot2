@@ -4,7 +4,7 @@ COPY ./docker/mirrorlist /etc/pacman.d/mirrorlist
 
 RUN pacman-db-upgrade
 
-RUN pacman -Syyu --noconfirm nodejs-lts-gallium gcc npm make openssh sudo git imagemagick
+RUN pacman -Syyu --noconfirm nodejs-lts-gallium gcc npm make openssh sudo nano git imagemagick
 
 COPY . /tmp/recieved
 COPY docker_test/postCmdTarget /tmp/recieved/js/postCmdTarget

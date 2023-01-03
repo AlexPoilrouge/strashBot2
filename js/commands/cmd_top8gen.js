@@ -5,7 +5,7 @@ const child_process= require("child_process");
 
 const my_utils= require('../utils.js')
 
-const smashGG= require('./top8gen/smashggReader.js') 
+const smashGG= require('./top8gen/smashggReader.js')
 
 
 const Top8Gen_data_dir= `${__dirname}/top8gen`
@@ -31,7 +31,7 @@ let hereLog= (...args) => {console.log("[cmd_top8gen]", ...args);};
 //      control channel
 const CLEARANCE_LEVEL= require('../defines').CLEARANCE_LEVEL;
 
-
+let E_RetCode= my_utils.Enums.CmdRetCode
 
 
 var fightersOBJ= undefined
@@ -222,7 +222,14 @@ function __unloadTemplate(templateName){
 }
 
 
-async function _generateTop8(template, genInfos, channel){
+async function _generateTop8(template, genInfos, message, utils){
+    let missingAuth_f= utils.checkAuth(message, "graph")
+    let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f, false)
+    if(!my_utils.AuthAllowed_dataOnly(missingAuth_f)){
+        return auth_retCode
+    }
+
+    let channel= message.channel
     let generateModule= undefined;
     let generateSVG= undefined;
     if(Boolean(generateModule=__loadTemplate(template))){
@@ -230,9 +237,9 @@ async function _generateTop8(template, genInfos, channel){
     }
 
     if(!Boolean(generateSVG)){
-        channel.send(`❌ Internal error. (can't access generating method)`)
+        message.reply(`❌ Internal error. (can't access generating method)`)
         __unloadTemplate(template)
-        return false
+        return E_RetCode.ERROR_INTERNAL
     }
 
     let rasterizeFunc= (svg, outpng) => {
@@ -262,9 +269,9 @@ async function _generateTop8(template, genInfos, channel){
         genResults= undefined
     }
     if(!Boolean(genResults)){
-        channel.send(`❌ Internal error with generating method…`)
+        message.reply(`❌ Internal error with generating method…`)
         __unloadTemplate(template)
-        return false
+        return E_RetCode.ERROR_INTERNAL
     }
     else{
         if(Boolean(genResults.newfiles)){
@@ -286,13 +293,13 @@ async function _generateTop8(template, genInfos, channel){
                 msg+= `\t- \`ressource copy - character image\` issue\n`
             }
 
-            channel.send(msg)
+            message.reply(msg)
 
             __unloadTemplate(template)
             b_svg= false
         }
         else if(!Boolean(genResults.out_svg) || !fs.existsSync(genResults.out_svg)){
-            channel.send(`❌ Final svg generation failed…`)
+            message.reply(`❌ Final svg generation failed…`)
             __unloadTemplate(template)
             b_svg= false
         }
@@ -324,7 +331,7 @@ async function _generateTop8(template, genInfos, channel){
 
 
         if(b_svg){
-            channel.send(
+            message.reply(
                 // ((z_b)?`Source at: <${genInfos.http_addr}/top8.zip>`:''),
                 `Generated top8 image: `,
                 { files : [ `${genInfos.destination_dir}/top8.png` ] }
@@ -332,7 +339,7 @@ async function _generateTop8(template, genInfos, channel){
         }
 
         __unloadTemplate(template)
-        return b_svg
+        return b_svg? auth_retCode : E_RetCode.ERROR_INTERNAL
     }
 
 }
@@ -413,8 +420,18 @@ async function _fetchSmashGGInfos(url){
     }
 }
 
-async function _evaluateArgsOptions(args, options, guild, user){
+async function _evaluateArgsOptions(args, options, message, utils){
     var rep= {errors:{}, warnings:{}, infos:{}}
+    let guild= message.guild
+    let user= message.author
+
+
+    let missingAuth_f= utils.checkAuth(message, "test")
+    let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f, false)
+    if(!my_utils.AuthAllowed_dataOnly(missingAuth_f)){
+        return auth_retCode
+    }
+
 
     var test_infos={
         '1': {roster:[]}, '2': {roster:[]}, '3': {roster:[]}, '4': {roster:[]}, 
@@ -673,10 +690,12 @@ async function _evaluateArgsOptions(args, options, guild, user){
 
     if(!(Boolean(rep))){
         msg+= `❌ Internal error: options test failed! ❌`
-        return false;
+        return E_RetCode.ERROR_INTERNAL;
     }
 
-    user.send(msg, {split:true});
+
+    
+    await my_utils.splitSend(user, msg)
 
     var msg2= `[${guild.name}] --- options test -- __Summary__:\n`
 
@@ -733,9 +752,9 @@ async function _evaluateArgsOptions(args, options, guild, user){
         }
     }
 
-    user.send(msg2, {split:true});
+    my_utils.splitSend(user, msg2)
 
-    return true;
+    return auth_retCode;
 }
 
 
@@ -765,96 +784,102 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
     if(command==="top8"){
         if(Boolean(args[0]) && args[0].match(/^te?m?pl?a?te?s?$/)){
+            let missingAuth_f= utils.checkAuth(cmdObj.msg_obj, "templates")
+            let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f)
+            if(!my_utils.AuthAllowed_noData(missingAuth_f)){
+                return auth_retCode
+            }
+
             var templates= listTemplates();
 
             if(templates.length===0){
-                message.channel.send("No template seems available… 😕")
+                message.reply("No template seems available… 😕")
             }
             else{
                 var msg= `${templates.length} templates available:\n`
                 for(var t of templates){
                     msg+= `\t- ${t}`
                 }
-                message.channel.send(msg)
+                message.reply(msg)
             }
 
-            return true
+            return auth_retCode
         }
-        else if(Boolean(args[0]) && args[0].match(/^roles?$/)){
-            if(clearanceLvl<CLEARANCE_LEVEL.CONTROL_CHANNEL){
-                return false;
-            }
+        // else if(Boolean(args[0]) && args[0].match(/^roles?$/)){
+        //     // if(clearanceLvl<CLEARANCE_LEVEL.CONTROL_CHANNEL){
+        //     //     return false;
+        //     // }
 
-            if(Boolean(args[1]) && args[1].match(/^(del(ete)?)|(re?mo?ve?)$/)){
-                utils.settings.remove(message.guild, "top8role")
+        //     if(Boolean(args[1]) && args[1].match(/^(del(ete)?)|(re?mo?ve?)$/)){
+        //         utils.settings.remove(message.guild, "top8role")
 
-                message.author.send(`[${message.guild.name}] Role for command \`!top8gen\` removed.`)
+        //         message.author.send(`[${message.guild.name}] Role for command \`!top8gen\` removed.`)
 
-                return true
-            }
+        //         return true
+        //     }
 
-            var role= undefined;
-            if(Boolean(message.mentions) && Boolean(message.mentions.roles) && Boolean(role=message.mentions.roles.first())){
-                utils.settings.set(message.guild, "top8role", role.id)
+        //     var role= undefined;
+        //     if(Boolean(message.mentions) && Boolean(message.mentions.roles) && Boolean(role=message.mentions.roles.first())){
+        //         utils.settings.set(message.guild, "top8role", role.id)
 
-                return true;
-            }
-            else{
-                var role_id= utils.settings.get(message.guild, "top8role")
-                if(Boolean(role_id) && Boolean(role=message.guild.roles.cache.get(role_id))){
-                    message.author.send(`[${message.guild.name}] Role for \`!top8\` command is set to "${role.name}"`);
-                    return true
-                }
-                else{
-                    message.author.send(`[${message.guild.name}] No role is set for \`!top8\` command`);
-                    return true
-                }
-            }
-        }
+        //         return true;
+        //     }
+        //     else{
+        //         var role_id= utils.settings.get(message.guild, "top8role")
+        //         if(Boolean(role_id) && Boolean(role=message.guild.roles.cache.get(role_id))){
+        //             message.author.send(`[${message.guild.name}] Role for \`!top8\` command is set to "${role.name}"`);
+        //             return true
+        //         }
+        //         else{
+        //             message.author.send(`[${message.guild.name}] No role is set for \`!top8\` command`);
+        //             return true
+        //         }
+        //     }
+        // }
         else if(Boolean(args[0]) && args[0].match(/^test(ing)?$/)){
-            var role_id= utils.settings.get(message.guild, "top8role")
-            if(clearanceLvl<CLEARANCE_LEVEL.CONTROL_CHANNEL &&
-                    !(Boolean(role_id) && Boolean(message.member.roles.cache.get(role_id)))
-            ){
-                return false;
-            }
+            // var role_id= utils.settings.get(message.guild, "top8role")
+            // if(clearanceLvl<CLEARANCE_LEVEL.CONTROL_CHANNEL &&
+            //         !(Boolean(role_id) && Boolean(message.member.roles.cache.get(role_id)))
+            // ){
+            //     return false;
+            // }
 
             let argsOpt= my_utils.commandArgsOptionsExtract(args);
 
-            return (await _evaluateArgsOptions(argsOpt.args.slice(1), argsOpt.options, message.guild, message.author));
+            return (await _evaluateArgsOptions(argsOpt.args.slice(1), argsOpt.options, message, utils));
         }
         else{
-            var role_id= utils.settings.get(message.guild, "top8role")
-            if(clearanceLvl<CLEARANCE_LEVEL.CONTROL_CHANNEL &&
-                    !(Boolean(role_id) && Boolean(message.member.roles.cache.get(role_id)))
-            ){
-                return false;
-            }
+            // var role_id= utils.settings.get(message.guild, "top8role")
+            // if(clearanceLvl<CLEARANCE_LEVEL.CONTROL_CHANNEL &&
+            //         !(Boolean(role_id) && Boolean(message.member.roles.cache.get(role_id)))
+            // ){
+            //     return false;
+            // }
 
             let argsOpt= my_utils.commandArgsOptionsExtract(args);
 
             let template= argsOpt.args[0]
             if(!Boolean(template)){
-                message.channel.send(
+                message.reply(
                     "Nom de template requis en paramètre.\n"+
                     "\t( Pour consulter la liste de templates disponibles, utiliser la commande `!top8 templates` )"
                 )
 
-                return false;
+                return E_RetCode.ERROR_INPUT;
             }
             else if(!(listTemplates().includes(template))){
-                message.channel.send(
+                message.reply(
                     `Nom de template “*${template}*” inconnu…\n`+
                     "\t( Pour consulter la liste de templates disponibles, utiliser la commande `!top8 templates` )"
                 )
 
-                return false;
+                return E_RetCode.ERROR_INPUT;
             }
 
             var smashGGInfos= {}
             if(Boolean(argsOpt.args[1])){
                 if(!Boolean(smashGGInfos=(await _fetchSmashGGInfos(argsOpt.args[1])))){
-                    message.channel.send(`⚠️ Couldn't read infos from smashGG tourney \`${argsOpt.args[1]}\``)
+                    message.reply(`⚠️ Couldn't read infos from smashGG tourney \`${argsOpt.args[1]}\``)
                     smashGGInfos={top8:{}}
                 }
             }
@@ -950,12 +975,12 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
                 options: argsOpt.options,
             }
 
-            return _generateTop8(template, genInfos, message.channel);
+            return _generateTop8(template, genInfos, message, utils);
 
         }
     }
 
-    return false
+    return E_RetCode.ERROR_INPUT
 }
 
 
@@ -968,14 +993,6 @@ function cmd_help(cmdObj, clearanceLvl){
     cmdObj.msg_obj.author.send(
         "========\n\n"+
         `__**top8** command__:\n\n`+
-        ((clearanceLvl<CLEARANCE_LEVEL.ADMIN)? "": ("**Admins only:**\n\n"+
-            `\t\`!${prt_cmd} role #role-mention\`\n\n`+
-            `\tsets which role (additionally to Admins) can have its members use the \`!top8\` command\n\n`+
-            `\t\`!${prt_cmd} group\`\n\n`+
-            `\ttells which is the designated group\n\n`+
-            `\t\`!${prt_cmd} group remove\`\n\n`+
-            `\tremove the previously set role\n\n`
-        )) +
         `---\n\t\`!${prt_cmd} template\`\n\n`+
         `\tlists all top8 templates available\n\n`+
         `---\n**Following commands only availabe to members of designated group** (see \`!${prt_cmd} group\`):\n\n`+

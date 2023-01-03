@@ -4,7 +4,12 @@ const cron= require('node-cron');
 
 const CLEARANCE_LEVEL= require('../defines').CLEARANCE_LEVEL;
 
+const my_utils= require('../utils')
+
 let hereLog= (...args) => {console.log("[cmd_report]", ...args);};
+
+
+let E_RetCode= my_utils.Enums.CmdRetCode
 
 
 const TYPES= {
@@ -65,6 +70,24 @@ class ProblemCount{
 ProblemCount.TYPES= TYPES
 
 var problems= new ProblemCount();
+
+function _reportJSONCmdAuth(cmd, guild, utils){
+    var report_str= `<h5>cmd '${cmd}' auth:</h5>\n`
+
+    let bot= utils.getBotClient()
+    let auth_obj= undefined
+    var a= undefined
+    if(!Boolean((a=bot.worker) && (a=a._commander) && (a=a._cmdAuth) &&
+        (auth_obj=a.getAuth(cmd, guild))
+    )){
+        report_str+= `Erreur - couldn't fetch auth data…</br>`
+    }
+    else{
+        report_str+= `<pre>\n${JSON.stringify(auth_obj, null, 4)}\n</pre>\n`
+    }
+
+    return report_str
+}
 
 async function _reportCmdPunishRole(guild, utils){
     var report_str= `<h4>cmd punish role:</h4>\n`
@@ -431,99 +454,102 @@ function _reportCmdMain(guild, utils){
 function _reportCmdKart(guild, utils){
     var report_str= `<h4>cmd kart:</h4>\n`
     
-    var obj_kartChan= utils.settings.get(guild,"kart_channel","kart");
+    // var obj_kartChan= utils.settings.get(guild,"kart_channel","kart");
 
-    var msg=""
-    var kartChan= undefined;
-    if(!Boolean(obj_kartChan)){
-        var _msg= `No kart channel set… (${obj_kartChan})`
-        problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
-        msg+= _msg
-    }
-    else if (!Boolean(kartChan=guild.channels.cache.get(obj_kartChan))){
-        var _msg= `Set kart channel is invalid… (${kartChan} - #${obj_kartChan})`
-        problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
-        msg+= _msg
-    }
-    else{
-        msg+= `Kart channel is set to ${kartChan.name} (#${obj_kartChan})`
-    }
+    // var msg=""
+    // var kartChan= undefined;
+    // if(!Boolean(obj_kartChan)){
+    //     var _msg= `No kart channel set… (${obj_kartChan})`
+    //     problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+    //     msg+= _msg
+    // }
+    // else if (!Boolean(kartChan=guild.channels.cache.get(obj_kartChan))){
+    //     var _msg= `Set kart channel is invalid… (${kartChan} - #${obj_kartChan})`
+    //     problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+    //     msg+= _msg
+    // }
+    // else{
+    //     msg+= `Kart channel is set to ${kartChan.name} (#${obj_kartChan})`
+    // }
 
-    report_str+= `<b> Kart channel:</b>\n${msg}<br/>\n`
-
-
-
-    var obj_kartRole= utils.settings.get(guild,"kart_role","kart");
-
-    msg= ""
-    var kartRole= undefined
-    if(!Boolean(obj_kartRole)){
-        var _msg= `No kart main role set… (${obj_kartRole})`
-        problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
-        msg+= _msg
-    }
-    else if (!Boolean(kartRole=guild.roles.cache.get(obj_kartRole))){
-        var _msg= `Set kart main role is invalid… (${kartRole} - #${obj_kartChan})`
-        problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
-        msg+= _msg
-    }
-    else{
-        msg+= `Kart main role is set to ${kartRole.name} (@${obj_kartRole})`
-    }
-
-    report_str+= `<b> Kart main role:</b>\n${msg}<br/>\n`
+    // report_str+= `<b> Kart channel:</b>\n${msg}<br/>\n`
 
 
 
-    var obj_kartAdminRole= utils.settings.get(guild,"kart_admin_role","kart");
+    // var obj_kartRole= utils.settings.get(guild,"kart_role","kart");
 
-    msg= ""
-    var kartAdminRole= undefined
-    if(!Boolean(obj_kartAdminRole)){
-        var _msg= `No kart admin role set… (${obj_kartAdminRole})`
-        problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
-        msg+= _msg
-    }
-    else if (!Boolean(kartAdminRole=guild.roles.cache.get(obj_kartAdminRole))){
-        var _msg= `Set kart admin role is invalid… (${kartAdminRole} - #${obj_kartChan})`
-        problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
-        msg+= _msg
-    }
-    else{
-        msg+= `Kart admin role is set to ${kartAdminRole.name} (@${obj_kartAdminRole})`
-    }
+    // msg= ""
+    // var kartRole= undefined
+    // if(!Boolean(obj_kartRole)){
+    //     var _msg= `No kart main role set… (${obj_kartRole})`
+    //     problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+    //     msg+= _msg
+    // }
+    // else if (!Boolean(kartRole=guild.roles.cache.get(obj_kartRole))){
+    //     var _msg= `Set kart main role is invalid… (${kartRole} - #${obj_kartChan})`
+    //     problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+    //     msg+= _msg
+    // }
+    // else{
+    //     msg+= `Kart main role is set to ${kartRole.name} (@${obj_kartRole})`
+    // }
 
-    report_str+= `<b> Kart admin role:</b>\n${msg}<br/>\n`
+    // report_str+= `<b> Kart main role:</b>\n${msg}<br/>\n`
 
 
 
-    var obj_owner= utils.settings.get(guild,"serv_owner","kart");
+    // var obj_kartAdminRole= utils.settings.get(guild,"kart_admin_role","kart");
 
-    msg=""
-    var servOwner= undefined;
-    if(!Boolean(obj_owner)){
-        var _msg= `No serv owner (${obj_owner})…;`
-        problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
-        msg+= _msg
-    }
-    else if (!Boolean(servOwner=guild.members.cache.get(obj_owner))){
-        var _msg= `Serv owner is invalid… (${servOwner} - @${obj_owner})`
-        problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
-        msg+= _msg
-    }
-    else{
-        var _msg= `SRB2Kart server owner is ${servOwner.user.username} (@${obj_owner})`
-        problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
-        msg+= _msg
+    // msg= ""
+    // var kartAdminRole= undefined
+    // if(!Boolean(obj_kartAdminRole)){
+    //     var _msg= `No kart admin role set… (${obj_kartAdminRole})`
+    //     problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+    //     msg+= _msg
+    // }
+    // else if (!Boolean(kartAdminRole=guild.roles.cache.get(obj_kartAdminRole))){
+    //     var _msg= `Set kart admin role is invalid… (${kartAdminRole} - #${obj_kartChan})`
+    //     problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+    //     msg+= _msg
+    // }
+    // else{
+    //     msg+= `Kart admin role is set to ${kartAdminRole.name} (@${obj_kartAdminRole})`
+    // }
 
-        if(!Boolean(obj_kartChan) || !Boolean(kartChan)){
-            _msg= `Owner set (${servOwner.user.username} - @${obj_owner}) but no valid kart channel?! (#${obj_kartChan})`
-            problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
-            msg+= "<br/>"+_msg
-        }
-    }
+    // report_str+= `<b> Kart admin role:</b>\n${msg}<br/>\n`
 
-    report_str+= `<b> Kart server owner:</b>\n${msg}<br/>\n`
+
+
+    // var obj_owner= utils.settings.get(guild,"serv_owner","kart");
+
+    // msg=""
+    // var servOwner= undefined;
+    // if(!Boolean(obj_owner)){
+    //     var _msg= `No serv owner (${obj_owner})…;`
+    //     problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
+    //     msg+= _msg
+    // }
+    // else if (!Boolean(servOwner=guild.members.cache.get(obj_owner))){
+    //     var _msg= `Serv owner is invalid… (${servOwner} - @${obj_owner})`
+    //     problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+    //     msg+= _msg
+    // }
+    // else{
+    //     var _msg= `SRB2Kart server owner is ${servOwner.user.username} (@${obj_owner})`
+    //     problems.add(guild.id, _msg, ProblemCount.TYPES.INFO)
+    //     msg+= _msg
+
+    //     if(!Boolean(obj_kartChan) || !Boolean(kartChan)){
+    //         _msg= `Owner set (${servOwner.user.username} - @${obj_owner}) but no valid kart channel?! (#${obj_kartChan})`
+    //         problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+    //         msg+= "<br/>"+_msg
+    //     }
+    // }
+
+    // report_str+= `<b> Kart server owner:</b>\n${msg}<br/>\n`
+    report_str+= `No stuff to report anymore...\n`
+
+    report_str+= _reportJSONCmdAuth("kart", guild, utils)
 
     return report_str;
 }
@@ -641,25 +667,25 @@ async function __runReportPlayerDataBase(guild, utils, post_chan=undefined){
 async function _reportCmdPlayer(guild, utils){
     var report_str= `<h4>cmd player - roster:</h4>\n`
     
-    var cmd_chan_id= utils.settings.get(guild,"post_channel","player");
+    // var cmd_chan_id= utils.settings.get(guild,"post_channel","player");
 
-    var msg=""
-    var cmd_chan= undefined;
-    if(!Boolean(cmd_chan_id)){
-        var _msg= `No command channel set… (${cmd_chan_id})`
-        problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
-        msg+= _msg
-    }
-    else if (!Boolean(cmd_chan=guild.channels.cache.get(cmd_chan_id))){
-        var _msg= `Set command channel is invalid… (${cmd_chan} - #${cmd_chan_id})`
-        problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
-        msg+= _msg
-    }
-    else{
-        msg+= `Command channel is set to ${cmd_chan.name} (#${cmd_chan_id})`
-    }
+    // var msg=""
+    // var cmd_chan= undefined;
+    // if(!Boolean(cmd_chan_id)){
+    //     var _msg= `No command channel set… (${cmd_chan_id})`
+    //     problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+    //     msg+= _msg
+    // }
+    // else if (!Boolean(cmd_chan=guild.channels.cache.get(cmd_chan_id))){
+    //     var _msg= `Set command channel is invalid… (${cmd_chan} - #${cmd_chan_id})`
+    //     problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+    //     msg+= _msg
+    // }
+    // else{
+    //     msg+= `Command channel is set to ${cmd_chan.name} (#${cmd_chan_id})`
+    // }
 
-    report_str+= `<b> Command channel:</b>\n${msg}<br/>\n`
+    // report_str+= `<b> Command channel:</b>\n${msg}<br/>\n`
     
 
 
@@ -684,6 +710,8 @@ async function _reportCmdPlayer(guild, utils){
     report_str+= `<b> Post channel:</b>\n${msg}<br/>\n`
 
     report_str+= ( await (__runReportPlayerDataBase(guild, utils, post_chan)) );
+
+    report_str+= _reportJSONCmdAuth('player', guild, utils)
 
     return report_str;
 }
@@ -1252,15 +1280,26 @@ async function _reportCmdCalendars(guild, utils){
     return report_str
 }
 
-async function _runReportGuild(guild, utils, sendToUser= undefined){
+async function _runReportGuild(guild, utils, message= undefined){
     var report_fileName= `report_${guild.name.replace(' ','_')}_${Date.now()}.html`;
     var html_path= `data/${report_fileName}`;
+    let sendToUser= (Boolean(message))? message.author : undefined
+
+    var auth_retCode= E_RetCode.SUCCESS
+    if(Boolean(message)){
+        let missingAuth_f= utils.checkAuth(message, "call")
+        auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f, false)
+        if(!my_utils.AuthAllowed_dataOnly(missingAuth_f)){
+            return auth_retCode
+        }
+    }
+
 
     var user= sendToUser;
     if(!Boolean(user)){
         user= await guild.members.fetch(utils.getMasterID())
 
-        if(!Boolean(user)) return false
+        if(!Boolean(user)) return E_RetCode.ERROR_REFUSAL
     }
 
     let clean= () =>{
@@ -1341,9 +1380,9 @@ async function _runReportGuild(guild, utils, sendToUser= undefined){
 
             if(errors>0 || Boolean(sendToUser)){
                 user.send(
-                    `Data coherence report for ${guild.name}\n` +
-                    `${warnings} warnings and ${errors} errors (${infos} info messages)`,
                     {
+                        content: `Data coherence report for ${guild.name}\n` +
+                                    `${warnings} warnings and ${errors} errors (${infos} info messages)`,
                         files: [{
                             attachment: `${html_path}`,
                             name: `${report_fileName}`
@@ -1364,7 +1403,7 @@ async function _runReportGuild(guild, utils, sendToUser= undefined){
         }
     });
 
-    return true;
+    return auth_retCode;
 }
 
 
@@ -1406,30 +1445,30 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
         return cmd_help(cmdObj, clearanceLvl);
     }
 
-    if(clearanceLvl>CLEARANCE_LEVEL.NONE){
+    // if(clearanceLvl>CLEARANCE_LEVEL.NONE){
         if (args.length<=0)
-            return await _runReportGuild(message.guild, utils, message.author);
+            return await _runReportGuild(message.guild, utils, message);
         else if( args[0]==='off' ) {
             utils.settings.set(message.guild, 'run-report',false);
-            return true;
+            return auth_retCode;
         }
         else if( args[0]==='on' ) {
             utils.settings.set(message.guild, 'run-report',true);
-            return true;
+            return auth_retCode;
         }
-        else{
-            return false;
-        }
-    }
-    else{
-        message.author.send(`You do not have minimal clearance for the use of command \`!${cmdObj.command}\``)
-        return false;
-    }
+        // else{
+            return E_RetCode.ERROR_INPUT;
+        // }
+    // }
+    // else{
+    //     message.author.send(`You do not have minimal clearance for the use of command \`!${cmdObj.command}\``)
+    //     return false;
+    // }
 }
 
 function cmd_help(cmdObj, clearanceLvl){
     let message= cmdObj.msg_obj;
-    if(clearanceLvl<=CLEARANCE_LEVEL.NONE) return false;
+    // if(clearanceLvl<=CLEARANCE_LEVEL.NONE) return false;
 
     message.author.send( (`__**report** command___:\n\n`+
         `\t\`!report\`\n\n`+

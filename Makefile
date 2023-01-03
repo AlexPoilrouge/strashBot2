@@ -6,6 +6,9 @@ test_build: .docker_start
 	docker build --rm -f Dockerfile -t strashbot_test:0.0.0 .
 
 test_run: test_build
-	docker run --rm -it strashbot_test:0.0.0
+	docker run --rm --name strashbot_tester -it strashbot_test:0.0.0
 
 test_init: test_run
+
+test_exec_bash:
+	docker exec -it strashbot_tester bash

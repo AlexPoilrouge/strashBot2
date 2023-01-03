@@ -16,7 +16,23 @@ let hereLog=    (...args) => {console.log("[bot]", ...args);};
 
 class StrashBot extends Discord.Client{
     constructor(token, worker){
-        super({messageCacheMaxSize: MSG_CACHE, partials: ['MESSAGE', 'CHANNEL', 'REACTION']});
+        super({
+            messageCacheMaxSize: MSG_CACHE,
+            partials: [
+                Discord.Partials.Message,
+                Discord.Partials.Channel,
+                Discord.Partials.Reaction
+            ],
+            intents: [
+                Discord.GatewayIntentBits.Guilds,
+                Discord.GatewayIntentBits.GuildMessages,
+                Discord.GatewayIntentBits.GuildMessageReactions,
+                Discord.GatewayIntentBits.DirectMessages,
+                Discord.GatewayIntentBits.DirectMessageReactions,
+                Discord.GatewayIntentBits.MessageContent,
+                Discord.GatewayIntentBits.GuildMembers
+            ]
+        });
 
         this._msgCache= MSG_CACHE;
         this._msgCount= 0;
@@ -45,13 +61,13 @@ class StrashBot extends Discord.Client{
             this.worker.ready();
         });
         
-        this.on('message', (message)=>{
+        this.on('messageCreate', (message)=>{
             if(message.author.id === this.user.id) return; // Prevent bot from responding to its own messages
 
             this._msgCount= (this._msgCount+1)%(this._msgCache);
             var d= (this._msgCache-this._msgCount);
 
-            if(message.channel.type === 'dm'){
+            if(message.channel.type === Discord.ChannelType.DM){
                 hereLog(`Recieving DM command from ${message.author.id}`);
                 this.worker.processDMessage(message, d);
             }

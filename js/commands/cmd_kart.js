@@ -30,6 +30,9 @@ let hereLog= (...args) => {console.log("[cmd_kart]", ...args);};
 var kart_settings= undefined;
 
 
+let E_RetCode= my_utils.Enums.CmdRetCode
+
+
 const KART_DEFAULT_SERV_PORT= 5029
 
 const KARTING_LEVEL={
@@ -319,7 +322,6 @@ function _autoStopServer(utils){
         
         l_guilds.forEach( (g) =>{
             utils.settings.set(g, "auto_stop", true);
-            utils.settings.remove(g, 'serv_owner');
         });
     }
     else{
@@ -421,26 +423,6 @@ function cmd_init(utils){
 
 
 async function cmd_init_per_guild(utils, guild){
-    if(Boolean(guild)) l_guilds.push(guild)
-
-    var servOwner= utils.settings.get(guild, "serv_owner");
-    var m_owner= undefined;
-    if( Boolean(servOwner) &&
-        (!Boolean(m_owner= await guild.members.fetch(servOwner)) || !_isServerRunning())    
-    ){
-        utils.settings.remove(guild, "serv_owner");
-    }
-
-    var chanKart= utils.settings.get(guild, 'kart_channel');
-    var channel= undefined;
-    if(!Boolean(chanKart) || !Boolean(channel= guild.channels.cache.get(chanKart))){
-        if(Boolean(m_owner)){
-            var chanKart= utils.settings.remove(guild, 'serv_owner');
-            if(_isServerRunning()){
-                _stopServer(true);
-            }
-        }
-    }
 }
 
 async function url_availabe(url){
@@ -478,19 +460,7 @@ async function __downloading(channel, url, destDir, utils, fileName=undefined){
         }
     }
 
-    // if(!Boolean(kart_settings) || !Boolean(kart_settings.dirs.main_folder) ||
-    //     (permanent && !Boolean(kart_settings.dirs.dl_dirs.permanent)) ||
-    //     (!permanent && !Boolean(kart_settings.dirs.dl_dirs.temporary))
-    // ){
-    //     _error();
-
-    //     return;
-    // }
-
     if(Boolean(dl_msg)){
-        // let filepath= kart_settings.dirs.main_folder+'/'+
-        //     ((permanent)?kart_settings.dirs.dl_dirs.permanent:kart_settings.dirs.dl_dirs.temporary)
-        //     +'/'+filename;
         let filepath= destDir+'/'+filename;
         const file = fs.createWriteStream(filepath);
         var receivedBytes = 0;
@@ -641,17 +611,6 @@ async function __ssh_download_cmd(cmd, channel, url, utils, fileName=undefined){
                         dl_msg.react('✅');
                     }
 
-                    // if(_isServerRunning()){
-                    //     var servOwner= utils.settings.get(channel.guild, "serv_owner");
-                    //     var owner= undefined;
-                    //     var str= `\`${filename}\` a bien été ajouté au serveur.\n`+
-                    //         `Cependant, il ne peut être utilisé pour une session déjà en cours`;
-                    //     channel.send(str+'.')         
-                    // }
-                    // else{
-                    //     channel.send(`\`${filename}\` a bien été ajouté et sera disponible prêt à l'emploi lors de la prochaine session.`);
-                    // }
-
                     resolve(true);
                 }
             });
@@ -669,7 +628,12 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
     let args= cmdObj.args.slice(1);
 
     if(["try","add","get","new"].includes(args[0])){
-        if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`, clearanceLvl)) return false
+        // if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`, clearanceLvl)) return false
+        let missingAuth_f= utils.checkAuth(cmdObj.msg_obj, ["addon","add-rm"])
+        let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f, false)
+        if(!my_utils.AuthAllowed_dataOnly(missingAuth_f)){
+            return auth_retCode
+        }
 
         let _serv_run= _isServerRunning();
         var perma= false;
@@ -681,9 +645,9 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
                 args= args.slice(1);
             }
             else if(!args[1].match(url_rgx)){
-                message.channel.send(`'${args[1]}' is not a recognized instruction or url…`);
+                message.reply(`'${args[1]}' is not a recognized instruction or url…`);
 
-                return false;
+                return E_RetCode.ERROR_INPUT;
             }
         }
 
@@ -695,8 +659,8 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
         }
 
         if(!Boolean(url)){
-            message.channel.send(`\`!kart ${sub_cmd} ${args[0]}\` needs a joined file or a url…`)
-            return false
+            message.reply(`\`!kart ${sub_cmd} ${args[0]}\` needs a joined file or a url…`)
+            return E_RetCode.ERROR_INPUT
         }
 
         var filename= url.split('/').slice(-1)[0]
@@ -704,23 +668,23 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
         let ext= [".pk3",".wad",".lua",".kart",".pk7"];
         var _ls="";
         if((_ls=_listAddonsConfig(url.split('/').splice(-1)[0]))!=="No result found…"){
-            message.channel.send(`The following addons already exist on server:\n${_ls}`);
+            message.reply(`The following addons already exist on server:\n${_ls}`);
 
-            return false;
+            return E_RetCode.ERROR_REFUSAL;
         }
         else if(!Boolean(url) || !ext.some(e => {return url.endsWith(e)})){
-            message.channel.send(`Seuls les fichiers addons d'extension \`${ext}\` sont acceptés…`)
+            message.reply(`Seuls les fichiers addons d'extension \`${ext}\` sont acceptés…`)
 
-            return false;
+            return E_RetCode.ERROR_REFUSAL;
         }
         else if (!Boolean(kart_settings) || !Boolean(kart_settings.dirs.main_folder) ||
             (!_serv_run && !Boolean(kart_settings.dirs.dl_dirs.permanent)) ||
             !Boolean(kart_settings.dirs.dl_dirs.temporary)
         ){
             hereLog("[addons add] no dest directory for addon dl");
-            message.channel.send(`❌ server internal error`);
+            message.reply(`❌ server internal error`);
 
-            return false;
+            return E_RetCode.ERROR_INTERNAL;
         }
         else{
             // __downloading(message.channel, url, utils, perma)
@@ -740,82 +704,63 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
             }
 
             if(!_b || !_updateAddonsConfig()){
-                message.channel.send(`❌ An error as occured, can't properly add \`${filename}\` to the server addons…`);
+                message.reply(`❌ An error as occured, can't properly add \`${filename}\` to the server addons…`);
 
-                return false;
+                return E_RetCode.ERROR_INTERNAL;
             }
 
             if(_serv_run){
-                var servOwner= utils.settings.get(message.guild, "serv_owner");
-                var owner= undefined;
                 var str= `\`${filename}\` a bien été ajouté au serveur.\n`+
                     `Cependant, il ne peut être utilisé pour une session déjà en cours`;
-                message.channel.send(str+'.')         
+                message.reply(str+'.')         
             }
             else{
-                message.channel.send(`\`${filename}\` a bien été ajouté et sera disponible prêt à l'emploi lors de la prochaine session.`);
+                message.reply(`\`${filename}\` a bien été ajouté et sera disponible prêt à l'emploi lors de la prochaine session.`);
             }
 
-            return true;
-        }
-    }
-    else if(["keep","perma","fixed","final"].includes(args[0])){
-        if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`, clearanceLvl)) return false
-
-        if(Boolean(args[1])){
-            var str= undefined
-            var b=false;
-            try{
-                var cmd= __kartCmd(kart_settings.config_commands.keep);
-                str= child_process.execSync(cmd+` ${args[1]}`, {timeout: 32000}).toString();
-                b=true;
-            }
-            catch(err){
-                hereLog("Error while keeping addons: "+err);
-                str= undefined
-            }
-
-            if(b && Boolean(str)){
-                message.channel.send(str);
-
-                return true;
-            }
-            else{
-                message.channel.send(`Unable to move addon *${args[1]}* to **temporary** section${(Boolean(str))?`:\n\t${str}`:"…"}`);
-
-                return false;
-            }
+            return auth_retCode;
         }
     }
     else if(["rm","remove","del","delete","suppr"].includes(args[0])){
-        if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`, clearanceLvl)) return false
+        // if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`, clearanceLvl)) return false
+        let missingAuth_f= utils.checkAuth(cmdObj.msg_obj, ["addon","add-rm"])
+        let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f, false)
+        if(!my_utils.AuthAllowed_dataOnly(missingAuth_f)){
+            return auth_retCode
+        }
 
         if(Boolean(args[1])){
             var resp= _removeAddonsConfig(args[1]);
             if(Boolean(resp) && resp[0] && Boolean(resp[1])){
                 if(resp[1]==="SCHEDULED_FOR_REMOVAL\n"){
-                    message.channel.send("Addons will be removed on server restart:\n\t"+args[1]);
-                    return true
+                    message.reply("Addons will be removed on server restart:\n\t"+args[1]);
+                    return auth_retCode
                 }
                 else{
-                    message.channel.send("Removed addons for srb2kart server:\n"+resp[1]);
+                    message.reply("Removed addons for srb2kart server:\n"+resp[1]);
                 }
                 if(_updateAddonsConfig()){
-                    return true;
+                    return auth_retCode;
                 }
                 else{
                     hereLog("[rm] Error occured when updating addons after 'rm' call")
-                    return false;
+                    return E_RetCode.ERROR_INTERNAL;
                 }
             }
             else{
                 hereLog("[rm] got bad resp: "+resp);
-                message.channel.send(`❌ Unable to remove${(Boolean(resp[1]))?(`:\n*\t${resp[1]}*`):"…"}`);
-                return false;
+                message.reply(`❌ Unable to remove${(Boolean(resp[1]))?(`:\n*\t${resp[1]}*`):"…"}`);
+                return E_RetCode.ERROR_INTERNAL;
             }
         }
     }
     else if(["list","ls","all","what","which"].includes(args[0]) || !Boolean(args[0])){
+        let missingAuth_f= utils.checkAuth(cmdObj.msg_obj, ["addon","ls"])
+        let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f)
+        if(!my_utils.AuthAllowed_noData(missingAuth_f)){
+            return auth_retCode
+        }
+        
         var list= _listAddonsConfig((Boolean(args[1]))?args[1]:"");
         if(Boolean(list)){
             if(!Boolean(args[1]) && Boolean(kart_settings) && Boolean(kart_settings.http_url)){
@@ -826,33 +771,45 @@ async function _cmd_addons(cmdObj, clearanceLvl, utils){
             var _many_resp= splitString(resp);
             if (_many_resp.length>1){
                 for (var i=0; i<_many_resp.length; ++i){
-                    await message.channel.send(`${_many_resp[i]}`);
+                    await message.reply(`${_many_resp[i]}`);
                 }
             }
             else{
-                message.channel.send("Addons list for srb2kart server:\n"+list);
+                message.reply("Addons list for srb2kart server:\n"+list);
             }
-            return true;
+            return auth_retCode;
         }
         else{
-            return false;
+            return E_RetCode.ERROR_REFUSAL;
         }
     }
     else if(["dl","links","link","zip","archive"]){
+        let missingAuth_f= utils.checkAuth(cmdObj.msg_obj, ["addon","dl"])
+        let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f)
+        if(!my_utils.AuthAllowed_noData(missingAuth_f)){
+            return auth_retCode
+        }
+
         if(!Boolean(args[1]) && Boolean(kart_settings) && Boolean(kart_settings.http_url)){
-            message.channel.send(`You can try downloading the SRB2Kart server's addons at: ${kart_settings.http_url}/strashbot_addons.zip`);
-            return true;
+            message.reply(`You can try downloading the SRB2Kart server's addons at: ${kart_settings.http_url}/strashbot_addons.zip`);
+            return auth_retCode;
         }
         else{
-            message.channel.send(`Addons direct download link unavailable, sorry… 😩`);
-            return false;
+            message.reply(`Addons direct download link unavailable, sorry… 😩`);
+            return E_RetCode.ERROR_INTERNAL;
         }
     }
 
-    return false;
+    return E_RetCode.ERROR_INPUT;
 }
 
 async function _cmd_config(cmdObj, clearanceLvl, utils){
+    let missingAuth_f= utils.checkAuth(cmdObj.msg_obj, "config")
+    let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f, false)
+    if(!my_utils.AuthAllowed_dataOnly(missingAuth_f)){
+        return auth_retCode
+    }
+
     let message= cmdObj.msg_obj;
     let sub_cmd= cmdObj.args[0]
     let args= cmdObj.args.slice(1);
@@ -871,34 +828,33 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
         if(Boolean(str)){
             if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
                 if(Boolean(kart_settings.http_url)){
-                    message.channel.send(`Srb2kart server's startup user config file: ${kart_settings.http_url}/${str}`);
-                    return true;
+                    message.reply(`Srb2kart server's startup user config file: ${kart_settings.http_url}/${str}`);
+                    return auth_retCode;
                 }
                 else{
-                    message.channel.send("❌ Can't access srb2kart server's config file…")
-                    return false;
+                    message.reply("❌ Can't access srb2kart server's config file…")
+                    return E_RetCode.ERROR_INTERNAL;
                 }
             }
             else if(fs.existsSync(str)){
-                message.channel.send("Srb2kart server's startup user config file:",
-                    {
-                        files: [{
-                            attachment: `${str}`,
-                            name: `startup.cfg`
-                        }]
-                    }
-                );
+                message.reply({
+                    content: "Srb2kart server's startup user config file:",
+                    files: [{
+                        attachment: `${str}`,
+                        name: `startup.cfg`
+                    }]
+                });
 
-                return true;
+                return auth_retCode;
             }
             else{
-                message.channel.send("❌ Can't access server's config file…")
-                return false;
+                message.reply("❌ Can't access server's config file…")
+                return E_RetCode.ERROR_INTERNAL;
             }
         }
         else{
-            message.channel.send("❌ Server internal error…")
-            return false;
+            message.reply("❌ Server internal error…")
+            return E_RetCode.ERROR_INTERNAL;
         }
     }
     else if(["set","up","ul","upload","change"].includes(args[0])){
@@ -909,7 +865,7 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
             
             if ( !Boolean(kart_settings) || !Boolean(kart_settings.dirs.main_folder) ){
                 hereLog("[cfg upload] no dest directory for cfg dl");
-                message.channel.send(`❌ server internal error`);
+                message.reply(`❌ server internal error`);
             }
             else if(url.endsWith('.cfg')){
                 // await __uploading_cfg(message.channel,url);
@@ -929,9 +885,9 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
 
                 if(!_b){
                     hereLog("[uploading cfg] command fail");
-                    message.channel.send(`❌ internal error preventing .cfg upload…`);
+                    message.reply(`❌ internal error preventing .cfg upload…`);
                     
-                    return false;
+                    return E_RetCode.ERROR_INTERNAL;
                 }
 
                 var str= undefined
@@ -946,7 +902,7 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
 
                 if(Boolean(str)){
                     hereLog(`[change cfg] ret: ${str}`)
-                    let options= (str==="updated" && !kart_settings.server_commands.through_ssh)?
+                    let payload= (str==="updated" && !kart_settings.server_commands.through_ssh)?
                         {
                             files: [{
                                 attachment: `${str}`,
@@ -954,32 +910,31 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
                             }]
                         } : {}
                     if(_isServerRunning()){
-                        message.channel.send(`\`startup.cfg\` a bien été mis à jour.\n`+
+                        payload.content=
+                            `\`startup.cfg\` a bien été mis à jour.\n`+
                             `Cependant, cela n'aura aucun effet pour la session déjà en cours\n` +
                             ( (kart_settings.server_commands.through_ssh)?
                                 `\nDiff: ${kart_settings.http_url}/startup.cfg.diff`
-                                : "Diff generated file" ),
-                            options
-                        );
+                                : "Diff generated file"
+                            )
                     }
                     else{
-                        message.channel.send(
-                            ( (kart_settings.server_commands.through_ssh)?
-                                `\nDiff: ${kart_settings.http_url}/startup.cfg.diff`
-                                : "Diff generated file" ),
-                            options
-                        );
+                        payload.content= 
+                            (kart_settings.server_commands.through_ssh)?
+                                    `\nDiff: ${kart_settings.http_url}/startup.cfg.diff`
+                                :   "Diff generated file" 
                     }
+                    message.reply(payload)
                 }
                 else{
-                    message.channel.send(`❌ internal error while trying to update *startup.cfg*…`);
+                    message.reply(`❌ internal error while trying to update *startup.cfg*…`);
                 }
 
-                return true;
+                return auth_retCode;
             }
             else{
-                message.channel.send("❌ only .cfg files…");
-                return false;
+                message.reply("❌ only .cfg files…");
+                return E_RetCode.ERROR_INPUT;
             }
         }
     }
@@ -995,16 +950,16 @@ async function _cmd_config(cmdObj, clearanceLvl, utils){
         }
 
         if(Boolean(str)){
-            message.channel.send(`Forbidden commands within *custom configuration startup script*:\n\t${str}`);
-            return true;
+            message.reply(`Forbidden commands within *custom configuration startup script*:\n\t${str}`);
+            return auth_retCode;
         }
         else{
-            message.channel.send("❌ server internal error");
-            return false;
+            message.reply("❌ server internal error");
+            return E_RetCode.ERROR_INTERNAL;
         }
     }
 
-    return false;
+    return E_RetCode.ERROR_INPUT;
 }
 
 async function _cmd_addon_load(cmdObj, clearanceLvl, utils){
@@ -1013,6 +968,12 @@ async function _cmd_addon_load(cmdObj, clearanceLvl, utils){
     let args= cmdObj.args.slice(1);
 
     if(args.length===0 || ["get","dl","download","check"].includes(args[0])){
+        let missingAuth_f= utils.checkAuth(cmdObj.msg_obj, ["addon_load","get"])
+        let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f)
+        if(!my_utils.AuthAllowed_noData(missingAuth_f)){
+            return auth_retCode
+        }
+        
         var str= undefined
         try{
             var cmd= __kartCmd(kart_settings.config_commands.get_addon_load_config);
@@ -1026,17 +987,18 @@ async function _cmd_addon_load(cmdObj, clearanceLvl, utils){
         if(Boolean(str)){
             if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
                 if(Boolean(kart_settings.http_url)){
-                    message.channel.send(`Srb2kart server's addons load order config file: ${kart_settings.http_url}/${str}`);
-                    return true;
+                    message.reply(`Srb2kart server's addons load order config file: ${kart_settings.http_url}/${str}`);
+                    return auth_retCode;
                 }
                 else{
-                    message.channel.send("❌ Can't access srb2kart server's addons load order config file…")
-                    return false;
+                    message.reply("❌ Can't access srb2kart server's addons load order config file…")
+                    return E_RetCode.ERROR_INTERNAL;
                 }
             }
             else if(fs.existsSync(str)){
-                message.channel.send("Srb2kart server's addons load order config file:",
+                message.reply(
                     {
+                        content: "Srb2kart server's addons load order config file:",
                         files: [{
                             attachment: `${str}`,
                             name: `addon_load_order.txt`
@@ -1044,27 +1006,32 @@ async function _cmd_addon_load(cmdObj, clearanceLvl, utils){
                     }
                 );
 
-                return true;
+                return auth_retCode;
             }
             else{
-                message.channel.send("❌ Can't access server's addons load order config file…")
-                return false;
+                message.reply("❌ Can't access server's addons load order config file…")
+                return E_RetCode.ERROR_INTERNAL;
             }
         }
         else{
-            message.channel.send("❌ Server internal error…")
-            return false;
+            message.reply("❌ Server internal error…")
+            return E_RetCode.ERROR_INTERNAL;
         }
     }
     else if(["set","up","ul","upload","change"].includes(args[0])){
-        if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`, clearanceLvl)) return false
+        // if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`, clearanceLvl)) return false
+        let missingAuth_f= utils.checkAuth(cmdObj.msg_obj, ["addon_load","set"])
+        let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f, false)
+        if(!my_utils.AuthAllowed_dataOnly(missingAuth_f)){
+            return auth_retCode
+        }
 
         if(Boolean(message.attachments) && message.attachments.size>=1){
             var url= message.attachments.first().url;
             
             if ( !Boolean(kart_settings) || !Boolean(kart_settings.dirs.main_folder) ){
                 hereLog("[upload] no dest directory for addon order config dl");
-                message.channel.send(`❌ server internal error`);
+                message.reply(`❌ server internal error`);
             }
             else{
                 // await __uploading_cfg(message.channel,url);
@@ -1084,9 +1051,9 @@ async function _cmd_addon_load(cmdObj, clearanceLvl, utils){
 
                 if(!_b){
                     hereLog("[uploading load order config] command fail");
-                    message.channel.send(`❌ internal error preventing addon order config upload…`);
+                    message.reply(`❌ internal error preventing addon order config upload…`);
                     
-                    return false;
+                    return E_RetCode.ERROR_INTERNAL;
                 }
 
                 var str= undefined
@@ -1101,7 +1068,7 @@ async function _cmd_addon_load(cmdObj, clearanceLvl, utils){
 
                 if(Boolean(str)){
                     hereLog(`[change cfg] ret: ${str}`)
-                    let options= (str==="updated" && !kart_settings.server_commands.through_ssh)?
+                    let payload= (str==="updated" && !kart_settings.server_commands.through_ssh)?
                         {
                             files: [{
                                 attachment: `${str}`,
@@ -1109,33 +1076,34 @@ async function _cmd_addon_load(cmdObj, clearanceLvl, utils){
                             }]
                         } : {}
                     if(_isServerRunning()){
-                        message.channel.send(`\`addon_load_order.txt\` a bien été mis à jour.\n`+
+                        payload.content=
+                            `\`addon_load_order.txt\` a bien été mis à jour.\n`+
                             `Cependant, cela n'aura aucun effet pour la session déjà en cours\n` +
                             ( (kart_settings.server_commands.through_ssh)?
-                                `\nDiff: ${kart_settings.http_url}/addon_load_order.txt.diff`
-                                : "Diff generated file" ),
-                            options
-                        );
+                                    `\nDiff: ${kart_settings.http_url}/addon_load_order.txt.diff`
+                                :   "Diff generated file"
+                            )
                     }
                     else{
-                        message.channel.send(
+                        payload.content=
                             ( (kart_settings.server_commands.through_ssh)?
-                                `\nDiff: ${kart_settings.http_url}/addon_load_order.txtdiff`
-                                : "Diff generated file" ),
-                            options
-                        );
+                                    `\nDiff: ${kart_settings.http_url}/addon_load_order.txtdiff`
+                                :   "Diff generated file"
+                            )
                     }
+                    message.reply(payload)
                 }
                 else{
-                    message.channel.send(`❌ internal error while trying to update *addon_load_order.txt.cfg*…`);
+                    message.reply(`❌ internal error while trying to update *addon_load_order.txt.cfg*…`);
+                    return E_RetCode.ERROR_INTERNAL
                 }
 
-                return true;
+                return auth_retCode;
             }
         }
     }
 
-    return false;
+    return E_RetCode.ERROR_INPUT;
 }
 
 async function ___stringFromID(guild, id){
@@ -1851,19 +1819,24 @@ function _cmd_mapInfo(cmdObj,clearanceLvl,utils){
     let args= cmdObj.args.slice(1);
     
     // if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`, clearanceLvl)) return false
+    let missingAuth_f= utils.checkAuth(cmdObj.msg_obj, "maps-skins")
+    let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f)
+    if(!my_utils.AuthAllowed_noData(missingAuth_f)){
+        return auth_retCode
+    }
 
     if(!Boolean(kart_settings) || !Boolean(kart_settings.config_commands)){
         hereLog(`[fetchInfos] bad config…`);
-        message.channel.send("❌ Internal error")
-        return false;
+        message.reply("❌ Internal error")
+        return E_RetCode.ERROR_INTERNAL;
     }
 
     var mapObj= __cmd_fetchJsonInfo(kart_settings.config_commands.maps_info)
 
     if(!(Boolean(mapObj)) || !(Boolean(mapObj.maps))){
         hereLog(`[mapInfos] couldn't fetch maps infos…`)
-        message.channel.send("❌ Data access error")
-        return false
+        message.reply("❌ Data access error")
+        return E_RetCode.ERROR_INTERNAL
     }    
     
     
@@ -1939,13 +1912,13 @@ function _cmd_mapInfo(cmdObj,clearanceLvl,utils){
     })
 
     if (l_ret.length>0 && !b_num)
-        message.channel.send(`Found ${l_ret.length} maps:\n\n${l_ret.join('\n')}`, {split: true})
+        message.reply(`Found ${l_ret.length} maps:\n\n${l_ret.join('\n')}`, {split: true})
     else if (l_ret.length>0)
-        message.channel.send(`Found ${l_ret.length} maps!`)
+        message.reply(`Found ${l_ret.length} maps!`)
     else
-        message.channel.send(`No map found…`)
+        message.reply(`No map found…`)
 
-    return true
+    return auth_retCode
 }
 
 function _cmd_skinInfo(cmdObj,clearanceLvl,utils){
@@ -1954,19 +1927,24 @@ function _cmd_skinInfo(cmdObj,clearanceLvl,utils){
     let args= cmdObj.args.slice(1);
 
     // if(!_kartingClearanceCheck(message, utils, `${sub_cmd} ${args[0]}`, clearanceLvl)) return false
+    let missingAuth_f= utils.checkAuth(cmdObj.msg_obj, "maps-skins")
+    let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f)
+    if(!my_utils.AuthAllowed_noData(missingAuth_f)){
+        return auth_retCode
+    }
 
     if(!Boolean(kart_settings) || !Boolean(kart_settings.config_commands)){
         hereLog(`[fetchInfos] bad config…`);
-        message.channel.send("❌ Internal error")
-        return false;
+        message.reply("❌ Internal error")
+        return E_RetCode.ERROR_INTERNAL;
     }
 
     var skinObj= __cmd_fetchJsonInfo(kart_settings.config_commands.skins_info)
 
     if((!Boolean(skinObj)) || (!Boolean(skinObj.skins))){
         hereLog(`[mapInfos] couldn't fetch maps infos…`)
-        message.channel.send("❌ Data access error")
-        return false
+        message.reply("❌ Data access error")
+        return E_RetCode.ERROR_INTERNAL
     }
 
     var skinNames= Object.keys(skinObj.skins)
@@ -2045,9 +2023,9 @@ function _cmd_skinInfo(cmdObj,clearanceLvl,utils){
         response+= `\n\n${l_ret.join('\n')}`
         
 
-    message.channel.send(response, {split: true})
+    message.reply(response, {split: true})
 
-    return true
+    return auth_retCode
 }
 
 function __api_generateUserPrivilegedToken(user, clearanceLvl){
@@ -2103,7 +2081,13 @@ async function _clipsState(){
     }
 }
 
-function _send_clipsState(message){
+function _send_clipsState(message, utils){
+    let missingAuth_f= utils.checkAuth(message, ["clips","info"])
+    let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f)
+    if(!my_utils.AuthAllowed_noData(missingAuth_f)){
+        return auth_retCode
+    }
+
     return _clipsState().then(info => {
         embed= {}
         embed.fields= []
@@ -2122,19 +2106,25 @@ function _send_clipsState(message){
         })
         embed.thumbnail= { url: "https://strashbot.fr/img/clips_thumb.png" }
 
-        message.channel.send({embed})
+        message.reply({embeds: [embed]})
 
-        return true
+        return auth_retCode
     }).catch(err => {
         hereLog(`[clipState] trying to get clips state - ${err}`)
-        message.channel.send(`Error while fetching clips infos... :()`)
+        message.reply(`Error while fetching clips infos... :()`)
 
-        return false
+        return E_RetCode.ERROR_INTERNAL
     })
 }
 
-async function __send_clipInfo_req(clipID, message){
+async function __send_clipInfo_req(clipID, message, utils){
     let api_clip_addr=`${kart_settings.api.host}${(Boolean(kart_settings.api.port)?`:${kart_settings.api.port}`:'')}${kart_settings.api.root}/clip/${clipID}`
+
+    let missingAuth_f= utils.checkAuth(message, ["clips","info"])
+    let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f)
+    if(!my_utils.AuthAllowed_noData(missingAuth_f)){
+        return auth_retCode
+    }
 
     return axios.get(api_clip_addr).then(async response => {
         if(response.status===200){
@@ -2164,30 +2154,30 @@ async function __send_clipInfo_req(clipID, message){
             ]
             embed.footer= { text: "Published on https://strashbot.fr/gallery.html"}
 
-            message.channel.send({embed})
-            return true
+            message.reply({embeds: [embed]})
+            return auth_retCode
         }
         else{
             hereLog(`[clipApiInfo] bad api response on '${api_clip_addr}' - status: ${response.status}`)
-            return false
+            return E_RetCode.ERROR_INTERNAL
         }
     }).catch(err =>{
         if(err.response.status===404){
             hereLog(`[clipApiInfo] got 404 - ${JSON.stringify(err.response.data)}`)
 
             message.author.send(`[${message.guild}] **Clip not found**: No clip was found under id: ${clipID} …`)
+            return E_RetCode.ERROR_INPUT
         }
         else{
             hereLog(`[clipApiInfo] api error on '${api_clip_addr}' - ${err}`)
+            return E_RetCode.ERROR_INTERNAL
         }
-
-        return false
     })
 }
 
 async function _cmd_clip_api(cmdObj, clearanceLvl, utils){
     if(!(Boolean(kart_settings.api) && Boolean(kart_settings.api.host))){
-        return false
+        return E_RetCode.ERROR_INTERNAL
     }
 
     let message= cmdObj.msg_obj;
@@ -2253,20 +2243,26 @@ async function _cmd_clip_api(cmdObj, clearanceLvl, utils){
         if(args[0].toLowerCase()==="info"){
             let c_id= parseInt(args[1])
             if(isNaN(c_id)){
-                return await _send_clipsState(message)
+                return await _send_clipsState(message, utils)
             }
             else{
-                return (await __send_clipInfo_req(c_id, message))
+                return (await __send_clipInfo_req(c_id, message, utils))
             }
         }
         else if ((!isNaN(parseInt(args[0]))) && !has_attachments){
-            return (await __send_clipInfo_req(parseInt(args[0]), message))
+            return (await __send_clipInfo_req(parseInt(args[0]), message, utils))
         }
         else if(["rm","del","delete","remove","delete"].includes(args[0].toLowerCase())){
+            let missingAuth_f= utils.checkAuth(message, ["clips","manage"])
+            let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f, false)
+            if(!my_utils.AuthAllowed_dataOnly(missingAuth_f)){
+                return auth_retCode
+            }
+            
             let c_id= parseInt(args[1])
             if(args.length<2 || isNaN(c_id)){
                 message.author.send(`[${message.guild}] command \`!kart ${sub_cmd}\` needs a "clipID" as argument`)
-                return false
+                return ERROR_INPUT
             }
 
             let api_clip_addr=`${kart_settings.api.host}${(Boolean(kart_settings.api.port)?`:${kart_settings.api.port}`:'')}${kart_settings.api.root}/clip/${c_id}`
@@ -2275,38 +2271,45 @@ async function _cmd_clip_api(cmdObj, clearanceLvl, utils){
             if(!Boolean(token)){
                 message.author.send(`[${message.guild}] unable to grant necessary privileges to remove clip id: ${c_id}`)
 
-                return false
+                return E_RetCode.ERROR_REFUSAL
             }
 
             return (await axios.delete(api_clip_addr, {headers: {'x-access-token': token}, data: {submitter_id: message.author.id}})
                 .then(async response => {
                     if(response.status===200){
-                        return true
+                        return auth_retCode
                     }
                     else{
                         hereLog(`[clipApiRemove] bad api response on '${api_clip_addr}' - status: ${response.status}`)
-                        return false
+                        return E_RetCode.ERROR_INTERNAL
                     }
                 }).catch(err =>{
                     if(err.response.status===403){
                         message.author.send(`[${message.guild}]{403} you lack necessary privileges to remove clip id: ${c_id}`)
+                        return E_RetCode.ERROR_REFUSAL
                     }
                     else if(err.response.status===404){
-                        message.channel.send(`[${message.guild}]{404} **Clip not found**: No clip was found under id: ${c_id} …`)
+                        message.reply(`[${message.guild}]{404} **Clip not found**: No clip was found under id: ${c_id} …`)
+                        return E_RetCode.ERROR_INPUT
                     }
                     else{
                         hereLog(`[clipApiRemove] api error on '${api_clip_addr}' - ${err}`)
+                        return E_RetCode.ERROR_INTERNAL
                     }
-
-                    return false
                 })
             )
         }
         else if(["edit","desc","description","text"].includes(args[0].toLowerCase())){
+            let missingAuth_f= utils.checkAuth(message, ["clips","manage"])
+            let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f, false)
+            if(!my_utils.AuthAllowed_dataOnly(missingAuth_f)){
+                return auth_retCode
+            }
+            
             let c_id= parseInt(args[1])
             if(args.length<2 || isNaN(c_id)){
                 message.author.send(`[${message.guild}] command \`!kart ${sub_cmd}\` needs a "clipID" as argument`)
-                return false
+                return E_RetCode.ERROR_INPUT
             }
 
             let desc= ""
@@ -2324,34 +2327,33 @@ async function _cmd_clip_api(cmdObj, clearanceLvl, utils){
             if(!Boolean(token)){
                 message.author.send(`[${message.guild}] unable to grant necessary privileges to remove clip id: ${c_id}`)
 
-                return false
+                return E_RetCode.ERROR_INPUT
             }
 
             let data= {submitter_id: message.author.id, description: desc}
             return (await axios.put(api_clip_addr, data, {headers: {'x-access-token': token}})
                 .then(async response => {
                     if(response.status===200){
-                        return true
+                        return auth_retCode
                     }
                     else{
                         hereLog(`[clipApiEdit] bad api response on '${api_clip_addr}' - status: ${response.status}`)
-                        return false
+                        return E_RetCode.ERROR_INTERNAL
                     }
                 }).catch(err =>{
                     if(err.response.status===403){
                         message.author.send(`[${message.guild}]{403} you lack necessary privileges to access clip id: ${c_id}`)
 
-                        return false
+                        return E_RetCode.ERROR_REFUSAL
                     }
                     else if(err.response.status===404){
-                        message.channel.send(`[${message.guild}]{404} **Clip not found**: No clip was found under id: ${c_id} …`)
-                        return false
+                        message.reply(`[${message.guild}]{404} **Clip not found**: No clip was found under id: ${c_id} …`)
+                        return E_RetCode.ERROR_INPUT
                     }
                     else{
                         hereLog(`[clipApiEdit] api error on '${api_clip_addr}' - ${err}`)
+                        return E_RetCode.ERROR_INTERNAL
                     }
-
-                    return false
                 })
             )
         }
@@ -2368,7 +2370,7 @@ async function _cmd_clip_api(cmdObj, clearanceLvl, utils){
         add_opt.url= message.attachments.first().url;
     }
     else{
-        return await _send_clipsState(message)
+        return await _send_clipsState(message, utils)
     }
 
     if(Boolean(add_opt.url)){
@@ -2376,11 +2378,17 @@ async function _cmd_clip_api(cmdObj, clearanceLvl, utils){
 
         let api_clip_addr=`${kart_settings.api.host}${(Boolean(kart_settings.api.port)?`:${kart_settings.api.port}`:'')}${kart_settings.api.root}/clip/new`
 
+        let missingAuth_f= utils.checkAuth(message, ["clips","manage"])
+        let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f, false)
+        if(!my_utils.AuthAllowed_dataOnly(missingAuth_f)){
+            return auth_retCode
+        }
+
         token= __api_generateUserPrivilegedToken(message.author, clearanceLvl)
         if(!Boolean(token)){
             message.author.send(`[${message.guild}] unable to grant necessary privileges to add new clip`)
 
-            return false
+            return E_RetCode.ERROR_REFUSAL
         }
 
 
@@ -2388,29 +2396,33 @@ async function _cmd_clip_api(cmdObj, clearanceLvl, utils){
         return (await axios.post(api_clip_addr, data, {headers: {'x-access-token': token}})
             .then(async response => {
                 if(response.status===200){
-                    return true
+                    return auth_retCode
                 }
                 else{
                     hereLog(`[clipApiAdd] bad api response on '${api_clip_addr}' - status: ${response.status}`)
-                    return false
+                    return E_RetCode.ERROR_INTERNAL
                 }
-            }).catch(err =>{
+            }).catch(async err =>{
                 if(err.response.status===403){
                     message.author.send(`[${message.guild}]{403} you lack necessary privileges to add new clip`)
+                    return E_RetCode.ERROR_REFUSAL
                 }
                 else if(err.response.status===440){
                     message.author.send(
                         `[${message.guild}]{440} the url/file to try to register as clip isn't valid:\n`+
                         `Please only:\n\t* youtube links\n\t* streamable.com links\n\t* .gif,.mp4,.webm links/file`
                     )
+                    return E_RetCode.ERROR_INPUT
                 }
                 else if(err.response.status===400){
                     message.author.send(
                         `[${message.guild}]{400} missing or invalid url?`
                     )
+                    return E_RetCode.ERROR_INPUT
                 }
                 else if(err.response.status===441){
                     hereLog(`[clipApiAdd] bad identification for user ${author.id} - ${JSON.stringify(response.data)}`)
+                    return E_RetCode.ERROR_REFUSAL
                 }
                 else if(err.response.status===409){
                     message.author.send(
@@ -2420,630 +2432,389 @@ async function _cmd_clip_api(cmdObj, clearanceLvl, utils){
                     if(Boolean(response.data && response.data.resource)){
                         f_c_id= err.response.data.resource.split('/')[2]
 
-                        __send_clipInfo_req(f_c_id, message)
+                        return (await __send_clipInfo_req(f_c_id, message, utils))
                     }
+
+                    return E_RetCode.ERROR_REFUSAL
                 }
                 else{
                     hereLog(`[clipApiAdd] api error on '${api_clip_addr}' - ${err}`)
+                    return E_RetCode.ERROR_INTERNAL
                 }
-
-                return false
             })
         )
     }
     else{
         hereLog(`[clipApi] no action found…`)
 
-        return false
+        return E_RetCode.ERROR_INPUT
     }
 }
+
 
 async function cmd_main(cmdObj, clearanceLvl, utils){
     let message= cmdObj.msg_obj;
     let args= cmdObj.args;
-    if(args[0]==="role" && (clearanceLvl>CLEARANCE_LEVEL.NONE)){
-        if(args[1]==="clear"){
-            utils.settings.remove(message.guild, 'kart_role');
 
-            return true
-        }
-        else if(args[1]==="which"){
-            var roleKart= utils.settings.get(message.guild, 'kart_role');
-            var role= undefined;
-            if(!Boolean(roleKart) || !Boolean(role=message.guild.roles.cache.get(roleKart))){
-                message.author.send("No role set as *karting main role*…");
-
-                return true;
-            }
-            else {
-                message.author.send(`Role \"${role.name}\" is set as the *karting main role*…`);
-
-                return true;
-            }
-        }
-        var role= undefined;
-        if(!Boolean(message.mentions) || !Boolean(message.mentions.roles) || !Boolean(role=message.mentions.roles.first())){
-            message.member.send("[kart command] No mention to any role found… Format is:\n\t`!kart role @rolemention`");
-
-            return false;
+    if(["run","launch","start","go","vroum"].includes(args[0])){
+        let missingAuth_f= utils.checkAuth(cmdObj.msg_obj, "start-stop-restart")
+        let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f, false)
+        if(!my_utils.AuthAllowed_dataOnly(missingAuth_f)){
+            return auth_retCode
         }
 
-        utils.settings.set(message.guild, 'kart_role', role.id);
-
-        return true;
-    }
-    else if(args[0]==="admin_role" && (clearanceLvl>CLEARANCE_LEVEL.NONE)){
-        if(args[1]==="clear"){
-            utils.settings.remove(message.guild, 'kart_admin_role');
-
-            return true
+        if(_isServerRunning()){
+            str="Server SRB2Kart is already running…";
+            message.reply(str);
         }
-        else if(args[1]==="which"){
-            var roleKart= utils.settings.get(message.guild, 'kart_admin_role');
-            var role= undefined;
-            if(!Boolean(roleKart) || !Boolean(role=message.guild.roles.cache.get(roleKart))){
-                message.author.send("No role set as *karting admin role*…");
+        else{
+            var success= _startServer();
 
-                return true;
-            }
-            else{
-                message.author.send(`Role \"${role.name}\" is set as the *karting admin role*…`);
-
-                return true;
-            }
-        }
-        var role= undefined;
-        if(!Boolean(message.mentions) || !Boolean(message.mentions.roles) || !Boolean(role=message.mentions.roles.first())){
-            message.member.send("[kart command] No mention to any role found… Format is:\n\t`!kart admin_role @rolemention`");
-
-            return false;
-        }
-
-        utils.settings.set(message.guild, 'kart_admin_role', role.id);
-
-        return true;
-    }
-    else if(args[0]==="channel" && (clearanceLvl>CLEARANCE_LEVEL.NONE)){
-        if(args[1]==="clear"){
-            utils.settings.remove(message.guild, 'kart_channel');
-
-            if(_isServerRunning()){
+            if(!success){
                 _stopServer(true);
+                message.reply(`[kart command] unable to start SRB2Kart server…`);
+
+                return E_RetCode.ERROR_INTERNAL;
             }
 
-            return true;
+            return auth_retCode;
         }
-        else if(args[1]==="which"){
-            var chanKart= utils.settings.get(message.guild, 'kart_channel');
-            var channel= undefined;
-            if(!Boolean(chanKart) || !Boolean(channel=message.guild.channels.cache.get(chanKart))){
-                message.author.send("No channel set as *dedicated srb2kart channel*…");
-
-                return true;
-            }
-            else{
-                message.author.send(`Channel \"${channel}\" is set as the *dedicated srb2kart channel*…`);
-
-                return true;
-            }
-        }
-        var channel= undefined
-        if(!Boolean(message.mentions) || !Boolean(message.mentions.channels) || !Boolean(channel=message.mentions.channels.first())){
-            message.member.send("[kart command] No mention to any channel found… Format is:\n\t`!kart channel #channelmention`");
-
-            return false;
-        }
-
-        utils.settings.set(message.guild, 'kart_channel', channel.id);
-
-        return true;
-
     }
-    else{
-        // var chanKart= utils.settings.get(message.guild, 'kart_channel');
-        // if(!Boolean(chanKart) || chanKart!==message.channel.id){
-        //     message.member.send(`[kart command] command \`!kart ${args[0]}\` only possible in dedicated kart channel…`);
-        //     return false;
-        // }
-        if((!(_getKartingLevel(message, utils) & KARTING_LEVEL.KART_CHANNEL))){
-            message.member.send(`[kart command] command \`!kart ${args[0]}\` only possible in dedicated kart channel…`);
-            return false;
+    else if(["halt","quit","stop","nope","kill","shutdown","done"].includes(args[0])){
+        // if(!_kartingClearanceCheck(message, utils, args[0], clearanceLvl)) return false
+        let missingAuth_f= utils.checkAuth(cmdObj.msg_obj, "start-stop-restart")
+        let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f, false)
+        if(!my_utils.AuthAllowed_dataOnly(missingAuth_f)){
+            return auth_retCode
         }
-
-        if(["run","launch","start","go","vroum"].includes(args[0])){
-            if(!_kartingClearanceCheck(message, utils, args[0], clearanceLvl)) return false
-
-            if(_isServerRunning()){
-                str="Server SRB2Kart is already running…";
-
-                var servOwner= utils.settings.get(message.guild, "serv_owner");
-                var owner= undefined;
-                if(!Boolean(servOwner) || !Boolean(owner= await utils.getBotClient().users.fetch(servOwner))){
-                    str+=`\n\t⚠ No SRB2Kart server owner set. (use \`!kart claim\` to take admin privileges)`;
-                }
-                else{
-                    str+=`\n\t*Server owner is ${owner}*`;
-                }
-                message.channel.send(str);
-            }
-            else{
-                var success= _startServer();
-
-                if(!success){
-                    _stopServer(true);
-                    message.member.send(`[kart command] unable to start SRB2Kart server…`);
-
-                    return false;
-                }
-
-                if( args.length>1 && ["lone","void","stand","alone","free","standalone"].includes(args[1])){
-                    message.channel.send("Strashbot srb2kart server started…\n"+
-                        "\t⚠ No SRB2Kart server owner set. (use \`!kart claim\` to take admin privileges)"
-                    );
-                }
-                else{
-                    pwd= _getPassword();
-                    utils.settings.set(message.guild, "serv_owner", message.member.id);
-                    message.member.send(`Server admin password: \`${pwd}\`\n\tUne fois connecté au serveur SRB2Kart, ingame utilise la commande \`login ${pwd}\` pour accéder à l'interface d'admin!`);
-                    message.channel.send("Strashbot srb2kart server started…");
-                }
-
-                return true;
-            }
-        }
-        else if(["halt","quit","stop","nope","kill","shutdown","done"].includes(args[0])){
-            if(!_kartingClearanceCheck(message, utils, args[0], clearanceLvl)) return false
-
-            var servOwner= utils.settings.get(message.guild, "serv_owner");
-            var owner= undefined;
-            if( (!Boolean(servOwner) || !Boolean(owner= await utils.getBotClient().users.fetch(servOwner))) ||
-                ((clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE) || (owner.id===message.author.id))
-            ){
-                res= _stopServer( args.length>1 && args[1]==="force" );
-                if(res!=="error"){
-                    if(res==="populated"){
-                        message.channel.send("There might be some players remaining on Strashbot srb2kart server…\n"+
-                            "Are you sure you want to stop the server?\n"+
-                            `If so use: \`!kart stop force\``
-                        );
-                        return false;
-                    }
-                    else{
-                        message.channel.send("Strashbot srb2kart server stopped…");
-                        utils.settings.remove(message.guild, "serv_owner");
-                        return true;
-                    }
-                }
-                else{
-                    message.channel.send("Error while trying to stop server… 😰");
-                    return false;
-                }
-            }
-            else{
-                message.channel.send("Seule la personne qui a lancé le serveur SRB2Kart peut le stopper…");
-                return false;
-            }
-        }
-        else if(["restart","retry","re","again","relaunch"].includes(args[0])){
-            if(!_kartingClearanceCheck(message, utils, args[0], clearanceLvl)) return false
-
-            var servOwner= utils.settings.get(message.guild, "serv_owner");
-            var owner= undefined;
-            if( (!Boolean(servOwner) || !Boolean(owner= await utils.getBotClient().users.fetch(servOwner))) ||
-                ((clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE) || (owner.id===message.author.id))
-            ){
-                var b_force= ( args.length>1 && args.includes("force"));
-                var res= _restartServer(b_force);
-                if(res==="error"){
-                    var str="Error while restarting server…"
-                    if (_isServerRunning()){
-                        str+="\n\tServer seems to remain active…";
-                    }
-                    else{
-                        str+="\n\tServer seems stopped… ";
-                        utils.settings.remove(message.guild, "serv_owner");
-                    }
-                    message.channel.send(str);
-                    return false;
-                }
-                else{
-                    var b_stand= ( args.length>1 &&
-                        args.some((a) => {return ["lone","void","stand","alone","free","standalone"].includes(a)}) 
-                    );
-
-                    if(res==="populated"){
-                        message.channel.send("There might be some players remaining on Strashbot srb2kart server…\n"+
-                            "Are you sure you want to restart the server?\n"+
-                            `If so use: \`!kart restart ${(b_stand)?"stand ":""}force\``
-                        );
-                        return false;
-                    }
-
-                    if( b_stand ){
-                        message.channel.send("Strashbot srb2kart server restarted…\n"+
-                            "\t⚠ No SRB2Kart server owner set. (use \`!kart claim\` to take admin privileges)"
-                        );
-                        utils.settings.remove(message.guild, "serv_owner");
-                    }
-                    else{
-                        pwd= _getPassword();
-                        utils.settings.set(message.guild, "serv_owner", message.member.id);
-                        message.member.send(`Server admin password: \`${pwd}\`\n\tUne fois connecté au serveur SRB2Kart, ingame utilise la commande \`login ${pwd}\` pour accéder à l'interface d'admin!`);
-                        message.channel.send("Strashbot srb2kart server restarted…");
-                    }
-    
-                    return true;
-                }
-            }
-            else{
-                message.channel.send("Seule la personne qui a lancé le serveur SRB2Kart peut le redémarrer");
-                return false;
-            }
-        }
-        else if(["password","pwd","access","admin"].includes(args[0])){
-            if(!_kartingClearanceCheck(message, utils, args[0], clearanceLvl)) return false
-
-            if(!_isServerRunning()){
-                message.channel.send(`Auncun serveur SRB2Kart actif…`);
-                return false;
-            }
-
-            var servOwner= utils.settings.get(message.guild, "serv_owner");
-            var owner= undefined;
-            if( (clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE) || 
-                (Boolean(servOwner) && Boolean(owner= await utils.getBotClient().users.fetch(servOwner)) && (owner.id===message.author.id) )
-                || !Boolean(servOwner) || !Boolean(owner)
-            ){
-                pwd= _getPassword();
-                message.member.send(`Server admin password: \`${pwd}\`\n\tUne fois connecté au serveur SRB2Kart, ingame utilise la commande \`login ${pwd}\` pour accéder à l'interface d'admin!`)
-                return true;
-            }
-
-            return false;
-        }
-        else if(["takeover","claim","seize","force","own","lock","lead","control","ctrl"].includes(args[0])){
-            if(!_kartingClearanceCheck(message, utils, args[0], clearanceLvl)) return false
-
-            var servOwner= utils.settings.get(message.guild, "serv_owner");
-            var owner= undefined;
-            if(!_isServerRunning()){
-                message.channel.send(`Auncun serveur SRB2Kart actif…`);
-                return false;
-            }
-            if( (clearanceLvl>CLEARANCE_LEVEL.ADMIN_ROLE)
-                || !Boolean(servOwner) || !Boolean(owner= await utils.getBotClient().users.fetch(servOwner))
-            ){
-                pwd= _getPassword();
-                await message.member.send(`Server admin password: \`${pwd}\`\n\tUne fois connecté au serveur SRB2Kart, ingame utilise la commande \`login ${pwd}\` pour accéder à l'interface d'admin!`);
-                utils.settings.set(message.guild, "serv_owner", message.member.id);
-                message.channel.send(`Nouvel admin désigné du serveur SRB2Kart: ${message.member.user}…`);
-
-                return true;
-            }
-            else{
-                message.channel.send(`Le serveur SRB2Kart a toujours un admin désigné (${owner})…`);
-
-                return false;
-            }
-
-        }
-        else if(["give","chown","transfer"].includes(args[0])){
-            if(!_kartingClearanceCheck(message, utils, args[0], clearanceLvl)) return false
-
-            var member= undefined
-            if(!Boolean(message.mentions) || !Boolean(message.mentions.members) || !Boolean(member=message.mentions.members.first())){
-                message.member.send(`[kart command] No mention to any user found… Format is:\n\t\`!kart ${args[0]} @usermention\``);
-
-                return false;
-            }
-
-            if(!_isServerRunning()){
-                message.channel.send(`Auncun serveur SRB2Kart actif…`);
-                return false;
-            }
-
-            var servOwner= utils.settings.get(message.guild, "serv_owner");
-            var owner= undefined;
-            if( (clearanceLvl>=CLEARANCE_LEVEL.ADMIN_ROLE) ||
-            ( Boolean(servOwner) && Boolean(owner= await utils.getBotClient().users.fetch(servOwner)) && owner.id===message.author.id)
-            ){
-                pwd= _getPassword();
-                member.send(`Server admin password: \`${pwd}\`\n\tUne fois connecté au serveur SRB2Kart, ingame, utilise la commande \`login ${pwd}\` pour accéder à l'interface d'admin!`);
-                utils.settings.set(message.guild, "serv_owner", member.id);
-                message.channel.send(`Nouvel admin désigné du serveur SRB2Kart: ${member}…`);
-
-                return true
-            }
-            else{
-                message.member.send(`Only the owner of the SRB2Kart server (or discord guild admin) can transfer ownership…`);
-
-                return false;
-            }
-        }
-        else if(["leave","quit","ragequit","unlock","disown","alone","gone","flee","john"].includes(args[0])){
-            if(!_kartingClearanceCheck(message, utils, args[0], clearanceLvl)) return false
-
-            if(!_isServerRunning()){
-                message.channel.send(`Auncun serveur SRB2Kart actif…`);
-                return false;
-            }
-
-            var servOwner= utils.settings.get(message.guild, "serv_owner");
-            var owner= undefined;
-            if( (clearanceLvl<=CLEARANCE_LEVEL.ADMIN_ROLE) ||
-            ( Boolean(servOwner) && Boolean(owner= await utils.getBotClient().users.fetch(servOwner)) && owner.id===message.author.id)
-            ){
-                utils.settings.remove(message.guild, "serv_owner");
-                message.channel.send(`⚠ Le serveur SRB2Kart n'a plus d'admin désigné… 😢\n`+
-                    `\t⚠ Il faut qu'un joueur récupère la propriété en utilisant la commande \`!kart claim\`!`
+        res= _stopServer( args.length>1 && args[1]==="force" );
+        if(res!=="error"){
+            if(res==="populated"){
+                message.reply("There might be some players remaining on Strashbot srb2kart server…\n"+
+                    "Are you sure you want to stop the server?\n"+
+                    `If so use: \`!kart stop force\``
                 );
-
-                return true;
+                return E_RetCode.ERROR_REFUSAL;
+            }
+            else{
+                message.reply("Strashbot srb2kart server stopped…");
+                return auth_retCode;
             }
         }
-        else if(["server","info","about","?"].includes(args[0])){
-            var embed= {}
-            embed.title=
-                (Boolean(args[1]))?
-                        `${args[1]}${(Boolean(args[2]))?`:${args[2]}`:''}`
-                    :   "Strashbot server";
-            embed.color= 0xff0000 //that's red (i hope? this rgba, right?)
+        else{
+            message.reply("Error while trying to stop server… 😰");
+            return E_RetCode.ERROR_INTERNAL;
+        }
+    }
+    else if(["restart","retry","re","again","relaunch"].includes(args[0])){
+        // if(!_kartingClearanceCheck(message, utils, args[0], clearanceLvl)) return false
+        let missingAuth_f= utils.checkAuth(cmdObj.msg_obj, "start-stop-restart")
+        let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f, false)
+        if(!my_utils.AuthAllowed_dataOnly(missingAuth_f)){
+            return auth_retCode
+        }
 
-            return await _askServInfos(args[1], args[2]).then(serverInfos => {
-                embed.fields=[];
+        var b_force= ( args.length>1 && args.includes("force"));
+        var res= _restartServer(b_force);
+        if(res==="error"){
+            var str="Error while restarting server…"
+            if (_isServerRunning()){
+                str+="\n\tServer seems to remain active…";
+            }
+            else{
+                str+="\n\tServer seems stopped… ";
+            }
+            message.reply(str);
+            return E_RetCode.ERROR_INTERNAL;
+        }
+        else{
+            if(res==="populated"){
+                message.reply("There might be some players remaining on Strashbot srb2kart server…\n"+
+                    "Are you sure you want to restart the server?\n"+
+                    `If so use: \`!kart restart force\``
+                );
+                return E_RetCode.ERROR_REFUSAL;
+            }
 
-                if(Boolean(serverInfos.service_status) && serverInfos.service_status==="DOWN"){
-                    embed.color= 0x808080
-                    embed.fields=[]
-                    embed.fields.push({
-                        name: "Strashbot server",
-                        value: "Le serveur semble inactif…",
-                        inline: false
-                    })
-                    embed.thumbnail= {
-                        url: 'http://strashbot.fr/img/server/inactive_thumb.png'
-                    }
-                }
-                else if(Boolean(serverInfos)){
-                    var ss= serverInfos.server
-                    if(Boolean(ss) && Boolean(ss.servername)
-                        && ss.servername.length>0
-                    ){
-                        embed.title= `${ss.servername}`
-                    }
-                    if(Boolean(ss) && Boolean(ss.application)
-                        && ss.application.length>0
-                    ){
-                        embed.footer= {
-                            text:
-                                `---\n${ss.application}` +
-                                `${(Boolean(ss.version) && Boolean(ss.subversion))?
-                                    ` v${ss.version}.${ss.subversion}`
-                                :   ''
-                                }`
-                        }
-                    }
+            return auth_retCode;
+        }
+    }
+    else if(["password","pwd","access","admin"].includes(args[0])){
+        // if(!_kartingClearanceCheck(message, utils, args[0], clearanceLvl)) return false
+        let missingAuth_f= utils.checkAuth(cmdObj.msg_obj, "start-stop-restart")
+        let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f, false)
+        if(!my_utils.AuthAllowed_dataOnly(missingAuth_f)){
+            return auth_retCode
+        }
 
-                    if(Boolean(serverInfos) && Boolean(serverInfos.thumbnail)){
-                        embed.thumbnail= {
-                            url: serverInfos.thumbnail
-                        }
-                    }
+        if(!_isServerRunning()){
+            message.reply(`Aucun serveur SRB2Kart actif…`);
+            return E_RetCode.ERROR_INTERNAL;
+        }
 
-                    if(Boolean(serverInfos) && Boolean(serverInfos.address)){
-                        embed.fields.push({
-                            name: 'Adresse de connexion',
-                            value: `\`${serverInfos.address}\``,
-                            inline: true
-                        })
-                    }
+        pwd= _getPassword();
+        message.member.send(`Server admin password: \`${pwd}\`\n\tUne fois connecté au serveur SRB2Kart, ingame utilise la commande \`login ${pwd}\` pour accéder à l'interface d'admin!`)
+        return auth_retCode;
+    }
+    else if(["server","info","about","?"].includes(args[0])){
+        let missingAuth_f= utils.checkAuth(cmdObj.msg_obj, "info")
+        let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f)
+        if(!my_utils.AuthAllowed_noData(missingAuth_f)){
+            return auth_retCode
+        }
 
-                    embed.fields.push({
-                        name: 'Map',
-                        value:
-                            `${Boolean(ss)?
-                                `${ss.mapname} - *${ss.maptitle}*`
-                            :   'erreur'
-                            }`,
-                        inline: true
-                    })
-                    embed.fields.push({
-                        name: "Population",
-                        value:
-                            `${Boolean(ss)?
-                                `${ss.numberofplayer} / ${ss.maxplayer}`
-                            :   'erreur'
-                            }`,
-                        inline: true
-                    })
+        var embed= {}
+        embed.title=
+            (Boolean(args[1]))?
+                    `${args[1]}${(Boolean(args[2]))?`:${args[2]}`:''}`
+                :   "Strashbot server";
+        embed.color= 0xff0000 //that's red (i hope? this rgba, right?)
 
-                    if(Boolean(ss) && [2,3].includes(ss.gametype)){
-                        embed.fields.push({
-                            name: (ss.gametype===2)?'KartSpeed':'Gametype',
-                            value: (ss.gametype===2 && Boolean(ss.kartspeed))?
-                                    ss.kartspeed
-                                :   "Battle",
-                            inline: true
-                        })
-                    }
+        return await _askServInfos(args[1], args[2]).then(serverInfos => {
+            embed.fields=[];
 
-                    var modes= 
-                        (Boolean(serverInfos.modes) && Boolean(serverInfos.modes.status=="OK"))?
-                            ( Boolean(serverInfos.modes.modes)? serverInfos.modes.modes : [] )
-                        :   undefined;
-                    if(Boolean(modes) && modes.length>0){
-                        embed.fields.push({
-                            name: "Modes",
-                            value: modes.join('; '),
-                            inline: false
-                        })
-                    }
-
-                    var players= [], spectators= []
-                    var sp= serverInfos.players
-                    if(Boolean(sp) && sp.length>0){
-                        for (var player of sp){
-                            if(!Boolean(player.team) || player.team.length<=0
-                                || player.team==="UNKNOWN"
-                            )
-                                continue
-                            else if(player.team==="SPECTATOR"){
-                                spectators.push(player.name)
-                            }
-                            else{
-                                players.push(player.name)
-                            }
-                        }
-                    }
-                    var s_players='-', s_spectators='-'
-                    if(players.length>0){
-                        s_players=''
-                        for(var name of players){
-                            s_players+= `*${name}*;\t `
-                        }
-                    }
-                    if(spectators.length>0){
-                        s_spectators=''
-                        for(var name of spectators){
-                            s_spectators+= `*${name}*;\t `
-                        }
-                    }
-
-                    embed.fields.push({
-                        name: "Players",
-                        value: s_players,
-                        inline: false
-                    })
-                    embed.fields.push({
-                        name: "Spectators",
-                        value: s_spectators,
-                        inline: false
-                    })
-                }
-                else{
-                    hereLog(`[ !kart info ] Bad info from API…`)
-
-                    embed.color= 0x808080
-                    embed.fields=[]
-                    embed.fields.push({
-                        name: "Erreur",
-                        value: "Problème lors de la récupération des infos…",
-                        inline: false
-                    })
-                    embed.thumbnail= {
-                        url: 'https://cdn-icons-png.flaticon.com/512/7706/7706689.png'
-                    }
-                }
-
-                message.channel.send({embed: embed})
-
-                return true;
-            }).catch(err => {
-                hereLog(`[ !kart info ] No serv info - ${err}`)
+            var ret_code= auth_retCode
+            if(Boolean(serverInfos.service_status) && serverInfos.service_status==="DOWN"){
                 embed.color= 0x808080
                 embed.fields=[]
                 embed.fields.push({
-                    name: "Offline",
-                    value: "Le serveur semble injoignable…",
+                    name: "Strashbot server",
+                    value: "Le serveur semble inactif…",
                     inline: false
                 })
                 embed.thumbnail= {
-                    url: 'https://cdn-icons-png.flaticon.com/512/8018/8018865.png'
+                    url: 'http://strashbot.fr/img/server/inactive_thumb.png'
                 }
-                
-                message.channel.send({embed: embed})
-                return true;
-            }) 
-        }
-        else if(["code","source","git"].includes(args[0])){
-            if(Boolean(kart_settings) && Boolean(kart_settings.source_url)){
-                message.channel.send(`SRB2Kart server manager source at: <${kart_settings.source_url}>`);
-                
-                return true;
+            }
+            else if(Boolean(serverInfos)){
+                var ss= serverInfos.server
+                if(Boolean(ss) && Boolean(ss.servername)
+                    && ss.servername.length>0
+                ){
+                    embed.title= `${ss.servername}`
+                }
+                if(Boolean(ss) && Boolean(ss.application)
+                    && ss.application.length>0
+                ){
+                    embed.footer= {
+                        text:
+                            `---\n${ss.application}` +
+                            `${(Boolean(ss.version) && Boolean(ss.subversion))?
+                                ` v${ss.version}.${ss.subversion}`
+                            :   ''
+                            }`
+                    }
+                }
+
+                if(Boolean(serverInfos) && Boolean(serverInfos.thumbnail)){
+                    embed.thumbnail= {
+                        url: serverInfos.thumbnail
+                    }
+                }
+
+                if(Boolean(serverInfos) && Boolean(serverInfos.address)){
+                    embed.fields.push({
+                        name: 'Adresse de connexion',
+                        value: `\`${serverInfos.address}\``,
+                        inline: true
+                    })
+                }
+
+                embed.fields.push({
+                    name: 'Map',
+                    value:
+                        `${Boolean(ss)?
+                            `${ss.mapname} - *${ss.maptitle}*`
+                        :   'erreur'
+                        }`,
+                    inline: true
+                })
+                embed.fields.push({
+                    name: "Population",
+                    value:
+                        `${Boolean(ss)?
+                            `${ss.numberofplayer} / ${ss.maxplayer}`
+                        :   'erreur'
+                        }`,
+                    inline: true
+                })
+
+                if(Boolean(ss) && [2,3].includes(ss.gametype)){
+                    embed.fields.push({
+                        name: (ss.gametype===2)?'KartSpeed':'Gametype',
+                        value: (ss.gametype===2 && Boolean(ss.kartspeed))?
+                                ss.kartspeed
+                            :   "Battle",
+                        inline: true
+                    })
+                }
+
+                var modes= 
+                    (Boolean(serverInfos.modes) && Boolean(serverInfos.modes.status=="OK"))?
+                        ( Boolean(serverInfos.modes.modes)? serverInfos.modes.modes : [] )
+                    :   undefined;
+                if(Boolean(modes) && modes.length>0){
+                    embed.fields.push({
+                        name: "Modes",
+                        value: modes.join('; '),
+                        inline: false
+                    })
+                }
+
+                var players= [], spectators= []
+                var sp= serverInfos.players
+                if(Boolean(sp) && sp.length>0){
+                    for (var player of sp){
+                        if(!Boolean(player.team) || player.team.length<=0
+                            || player.team==="UNKNOWN"
+                        )
+                            continue
+                        else if(player.team==="SPECTATOR"){
+                            spectators.push(player.name)
+                        }
+                        else{
+                            players.push(player.name)
+                        }
+                    }
+                }
+                var s_players='-', s_spectators='-'
+                if(players.length>0){
+                    s_players=''
+                    for(var name of players){
+                        s_players+= `*${name}*;\t `
+                    }
+                }
+                if(spectators.length>0){
+                    s_spectators=''
+                    for(var name of spectators){
+                        s_spectators+= `*${name}*;\t `
+                    }
+                }
+
+                embed.fields.push({
+                    name: "Players",
+                    value: s_players,
+                    inline: false
+                })
+                embed.fields.push({
+                    name: "Spectators",
+                    value: s_spectators,
+                    inline: false
+                })
             }
             else{
-                message.channel.send(`Unavailable…`);
+                hereLog(`[ !kart info ] Bad info from API…`)
 
-                return false;
+                embed.color= 0x808080
+                embed.fields=[]
+                embed.fields.push({
+                    name: "Erreur",
+                    value: "Problème lors de la récupération des infos…",
+                    inline: false
+                })
+                embed.thumbnail= {
+                    url: 'https://cdn-icons-png.flaticon.com/512/7706/7706689.png'
+                }
+
+                ret_code= E_RetCode.ERROR_INTERNAL
             }
-        }
-        else if (["addons","add-ons","addon","add-on","module","modules","mod","mods"].includes(args[0])){
-            return (await _cmd_addons(cmdObj, clearanceLvl, utils))
-        }
-        else if (["config","startup"].includes(args[0])){
-            return (await _cmd_config(cmdObj, clearanceLvl, utils))
-        }
-        else if (["addon_load","addon_order","order","load_sequence"].includes(args[0])){
-            return (await _cmd_addon_load(cmdObj, clearanceLvl, utils))
-        }
-        else if (["log","logs","log.txt"].includes(args[0])){
-            var str= undefined
-            try{
-                var cmd= __kartCmd(kart_settings.config_commands.get_log);
-                str= child_process.execSync(cmd, {timeout: 16000}).toString();
+
+            message.reply({embeds: [embed]})
+
+            return ret_code;
+        }).catch(err => {
+            hereLog(`[ !kart info ] No serv info - ${err}`)
+            embed.color= 0x808080
+            embed.fields=[]
+            embed.fields.push({
+                name: "Offline",
+                value: "Le serveur semble injoignable…",
+                inline: false
+            })
+            embed.thumbnail= {
+                url: 'https://cdn-icons-png.flaticon.com/512/8018/8018865.png'
             }
-            catch(err){
-                hereLog("Error while looking for log.txt: "+err);
-                str= undefined
-            }
-    
             
-            if(Boolean(str)){
-                if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
-                    if(Boolean(kart_settings.http_url) ){
-                        message.channel.send(`Server's last recorded logs: ${kart_settings.http_url}/${str}`)
-                        return true;
-                    }
-                    else{
-                        message.channel.send("❌ server internal error");
-                        return false;
-                    }
+            message.reply({embed: embed})
+            return auth_retCode;
+        }) 
+    }
+    else if(["code","source","git"].includes(args[0])){
+        if(Boolean(kart_settings) && Boolean(kart_settings.source_url)){
+            message.reply(`SRB2Kart server manager source at: <${kart_settings.source_url}>`);
+            
+            return E_RetCode.SUCCESS;
+        }
+        else{
+            message.reply(`Unavailable…`);
+
+            return E_RetCode.ERROR_INTERNAL;
+        }
+    }
+    else if (["addons","add-ons","addon","add-on","module","modules","mod","mods"].includes(args[0])){
+        return (await _cmd_addons(cmdObj, clearanceLvl, utils))
+    }
+    else if (["config","startup"].includes(args[0])){
+        return (await _cmd_config(cmdObj, clearanceLvl, utils))
+    }
+    else if (["addon_load","addon_order","order","load_sequence"].includes(args[0])){
+        return (await _cmd_addon_load(cmdObj, clearanceLvl, utils))
+    }
+    else if (["log","logs","log.txt"].includes(args[0])){
+        let missingAuth_f= utils.checkAuth(cmdObj.msg_obj, "logs")
+        let auth_retCode= my_utils.MissingAuthFlag_to_CmdRetCode(missingAuth_f)
+        if(!my_utils.AuthAllowed_noData(missingAuth_f)){
+            return auth_retCode
+        }
+
+        var str= undefined
+        try{
+            var cmd= __kartCmd(kart_settings.config_commands.get_log);
+            str= child_process.execSync(cmd, {timeout: 16000}).toString();
+        }
+        catch(err){
+            hereLog("Error while looking for log.txt: "+err);
+            str= undefined
+        }
+
+        
+        if(Boolean(str)){
+            if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
+                if(Boolean(kart_settings.http_url) ){
+                    message.reply(`Server's last recorded logs: ${kart_settings.http_url}/${str}`)
+                    return auth_retCode;
                 }
                 else{
-                    message.channel.send(`Server's last recorded logs:`,
-                        {files: [{
-                            attachment: `${str}`,
-                            name: `log.txt`
-                        }]}
-                    );
-                    return true;
+                    message.reply("❌ server internal error");
+                    return E_RetCode.ERROR_INTERNAL;
                 }
             }
             else{
-                message.channel.send("❌ server internal error");
-                return false;
+                message.reply(`Server's last recorded logs:`,
+                    {files: [{
+                        attachment: `${str}`,
+                        name: `log.txt`
+                    }]}
+                );
+                return auth_retCode;
             }
         }
-        else if(['timetrial','timeattack','time','tt', 'ta'].includes(args[0])){
-            return (await _cmd_timetrial(cmdObj, clearanceLvl, utils));
+        else{
+            message.reply("❌ server internal error");
+            return E_RetCode.ERROR_INTERNAL;
         }
-        else if(['register'].includes(args[0])){
-            return (await _cmd_register(cmdObj, clearanceLvl, utils));
-        }
-        else if(Boolean(args[0]) && args[0].match(/^((cle?a?r)|(re?mo?v?e?)|(re?se?t)|(dele?t?e?))[\-\_ ]scores?$/)){
-            if(!_kartingClearanceCheck(message, utils, args[0], clearanceLvl)) return false
-            
-            if(__clearScores()){
-                message.channel.send("Score storage reset.")
-                return true
-            }
-            else{
-                message.channel.send("❌ Internal error…")
-                return false
-            }
-        }
-        else if(["clip","clips","replay","replays","video","vid","videos"].includes(args[0])){
-            return (await _cmd_clip_api(cmdObj,clearanceLvl,utils));
-        }
-        else if(["map","maps","race","races","level","levels","stage","stages"].includes(args[0])){
-            return _cmd_mapInfo(cmdObj,clearanceLvl,utils);
-        }
-        else if(["skin", "skins", "char", "chara" ,"perso", "character", "racer", "racers", "characters"].includes(args[0])){
-            return _cmd_skinInfo(cmdObj,clearanceLvl,utils);
-        }
-        else if (args[0]==="help"){
-            return cmd_help(cmdObj, clearanceLvl)
-        }
+    }
+    else if(["clip","clips","replay","replays","video","vid","videos"].includes(args[0])){
+        return (await _cmd_clip_api(cmdObj,clearanceLvl,utils));
+    }
+    else if(["map","maps","race","races","level","levels","stage","stages"].includes(args[0])){
+        return _cmd_mapInfo(cmdObj,clearanceLvl,utils);
+    }
+    else if(["skin", "skins", "char", "chara" ,"perso", "character", "racer", "racers", "characters"].includes(args[0])){
+        return _cmd_skinInfo(cmdObj,clearanceLvl,utils);
+    }
+    else if (args[0]==="help"){
+        return cmd_help(cmdObj, clearanceLvl)
     }
 
     return false;
@@ -3051,44 +2822,20 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
 
 
 function cmd_help(cmdObj, clearanceLvl){
+    
     cmdObj.msg_obj.author.send(
-        "========\n\n"+
-        "⚠ **_IMPORTANT:_** SRB2Kart server is exclusively for Strasbourg Smasher's usage.\n\n"+
-        `__**kart** command___:\n\n`+
-        ((clearanceLvl<CLEARANCE_LEVEL.ADMIN)? "": ("**Admins only (usable in other channels):**\n\n"+
-            "\t`!kart role @rolemention`\n\n"+
-            "\tset a designated for people who want to kart, y'know?\n\n"+
-            "\t`!kart admin_role @rolemention`\n\n"+
-            "\tset role for OG karters, have greater access to kart server commands and all...\n\n"+
-            "\t`!kart channel #channelmention`\n\n"+
-            "\tset which channel gets to be the *designated srb2kart channel*\n\n"+
-            "\t`!kart channel clear`\n\n"+
-            "\tunset the *designated srb2kart channel*\n\n"+
-            "\t`!kart channel which`\n\n"+
-            "\ttells which channel is set as the *designated srb2kart channel*\n\n"+
-            "**All users commands:**\n\n"
-        ))
-    );
-    cmdObj.msg_obj.author.send(
-        "\n**Following commands are only usable in the designated \"srb2kart channel\"!**\n"+
-        "\t*(commands that are liste with a preceeding 😎 are commands for 'admin karters' only*)\n\n"+
-        "😎\t`!kart start ['stand']`\n\n"+
-        "\tTry to start the SRB2Kart server.\n\tIf success, the server password is send via private message, the reciever is considered as the *designated admin* of the server.\n"+
-        "\t  If the optional argument `stand` is given, the server will have *__no__ designated admin*…\n\n"+
+        `\nFollowing commands are only usable depending on the guild (*${cmdObj.message.guild.name}*)'s auth configuration.\n`+
+        "\tRead the rules & ask your local admins where & how to uses these commands."+
+        "\t*(commands that are liste with a preceeding 😎 are commands for 'priviledged users' only*)\n\n"+
+        "😎\t`!kart start`\n\n"+
+        "\tTry to start the SRB2Kart server.\n\tIf success, the server password is send via private message.\n\n"+
         "😎\t`!kart stop`\n\n"+
         "\tIf active, attempt to stop the SRB2Kart server.\n\n"+
-        "😎\t`!kart restart ['stand']`\n\n"+
+        "😎\t`!kart restart`\n\n"+
         "\tAttempt to restart the SRB2Kart server.\n"+
-        "\t  If the optional argument `stand` is given, the server will have *__no__ designated admin*…\n\n"+
         "\t⚠ **_Note:** the SRB2Kart server will automatically shutdown at 4 am. It will restart at 8 am, __unless__ it was stopped manually.\n\n"+
         "😎\t`!kart password`\n\n"+
-        "\tRequest to recieve the password of the active (if any) SRB2Kart server. (guild admin or designated SRB2Kart server admin only)\n\n"+
-        "😎\t`!kart claim`\n\n"+
-        "\tClaim the vacant ownership of the current running (if any) SRB2Kart server. (guild admin or designated SRB2Kart server admin only)\n\n"+
-        "😎\t`!kart transfer @usermention`\n\n"+
-        "\tGive the ownership of the current running (if any) SRB2Kart server to the mentionned user. (guild admin or designated SRB2Kart server admin only)\n\n"+
-        "😎\t`!kart leave`\n\n"+
-        "\tGive up the ownership of the current running (if any) SRB2Kart server, leaving it vacant. (designated SRB2Kart server admin only)\n\n"+
+        "\tRequest to recieve the password of the active (if any) SRB2Kart server.\n\n"+
         "\t`!kart info`\n\n"+
         "\tDisplay whether of not the SRB2Kart server is running along with its ownership\n"+
         "\tAlso displays the server's ip address.\n\n"+
@@ -3146,20 +2893,20 @@ function cmd_help(cmdObj, clearanceLvl){
         "\t`!kart config filter`\n\n"+
         "\tGives a list of all forbidden srb2kart configuration commands that are filtered out of the `startup.cfg` config startup script.\n\n"
     );
-    cmdObj.msg_obj.author.send(
-        "----\n*SRB2Kart server's time record management:*\n\n"+
-        "\t`!kart time`\n\n"+
-        "\tLists all the maps that have a time record submitted.\n\n"+
-        "\t`!kart time [map name]`\n\n"+
-        "\tLists all the time that were submitter for a given map.\n\n"+
-        "\t`!kart time add`\n\n"+
-        "\tAdds a new time record on the server given the .lmp file was provided as a message attachment. (One per person per map)\n\n"+
-        "\t⚠ The new time record must be provided as a file attachment to the same message as the command, and must have `.lmp` extension.\n"+
-        "\t`!kart time rm [map name]`\n\n"+
-        "\tRemoves a time record you have submitted for a given map.\n\n"+
-        "\t`!kart time get [map name]`\n\n"+
-        "\tLink to download uploaded times for a given map.\n\n"
-    );
+    // cmdObj.msg_obj.author.send(
+    //     "----\n*SRB2Kart server's time record management:*\n\n"+
+    //     "\t`!kart time`\n\n"+
+    //     "\tLists all the maps that have a time record submitted.\n\n"+
+    //     "\t`!kart time [map name]`\n\n"+
+    //     "\tLists all the time that were submitter for a given map.\n\n"+
+    //     "\t`!kart time add`\n\n"+
+    //     "\tAdds a new time record on the server given the .lmp file was provided as a message attachment. (One per person per map)\n\n"+
+    //     "\t⚠ The new time record must be provided as a file attachment to the same message as the command, and must have `.lmp` extension.\n"+
+    //     "\t`!kart time rm [map name]`\n\n"+
+    //     "\tRemoves a time record you have submitted for a given map.\n\n"+
+    //     "\t`!kart time get [map name]`\n\n"+
+    //     "\tLink to download uploaded times for a given map.\n\n"
+    // );
     cmdObj.msg_obj.author.send(
         "----\n*SRB2Kart server's clips library management:*\n\n"+
         "\t`!kart clip`\n\n"+
@@ -3172,49 +2919,11 @@ function cmd_help(cmdObj, clearanceLvl){
         "\t`!Kart clip description [bla bla bla]`\n\n"+
         "\tEdit the description of a given clip. (The id of said clip should be displayed in the gallery page)\n\n"
     );
-    return true;
+    return E_RetCode.SUCCESS;
 }
 
 
 async function cmd_event(eventName, utils){
-    if(eventName==="channelDelete"){
-        var channel= arguments[2];
-
-        var chanKart= utils.settings.get(channel.guild, 'kart_channel');
-        if(!Boolean(chanKart)) return false;
-
-        if(channel.id===chanKart){
-            if(!_isServerRunning()){
-                _stopServer();
-            }
-
-            utils.settings.remove(channel.guild, 'kart_channel');
-            utils.settings.remove(channel.guild, "serv_owner");
-
-            return true;
-        }
-
-        return false;
-    }
-    else if(eventName==="guildMemberUpdate"){
-        var member= arguments[2];
-
-        var servOwner= utils.settings.get(member.guild, "serv_owner");
-        var m_owner= undefined;
-        if( Boolean(servOwner) && Boolean(m_owner= (await (member.guild.members.fetch(servOwner)))) && m_owner.id===member.id){
-            utils.settings.remove(member.guild, "serv_owner");
-
-            if(_isServerRunning()){
-                var chanKart= utils.settings.get(member.guild, 'kart_channel');
-                var channel= undefined;
-                if(Boolean(chanKart) && Boolean(channel= member.guild.channels.cache.get(chanKart))){
-                    channel.send(`⚠ Le serveur SRB2Kart n'a plus d'admin désigné… 😢`+
-                        `\t⚠ Il faut qu'un joueur récupère la propriété en utilisant la commande \`!kart claim\`!`
-                    );
-                }
-            }
-        }
-    }
 }
 
 
