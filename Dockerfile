@@ -11,7 +11,7 @@ COPY . /tmp/recieved
 # COPY docker_test/id_rsa /root/.ssh/id_rsa
 # COPY docker_test/id_rsa.pub /root/.ssh/id_rsa.pub
 # COPY docker_test/ssh_host /tmp/ssh_host
-RUN echo "Add copy script as 'docker_test/copies.sh' if needed - " && ( sh /tmp/recieved/docker_test/copies.sh || echo 'none given' )
+RUN echo "Add copy script as 'docker_test/copies.sh' if needed - " && ( bash /tmp/recieved/docker_test/copies.sh || echo 'none given' )
 
 WORKDIR /tmp/recieved
 

@@ -1,5 +1,4 @@
 const Settings= require('./settings').Settings;
-const Commander= require('./commander').Commander;
 const ModulesHandler= require('./modulesHandler').ModulesHandler;
 const Discord= require('discord.js');
 
@@ -12,7 +11,6 @@ class Worker{
         this._bot= bot;
 
         this._settings= new Settings(this._bot);
-        // this._commander= new Commander(this);
         this._moduleHandler= new ModulesHandler(this);
     }
 

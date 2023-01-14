@@ -350,8 +350,8 @@ async function S_S_CMD_player_about(interaction, utils){
         interaction.editReply(payload)
     }
     else{
-        interaction.edit(
-            `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+        interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
             `Error; couldn't find player's data in database`
         )
     }

@@ -8,7 +8,6 @@ const my_utils= require('./utils');
 const DEFINES= require('./defines');
 
 const CommandSettings= require('./utilCmd/CommandSettings');
-const { command } = require('./commands/cmd_template');
 
 let hereLog= (...args) => {console.log("[ModulesHandler]", ...args);};
 

@@ -415,7 +415,6 @@ function identifyEmoji(str, utils){
 
     var _tmp= undefined;
     var emojiType= undefined;
-    hereLog(`[identifyEmoji] ${str}`)
     try{
         emojiType= ( Boolean(str) )? (
                 Boolean(str.match(simpleEmojiRegex))? {type: "SIMPLE", emoji: str, text: str} :
