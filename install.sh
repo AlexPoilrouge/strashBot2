@@ -133,16 +133,16 @@ mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}/config"
 find ./config -type f -exec install {} "${ROOT_DIR}/${STRASHBOT_DIR}/config" \;
 mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}/extras"
 find ./extras -type f -exec install {} "${ROOT_DIR}/${STRASHBOT_DIR}/extras" \;
-mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}/js/commands"
+mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}/js/{commands,modules}"
 mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}/js/postCmdTarget"
 find ./js -type f -exec bash -c 'install_file "$0" "$1"' {} "${ROOT_DIR}/${STRASHBOT_DIR}/{}" \;
 install ./bot_main.js ./README.md ./package.json ./version.txt "${ROOT_DIR}/${STRASHBOT_DIR}"
 
-mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}/js/commands/data"
-install extras/kart.json "${ROOT_DIR}/${STRASHBOT_DIR}/js/commands/data"
+mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}/js/modules/data"
+install extras/kart.json "${ROOT_DIR}/${STRASHBOT_DIR}/js/modules/data"
 
-mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}/js/commands/top8gen/smashgg"
-install extras/smashgg_infos.json "${ROOT_DIR}/${STRASHBOT_DIR}/js/commands/top8gen/smashgg"
+mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}/js/modules/top8gen/smashgg"
+install extras/smashgg_infos.json "${ROOT_DIR}/${STRASHBOT_DIR}/js/modules/top8gen/smashgg"
 
 if "${SYSTEMD_INSTALL}"; then
     mkdir -p "${ROOT_DIR}/${SERVICE_INSTALL_PATH}"
@@ -173,6 +173,25 @@ chown -R "${STRASHBOT_USER}:${STRASHBOT_USER}" "${ROOT_DIR}/${STRASHBOT_DIR}"
 cd "${ROOT_DIR}/${STRASHBOT_DIR}"
 
 npm install
+
+export SLASH_REGISTER="$( [ -n "$1" ] && echo "$1" || echo "${STRASHBOT_SLASH_REGISTER}" )"
+
+if "${SLASH_REGISTER}"; then
+    _NODE_CONFIG_DIR="${NODE_CONFIG_DIR}"
+    export NODE_CONFIG_DIR="$( realpath "${ROOT_DIR}/${STRASHBOT_DIR}/config" )"
+    export STRASHBOT_CLIENTID="${STRASHBOT_DISCORD_CLIENT_ID}"
+    export STRASHBOT_TOKEN="${STRASHBOT_DISCORD_TOKEN}"
+    export STRASHBOT_DEVGUILDID="${STRASHBOT_DEV_GUILD}"
+    export STRASHBOT_DEBUG="${STRASHBOT_DISCORD_DEBUG}"
+
+    echo "Registering slash dev commands…"
+    echo "    (NODE_CONFIG_DIR=\"${NODE_CONFIG_DIR}\")}"
+    node js/registerSlash.js
+
+    export NODE_CONFIG_DIR="${_NODE_CONFIG_DIR}"
+else
+    echo "Not registering new slash dev commands…"
+fi
 
 if "${SYSTEMD_INSTALL}" && (systemctl is-active strashbot.service); then
     systemctl restart strashbot.service

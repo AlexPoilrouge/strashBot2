@@ -1,8 +1,10 @@
 
+const fs= require( 'fs' );
 const path= require( 'path' );
 
 const sqlite3 = require('sqlite3').verbose();
 const cron= require('node-cron');
+const { send } = require('process');
 
 
 let hereLog= (...args) => {console.log("[utils]", ...args);};
@@ -196,20 +198,71 @@ function commandArgsOptionsExtract(args, optionPrefix='?'){
 
 
 /**
- * from https://github.com/hydrabolt/discord.js/pull/641
+ * from https://github.com/discordjs/discord.js/blob/v13/src/util/Util.js
  */
-const MESSAGE_CHAR_LIMIT = 2000;
-const splitString = (string, prepend = '', append = '') => {
-    if (string.length <= MESSAGE_CHAR_LIMIT) {
-        return [string];
+/**
+ * Options for splitting a message.
+ * @typedef {Object} SplitOptions
+ * @property {number} [maxLength=2000] Maximum character length per message piece
+ * @property {string|string[]|RegExp|RegExp[]} [char='\n'] Character(s) or Regex(es) to split the message with,
+ * an array can be used to split multiple times
+ * @property {string} [prepend=''] Text to prepend to every piece except the first
+ * @property {string} [append=''] Text to append to every piece except the last
+ */
+
+/**
+ * Splits a string into multiple chunks at a designated character that do not exceed a specific length.
+ * @param {string} text Content to split
+ * @param {SplitOptions} [options] Options controlling the behavior of the split
+ * @returns {string[]}
+ */
+function splitMessage(text, { maxLength = 2_000, char = '\n', prepend = '', append = '' } = {}) {
+    if (text.length <= maxLength) return [text];
+    let splitText = [text];
+    if (Array.isArray(char)) {
+      while (char.length > 0 && splitText.some(elem => elem.length > maxLength)) {
+        const currentChar = char.shift();
+        if (currentChar instanceof RegExp) {
+          splitText = splitText.flatMap(chunk => chunk.match(currentChar));
+        } else {
+          splitText = splitText.flatMap(chunk => chunk.split(currentChar));
+        }
+      }
+    } else {
+      splitText = text.split(char);
+    }
+    if (splitText.some(elem => elem.length > maxLength)) throw new RangeError('SPLIT_MAX_LEN');
+    const messages = [];
+    let msg = '';
+    for (const chunk of splitText) {
+      if (msg && (msg + char + chunk + append).length > maxLength) {
+        messages.push(msg + append);
+        msg = prepend;
+      }
+      msg += (msg && msg !== prepend ? char : '') + chunk;
+    }
+    return messages.concat(msg).filter(m => m);
+}
+
+async function splitSend(sendTarget, msg, {chainReply=false, prepend = '', append = ''}= {}){
+    if(msg.length<2000) return sendTarget.send(msg)
+
+
+    var chunkmessages= splitMessage(msg, {prepend,append})
+    var m= undefined
+    var retMessages= []
+    while(chunkmessages.length>0){
+        let chunk= chunkmessages.shift()
+        if(chainReply && Boolean(m))
+            m= await m.reply(chunk)
+        else
+            m= await sendTarget.send(chunk)
+        retMessages.push(m)
     }
 
-    const splitIndex = string.lastIndexOf('\n', MESSAGE_CHAR_LIMIT - prepend.length - append.length);
-    const sliceEnd = splitIndex > 0 ? splitIndex : MESSAGE_CHAR_LIMIT - prepend.length - append.length;
-    const rest = splitString(string.slice(sliceEnd), prepend, append);
+    return retMessages
+}
 
-    return [`${string.slice(0, sliceEnd)}${append}`, `${prepend}${rest[0]}`, ...rest.slice(1)];
-};
 
 class DataBaseManager{
     constructor(dbFilepath){
@@ -326,6 +379,35 @@ function DateFromTimeZone(dateString, timezone="Europe/Paris"){
 }
 
 
+let _fightersOBJ= undefined
+
+function _loadFightersObj(filepath){
+    var fn= path.resolve(`${filepath}`)
+    if(fs.existsSync(fn)){
+        try{
+            var data= fs.readFileSync(fn);
+        } catch(err){
+            hereLog(`[load_fighters] Couldn't read '${fn}'`)
+        }
+
+        var r= undefined;
+        if(Boolean(data) && Boolean(r=JSON.parse(data))){
+            _fightersOBJ= r;
+        }
+        else{
+            hereLog(`[load_fighters] Error reading data from '${fn}'`);
+        }
+
+        return _fightersOBJ
+    }
+    else{
+        hereLog(`[load_fighters]'${fn}' file not found`);
+
+        return undefined
+    }
+}
+
+
 
 function identifyEmoji(str, utils){
     let simpleEmojiRegex= /(?:[\u2700-\u27bf]|(?:\ud83c[\udde6-\uddff]){2}|[\ud800-\udbff][\udc00-\udfff]|[\u0023-\u0039]\ufe0f?\u20e3|\u3299|\u3297|\u303d|\u3030|\u24c2|\ud83c[\udd70-\udd71]|\ud83c[\udd7e-\udd7f]|\ud83c\udd8e|\ud83c[\udd91-\udd9a]|\ud83c[\udde6-\uddff]|\ud83c[\ude01-\ude02]|\ud83c\ude1a|\ud83c\ude2f|\ud83c[\ude32-\ude3a]|\ud83c[\ude50-\ude51]|\u203c|\u2049|[\u25aa-\u25ab]|\u25b6|\u25c0|[\u25fb-\u25fe]|\u00a9|\u00ae|\u2122|\u2139|\ud83c\udc04|[\u2600-\u26FF]|\u2b05|\u2b06|\u2b07|\u2b1b|\u2b1c|\u2b50|\u2b55|\u231a|\u231b|\u2328|\u23cf|[\u23e9-\u23f3]|[\u23f8-\u23fa]|\ud83c\udccf|\u2934|\u2935|[\u2190-\u21ff])/g;
@@ -333,7 +415,6 @@ function identifyEmoji(str, utils){
 
     var _tmp= undefined;
     var emojiType= undefined;
-    hereLog(`[identifyEmoji] ${str}`)
     try{
         emojiType= ( Boolean(str) )? (
                 Boolean(str.match(simpleEmojiRegex))? {type: "SIMPLE", emoji: str, text: str} :
@@ -353,12 +434,97 @@ function identifyEmoji(str, utils){
     return emojiType;
 }
 
+function processMention(str){
+    let rx_channelMention_id= /<#(\d+)>/
+    let rx_userMention_id= /<@(\d+)>/
+    let rx_roleMention_id= /<@&(\d+)>/
+
+    var m= undefined
+    if(Boolean(m=str.match(rx_userMention_id))) return {type: 'user', id: m[1]}
+    if(Boolean(m=str.match(rx_channelMention_id))) return {type: 'channel', id: m[1]}
+    if(Boolean(m=str.match(rx_roleMention_id))) return {type: 'role', id: m[1]}
+    return undefined
+}
+
+let Flags={
+    MissingAuth: {
+        NONE: 0,
+        USER: 1,
+        CHANNEL: 2,
+        ROLE: 4,
+        NO_DATA: 8,
+
+        MASTER_PRIVILEDGES: 256
+    }
+}
+
+let Enums={
+    CmdRetCode: {
+        MASTER_PRIVILEDGES: -1,
+        SUCCESS: 0,
+        BAD_USER: 1,
+        BAD_CHANNEL: 2,
+        BAD_ROLE: 3,
+        NO_AUTH_SPECIFIED: 4,
+        ERROR_INPUT: 5,
+        ERROR_REFUSAL: 6,
+        ERROR_INTERNAL: 7,
+        ERROR_CRITICAL: 8
+    }
+}
+
+function MissingAuthFlag_to_CmdRetCode(mf, allowNoAuthData=true){
+    let b_noData= (mf===undefined || (mf & Flags.MissingAuth.NO_DATA))
+    if((mf===Flags.MissingAuth.NONE) || (allowNoAuthData && b_noData)) return Enums.CmdRetCode.SUCCESS
+    if(Boolean(mf) && (mf & Flags.MissingAuth.MASTER_PRIVILEDGES)) return Enums.CmdRetCode.MASTER_PRIVILEDGES
+    if(b_noData) return Enums.CmdRetCode.NO_AUTH_SPECIFIED
+    if(mf & Flags.MissingAuth.CHANNEL) return Enums.CmdRetCode.BAD_CHANNEL
+    if(mf & Flags.MissingAuth.USER) return Enums.CmdRetCode.BAD_USER
+    if(mf & Flags.MissingAuth.ROLE) return Enums.CmdRetCode.BAD_ROLE
+    return Enums.CmdRetCode.ERROR_INTERNAL
+}
+
+let AuthAllowed_noData = mf => (
+    (mf===undefined) || (mf===Flags.MissingAuth.NONE) || Boolean(mf & Flags.MissingAuth.NO_DATA) || Boolean(mf & Flags.MissingAuth.MASTER_PRIVILEDGES)
+)
+
+let AuthAllowed_dataOnly = mf => (
+    Boolean(mf & Flags.MissingAuth.MASTER_PRIVILEDGES) || !Boolean(mf)
+)
+
+function emoji_retCode(rcode){
+    if(rcode===undefined) return undefined
+    if(rcode===Enums.CmdRetCode.SUCCESS || rcode===true) return '✅';
+    if(rcode===Enums.CmdRetCode.MASTER_PRIVILEDGES) return '☑️';
+    if(rcode===Enums.CmdRetCode.BAD_USER) return '🚷';
+    if(rcode===Enums.CmdRetCode.BAD_CHANNEL) return '⛔';
+    if(rcode===Enums.CmdRetCode.BAD_ROLE) return '🆖';
+    if(rcode===Enums.CmdRetCode.NO_AUTH_SPECIFIED) return '◻';
+    if(rcode===Enums.CmdRetCode.ERROR_INPUT) return '❓';
+    if(rcode===Enums.CmdRetCode.ERROR_REFUSAL) return '🛑';
+    if(rcode===Enums.CmdRetCode.ERROR_INTERNAL) return '⚠';
+    if(rcode===Enums.CmdRetCode.ERROR_CRITICAL) return '💥';
+    return '❌';
+}
+
 module.exports.JSONCheck= JSONCheck;
 module.exports.commandDecompose= commandDecompose;
 module.exports.commandNameFromFilePath= commandNameFromFilePath;
 module.exports.commandArgsOptionsExtract= commandArgsOptionsExtract;
-module.exports.splitString= splitString;
+module.exports.splitMessage= splitMessage;
+module.exports.splitSend= splitSend;
 module.exports.DataBaseManager= DataBaseManager;
 module.exports.sleep= sleep;
 module.exports.DateFromTimeZone= DateFromTimeZone;
 module.exports.identifyEmoji= identifyEmoji;
+module.exports.processMention= processMention;
+module.exports.Flags= Flags;
+module.exports.Enums= Enums;
+module.exports.MissingAuthFlag_to_CmdRetCode= MissingAuthFlag_to_CmdRetCode;
+module.exports.AuthAllowed_noData= AuthAllowed_noData;
+module.exports.AuthAllowed_dataOnly= AuthAllowed_dataOnly;
+module.exports.emoji_retCode= emoji_retCode;
+module.exports.fighterStuff= {
+    getFighters: () => _fightersOBJ,
+    loadFighters: _loadFightersObj
+}
