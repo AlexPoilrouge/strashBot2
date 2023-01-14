@@ -362,9 +362,16 @@ function __rosterCharNameProcess(str){
         if(Boolean(fightersOBJ)){
             let keys= Object.keys(fightersOBJ);
             for (var key of keys){
+                let l_input= input.toLowerCase()
                 var fighter= fightersOBJ[key]
                 var regex= (Boolean(fighter) && Boolean(fighter.regex))?(new RegExp(fighter.regex)):undefined
-                if(Boolean(regex) && (Boolean(input.toLowerCase().match(regex)) || Boolean(input.toLowerCase()===fighter.number))){
+                if( l_input===key ||
+                    (Boolean(regex) && (
+                        Boolean(l_input.match(regex))
+                        || l_input===fighter.number.toLowerCase()
+                        || l_input===fighter.name.toLowerCase()
+                    )
+                )){
                     return `${fighter.number}${(Boolean(skin_test) && Boolean(skin_test[1]))?`.${skin_test[1]}`:''}`
                 }
             }
@@ -728,7 +735,13 @@ async function _evaluateArgsOptions(args, options, message, utils){
                     }
                     else if(Boolean(ch_match=ch_input.match(/^((.+)[\s\.]([0-9]{1,2}))|(.+)$/))){
                         var n_match= (Boolean(ch_match[2]))?ch_match[2]:ch_match[4]
-                        if(Boolean(ch_key=ch_keys.find(k => {return Boolean(n_match.toLowerCase().match(RegExp(fightersOBJ[k].regex)))}))){
+                        let l_n_match= n_match.toLowerCase()
+                        if(Boolean(ch_key=ch_keys.find(k => {
+                            let f= fightersOBJ[k]
+                            return Boolean(l_n_match.match(RegExp(f.regex)) ||
+                                    l_n_match===f.name.toLowerCase()
+                            )
+                        }))){
                             character= {name: ch_key}
                             if(Boolean(ch_match[3])){
                                 character['skin']= ch_match[3];
@@ -976,7 +989,6 @@ async function cmd_main(cmdObj, clearanceLvl, utils){
             }
 
             return _generateTop8(template, genInfos, message, utils);
-
         }
     }
 

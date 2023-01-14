@@ -60,6 +60,10 @@ class StrashBot extends Discord.Client{
 
             this.worker.ready();
         });
+
+        this.on(Discord.Events.InteractionCreate, interaction =>{
+            this.worker.interacting(interaction)
+        })
         
         this.on('messageCreate', (message)=>{
             if(message.author.id === this.user.id) return; // Prevent bot from responding to its own messages
@@ -141,10 +145,10 @@ class StrashBot extends Discord.Client{
             hereLog("SmashBot WARNING!!! : "+info);
         });
         
-        this.on('disconnect', (event)=>{
+        this.on('disconnect', async (event)=>{
             hereLog("SmashBot's disconnecting…"); 
             if(Boolean(this.worker))
-                this.worker.destroy();
+                await this.worker.destroy();
             hereLog("SmashBot disconnected.");
             hereLog(event);
             process.exit(0);
@@ -218,7 +222,7 @@ class StrashBot extends Discord.Client{
         else{
             await super.login(this.token)
             .then()
-            .catch( err => { hereLog("Error when login to discord attempt…"); hereLog(err); });
+            .catch( err => { hereLog("Error when login to discord attempt…", err); });
         }
     }
 

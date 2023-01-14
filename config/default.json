@@ -4,10 +4,12 @@
         "build": "",
         "source": "",
 
+        "clientID": "",
         "token": "",
 
         "masterID": "",
 
-        "debug": "false"
+        "debug": "false",
+        "devGuildID": ""
     }
 }

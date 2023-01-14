@@ -30,7 +30,8 @@ class CommandData{
         // var cmd_name= path.basename(cmdFileName);
         // cmd_name= (cmd_name.startsWith("cmd_"))? cmd_name.slice(4) : cmd_name;
         // cmd_name= (cmd_name.endsWith(".js"))? cmd_name.slice(0,-3) : cmd_name;
-        var cmd_name= my_utils.commandNameFromFilePath(cmdFileName);
+        // var cmd_name= my_utils.commandNameFromFilePath(cmdFileName);
+        let cmd_name= cmdFileName.substring(4,cmdFileName.length-3)
 
         var commandFileSettings= this._cmdSettings[cmd_name];
         if(!Boolean(commandFileSettings)){
@@ -89,10 +90,9 @@ class CommandData{
 
             var data= JSON.stringify({}, null, 2);
 
-            fs.writeFile(perGuildSettings['file'], data, err => {
+            fs.writeFileSync(perGuildSettings['file'], data, err => {
                 if(err){
-                    hereLog(`[CS Saving](2) Couldn't write in file '${perGuildSettings['file']}'…` );
-                    hereLog(err);
+                    hereLog(`[CS Saving](2) Couldn't write in file '${perGuildSettings['file']}'…` , err);
                 }
                 perGuildSettings['seenLast']= new Date()
             });
@@ -120,8 +120,7 @@ class CommandData{
         if(Boolean(f=perGuildSettings['file']) && fs.existsSync(f)){
             fs.unlink(f, err =>{
                 if(err){
-                    hereLog(`[CS Deleting] error with ${f} unlink…`);
-                    hereLog(err);
+                    hereLog(`[CS Deleting] error with ${f} unlink…`, err);
                 }
                 hereLog(`[CS Deleting] ${f} unlink…`);
             });
@@ -206,8 +205,7 @@ class CommandData{
 
         await fs.writeFile(perGuildSettings['file'], data, err => {
             if(err){
-                hereLog(`[CS Saving](1) Couldn't write in file '${perGuildSettings['file']}'…` );
-                hereLog(err);
+                hereLog(`[CS Saving](1) Couldn't write in file '${perGuildSettings['file']}'…`, err);
             }
             perGuildSettings['seenLast']= new Date()
         });

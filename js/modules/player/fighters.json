@@ -1,0 +1,462 @@
+{
+	"mario" : {
+		"number": "1",
+		"regex": "^m(ario)?l?e?$",
+		"name": "Mario"
+	},
+	"donkey_kong" : {
+		"number": "2",
+		"regex": "^((d(onkey)?[\\s\\_\\-\\.]*k(ong)?)|(((gros|big)[\\s\\_\\-\\.]*)?(monkey|ape|singe)))$",
+		"name": "Donkey Kong"
+	},
+	"link" : {
+		"number": "3",
+		"regex": "^l(i|o|u)?nk$",
+		"name": "Link"
+	},
+	"samus" : {
+		"number": "4",
+		"regex": "^((sam(i|y|(us))?)|(metroid))$",
+		"name": "Samus"
+	},
+	"dark_samus" : {
+		"number": "4e",
+		"regex": "^d(ark)?[\\s\\_\\-\\.]*sam(i|y|(us))?$",
+		"name": "Samus Sombre"
+	},
+	"yoshi" : {
+		"number": "5",
+		"regex": "^y(o(s|c)+h(i)+)?$",
+		"name": "Yoshi"
+	},
+	"kirby" : {
+		"number": "6",
+		"regex": "^((kirb(y|o)?)|(satan))$",
+		"name": "Kirby"
+	},
+	"fox" : {
+		"number": "7",
+		"regex": "^(star)?fox$",
+		"name": "Fox"
+	},
+	"pikachu" : {
+		"number": "8",
+		"regex": "^(((pi+)+(ka+)+(chu+)+)|(rat))$",
+		"name": "Pikachu"
+	},
+	"luigi" : {
+		"number": "9",
+		"regex": "^(m(iste?)?r[\\s\\_\\-\\.]*)?l(uigi)?$",
+		"name": "Luigi"
+	},
+	"ness" : {
+		"number": "10",
+		"regex": "^n(es(s)*)+$",
+		"name": "Ness"
+	},
+	"captain_falcon" : {
+		"number": "11",
+		"regex": "^(ca?pi?t(ai)?ne?[\\s\\_\\-\\.]*)?f((al)|(la))con$",
+		"name": "Cpt. Falcon"
+	},
+	"rondoudou" : {
+		"number": "12",
+		"regex": "^((ron)?(do+u+)+)|(ji+g+l+y(po?u+f+)?)|(((ji+g+l+y)?pu+f+))|(pur+in)$",
+		"name": "Rondoudou"
+	},
+	"peach" : {
+		"number": "13",
+		"regex": "^(princesse?[\\s\\_\\-\\.]*)?((p((ea)?ch)?)|(toadstool))$",
+		"name": "Peach"
+	},
+	"daisy" : {
+		"number": "13e",
+		"regex": "^(princesse?[\\s\\_\\-\\.]*)?daisy$",
+		"name": "Daisy"
+	},
+	"bowser" : {
+		"number": "14",
+		"regex": "^(((king[\\s\\_\\-\\.]*)koopa)|(bo?wse?r))$",
+		"name": "Bowser"
+	},
+	"ice_climbers" : {
+		"number": "15",
+		"regex": "^i(ce)?[\\s\\_\\-\\.]*c(limbers?)?$",
+		"name": "Ice Climbers"
+	},
+	"sheik" : {
+		"number": "16",
+		"regex": "^shr?ei?c?k(ah)?$",
+		"name": "Sheik"
+	},
+	"zelda" : {
+		"number": "17",
+		"regex": "^(princesse?[\\s\\_\\-\\.]*)?z(eld(a|o)+b?)?$",
+		"name": "Zelda"
+	},
+	"dr_mario" : {
+		"number": "18",
+		"regex": "^d((oc(t((eu?)|o)r))|(r))?([\\s\\_\\-\\.]*m(ario)?)",
+		"name": "Dr. Mario"
+	},
+	"pichu" : {
+		"number": "19",
+		"regex": "^(pi+)+(t?cho*u+)+$",
+		"name": "Pichu"
+	},
+	"falco" : {
+		"number": "20",
+		"regex": "^(star)?[\\s\\_\\-\\.]*f((al)|(la))co((uilles?)|(ovid-?(19)?))?$",
+		"name": "Falco"
+	},
+	"marth" : {
+		"number": "21",
+		"regex": "^m(a|e|u|o)r((th?)|(s+))?$",
+		"name": "Marth"
+	},
+	"lucina" : {
+		"number": "21e",
+		"regex": "^((marth?(in)?)|(lucin))a$",
+		"name": "Lucina"
+	},
+	"young_link" : {
+		"number": "22",
+		"regex": "^(y(oung)?[\\s\\_\\-\\.]*)?l(i|o|u)?nk([\\s\\_\\-\\.]*enfant)?$",
+		"name": "Link Enfant"
+	},
+	"ganondorf" : {
+		"number": "23",
+		"regex": "^(tiurk)|(doriy?a+h*)|(ganon(dorf)?)$",
+		"name": "Ganondorf"
+	},
+	"mewtwo" : {
+		"number": "24",
+		"regex": "^m(ew)?((two)|(2))$",
+		"name": "Mewtwo"
+	},
+	"roy" : {
+		"number": "25",
+		"regex": "^ro(y|i)$",
+		"name": "Roy"
+	},
+	"chrom" : {
+		"number": "25e",
+		"regex": "^chr(o|u)m?$",
+		"name": "Chrom"
+	},
+	"mr_game_n_watch" : {
+		"number": "26",
+		"regex": "^(m(r)?[\\s\\_\\-\\.]*)?g(ame)?[\\s\\_\\-\\.]*((a?nd?)|(\\&))?[\\s\\_\\-\\.]*w(atch)?$",
+		"name": "Mr. Game & Watch"
+	},
+	"meta_knight" : {
+		"number": "27",
+		"regex": "^m(eta)?[\\s\\_\\-\\.]*k(night)?$",
+		"name": "Meta Knight"
+	},
+	"pit" : {
+		"number": "28",
+		"regex": "^pit$",
+		"name": "Pit"
+	},
+	"dark_pit" : {
+		"number": "28e",
+		"regex": "^((d(ark)?[\\s\\_\\-\\.]*pit)|(pitwo))$",
+		"name": "Pit Maléfique"
+	},
+	"zero_suit_samus" : {
+		"number": "29",
+		"regex": "^(((z(ero)?)|(0))?[\\s\\_\\-\\.]*s((uit)|(lut))?[\\s\\_\\-\\.]*s(am(i|y|(us))?)?)|((sam(i|y|(us))?[\\s\\_\\-\\.]*)?sa?n?s[\\s\\_\\-\\.]*ar?mo?ure?s?)$",
+		"name": "Samus Sans Armure"
+	},
+	"wario" : {
+		"number": "30",
+		"regex": "^w(a+h*)rio+$",
+		"name": "Wario"
+	},
+	"snake" : {
+		"number": "31",
+		"regex": "^(so((rd)|l)ide?)?[\\s\\_\\-\\.]*sna+ke$",
+		"name": "Snake"
+	},
+	"ike" : {
+		"number": "32",
+		"regex": "^ik(e|u)$",
+		"name": "Ike"
+	},
+	"dresseur_de_pokemon" : {
+		"number": "33a",
+		"regex": "^((dres+eu((r)|(se))([\\s\\_\\-\\.]*(de[\\s\\_\\-\\.]*)?po?k(e|é)?mo?ns?)?)|((po?k(e|é)?mo?ns?[\\s\\_\\-\\.]*)?trainer)|(p[\\s\\_\\-\\.]*t)|(d[\\s\\_\\-\\.]*(d[\\s\\_\\-\\.]*)?p))$",
+		"name": "Dresseur de Pokémon"
+	},
+	"carapuce" : {
+		"number": "33",
+		"regex": "^((cara(pu(c|t)e)?)|(squi(r(t+le)?)?))$",
+		"name": "Carapuce"
+	},
+	"herbizarre" : {
+		"number": "34",
+		"regex": "^((herbi(zar+e)?)|(iv(ys((au)|o)re?(us)?)?))$",
+		"name": "Herbizarre"
+	},
+	"dracaufeu" : {
+		"number": "35",
+		"regex": "^(((drac(au|o)(f((eu)|(uego)))?)|((cau)?f((eu)|(uego))))|((ch(a|o)r+i(z+(a|o)rd)?)|(z+(a|o)rd)))$",
+		"name": "Dracaufeu"
+	},
+	"diddy_kong" : {
+		"number": "36",
+		"regex": "^d(i|y)?d?d(y|i)?[\\s\\_\\-\\.]*k(ong)?$",
+		"name": "Diddy Kong"
+	},
+	"lucas" : {
+		"number": "37",
+		"regex": "^luca(s?)$",
+		"name": "Lucas"
+	},
+	"sonic" : {
+		"number": "38",
+		"regex": "^soni((c?k?)|(que))?([\\s\\_\\-\\.]*((le)?[\\s\\_\\-\\.]*(h(é|e)risson))|((the)?[\\s\\_\\-\\.]*((h?edge)?hog)))?$",
+		"name": "Sonic"
+	},
+	"roi_dadidou" : {
+		"number": "39",
+		"regex": "^(roi|king)?[\\s\\_\\-\\.]*((da?di?d(o+u*)?)|(de+de+de+))$",
+		"name": "Roi Dadidou"
+	},
+	"olimar" : {
+		"number": "40",
+		"regex": "^((olimar)|(pikmin)|(al((ph)|f)))$",
+		"name": "Olimar"
+	},
+	"lucario" : {
+		"number": "41",
+		"regex": "^(lu)?cario$",
+		"name": "Lucario"
+	},
+	"rob" : {
+		"number": "42",
+		"regex": "^r[\\s\\_\\-\\.]*o[\\s\\_\\-\\.]*b(ot)?$",
+		"name": "R.O.B"
+	},
+	"toon_link" : {
+		"number": "43",
+		"regex": "^(t(o+u*n)?[\\s\\_\\-\\.]*l((i|o|u)nk)?)|(l((i|o|u)nk)?[\\s\\_\\-\\.]*((c(arto?o*n)))|(to+u*n))$",
+		"name": "Link Cartoon"
+	},
+	"wolf" : {
+		"number": "44",
+		"regex": "^(star)?((wo+(l|(u*))f)|(dogg?o?))$",
+		"name": "Wolf"
+	},
+	"villageois" : {
+		"number": "45",
+		"regex": "^villa(g|j)e?((oise?)|r)$",
+		"name": "Villageois"
+	},
+	"mega_man" : {
+		"number": "46",
+		"regex": "(mega|rock)[\\s\\_\\-\\.]*man",
+		"name": "Mega Man"
+	},
+	"entraineuse_wii_fit" : {
+		"number": "47",
+		"regex": "^(e(ntraineu?(r|(se))))?[\\s\\_\\-\\.]*wi+[\\s\\_\\-\\.]*fi+t[\\s\\_\\-\\.]*(traineu?(r|(se)))?$",
+		"name": "Entraineuse Wii Fit"
+	},
+	"harmonie_et_luma" : {
+		"number": "48",
+		"regex": "^((harmo(n((ie)|y)))|(ro(s|z)a(l(i|y)((na)|e))?))[\\s\\_\\-\\.]*((et)|(and))?[\\s\\_\\-\\.]*(lumas?)?$",
+		"name": "Harmonie & Luma"
+	},
+	"little_mac" : {
+		"number": "49",
+		"regex": "^(li(t?t)?le?[\\s\\_\\-\\.]*m(ac)?)|(mac)$",
+		"name": "Little Mac"
+	},
+	"greninja" : {
+		"number": "50",
+		"regex": "^(((gre?a?y?i?)|(water[\\s\\_\\-\\.]*))?ninja)|(gre?a?y?i?ni?n?)|((a|e)(m|n)((((ph)|f)i)|(free))n((o*)|(ew))bie?)$",
+		"name": "Amphinobi"
+	},
+	"mii_brawler" : {
+		"number": "51",
+		"regex": "^mii*[\\s\\_\\-\\.]*b(r(a|o)(w|n)leu?r)$",
+		"name": "Boxeur Mii"
+	},
+	"mii_swordfighter" : {
+		"number": "52",
+		"regex": "^mii*[\\s\\_\\-\\.]*((sword([\\s\\_\\-\\.]*fight(eu?r))?)|((é|e)pé?e*(iste)?))$",
+		"name": "Épéiste Mii"
+	},
+	"mii_gunner" : {
+		"number": "53",
+		"regex": "^mii*[\\s\\_\\-\\.]*gun(n?eu?r)?$",
+		"name": "Tireur Mii"
+	},
+	"palutena" : {
+		"number": "54",
+		"regex": "^(palu(th?ena)?)|(laputh?ena)$",
+		"name": "Palutena"
+	},
+	"pac-man" : {
+		"number": "55",
+		"regex": "^((pac[\\s\\_\\-\\.]*man)|((wa+ku+[\\s\\_\\-\\.]*)+))$",
+		"name": "Pac-Man"
+	},
+	"daraen" : {
+		"number": "56",
+		"regex": "^((dara?e?i?n+e?)|(robin+e?t?))$",
+		"name": "Daraen"
+	},
+	"shulk" : {
+		"number": "57",
+		"regex": "^sho*u*lc?(k(que)?)?$",
+		"name": "Shulk"
+	},
+	"bowser_jr" : {
+		"number": "58",
+		"regex": "^(((bo?wse?r)|(ko+p+a))[\\s\\_\\-\\.]*(ju?n?i?o?r)[\\s\\_\\-\\.]*)|(lar+[yi])|(m[o0]rt[o0]n?)|(w[ea]+n?d[yi]e?)|(l[ea]m+[yi])|(ig+[yi])|(lud[wv][iy]g+)$",
+		"name": "Bowser Jr."
+	},
+	"duo_duck_hunt" : {
+		"number": "59",
+		"regex": "^(d(uo)?)?[\\s\\_\\-\\.]*(l|f|d|c)(uck)?[\\s\\_\\-\\.]*((h|c)(unt)?)?$",
+		"name": "Duo Duck Hunt"
+	},
+	"ryu" : {
+		"number": "60",
+		"regex": "^ry+u+(ji+)?$",
+		"name": "Ryu"
+	},
+	"ken" : {
+		"number": "60e",
+		"regex": "^ke+n+e?([\\s\\_\\-\\.]*masters?)?$",
+		"name": "Ken"
+	},
+	"cloud" : {
+		"number": "61",
+		"regex": "^cla?o?u?de?[\\s\\_\\-\\.]*(stri?y?f+e)?(ssj)?$",
+		"name": "Cloud"
+	},
+	"corrin" : {
+		"number": "62",
+		"regex": "^(c|k)(o|(au))r+i+n+e?$",
+		"name": "Corrin"
+	},
+	"bayonetta" : {
+		"number": "63",
+		"regex": "^ba?e?yo(n+et+a+)?$",
+		"name": "Bayonetta"
+	},
+	"inkling" : {
+		"number": "64",
+		"regex": "^inklin?ge?$",
+		"name": "Inkling"
+	},
+	"ridley" : {
+		"number": "65",
+		"regex": "^ridle?a?y([\\s\\_\\-\\.]*scot+)?$",
+		"name": "Ridley"
+	},
+	"simon" : {
+		"number": "66",
+		"regex": "^((si)|6)m(on)?(e|t)?$",
+		"name": "Simon"
+	},
+	"richter" : {
+		"number": "66e",
+		"regex": "^richte+u*r$",
+		"name": "Richter"
+	},
+	"king_k_rool" : {
+		"number": "67",
+		"regex": "^((k(ing)?)|(r(oi)?))[\\s\\_\\-\\.]*k?[\\s\\_\\-\\.]*r(o+u?l)?$",
+		"name": "King K. Rool"
+	},
+	"marie" : {
+		"number": "68",
+		"regex": "^(mariy?e?)|(isa(bel+(a|e)+)?)$",
+		"name": "Marie"
+	},
+	"felinferno" : {
+		"number": "69",
+		"regex": "^(f(e|é)line?(ferno)?)|(inc(i(n(eroa?w?r)?)?)?)$",
+		"name": "Félinferno"
+	},
+	"plante_piranha" : {
+		"number": "70",
+		"regex": "^plante?[\\s\\_\\-\\.]*(pih?rh?anh?ah?)?[\\s\\_\\-\\.]*((plante?))?$",
+		"name": "Plante Piranha"
+	},
+	"joker" : {
+		"number": "71",
+		"regex": "^((jo?ke?u?r)|(ar?s+((e|è)(n+e?)?)?))$",
+		"name": "Joker"
+	},
+	"hero" : {
+		"number": "72",
+		"regex": "^h(e|é|((e|a)i))ro+s?$",
+		"name": "Héro"
+	},
+	"banjo_et_kazooie" : {
+		"number": "73",
+		"regex": "^(b(an)?)?jo[\\s\\_\\-\\.]*((a?nd?)|(\\&)|((é|e)+t?))?[\\s\\_\\-\\.]*(k(c?a(z|s)+o+u?(i|y)*e?)?)?$",
+		"name": "Banjo & Kazooie"
+	},
+	"terry" : {
+		"number": "74",
+		"regex": "^ter+(y|i)+e?$",
+		"name": "Terry"
+	},
+	"byleth" : {
+		"number": "75",
+		"regex": "^(mo)?b(y|i)+l+et+h*e?$",
+		"name": "Byleth"
+	},
+	"min_min" : {
+		"number": "76",
+		"regex": "^(m((ine?)|(axe?))[\\s\\_\\-\\.]*)+$",
+		"name": "Min Min"
+	},
+	"steve" : {
+		"number": "77",
+		"regex": "^(st[eiy]*[vf](en?)?)|(ale*x)|([zs][oe]?u?[mn]b[iy]*e?)|((sl)?[ea]nde?u?r(m[ae]*n)|(son))$",
+		"name": "Steve"
+	},
+	"sephiroth": {
+		"number": "78",
+		"regex": "^s(é|è|ê|ë|e)((ph)|(f+))i+r+((o+)|au)t(h|(t+e))$",
+		"name": "Séphiroth"
+	},
+	"pyra":{
+		"number": "79",
+		"regex": "^p[iy]+h?r+h?a+h?$",
+		"name": "Pyra"
+	},
+	"mythra":{
+		"number": "80",
+		"regex": "^m[iy]+th?r+h?a+h?$",
+		"name": "Mythra"
+	},
+	"pyra_mythra":{
+		"number": "80d",
+		"regex": "^((p[iy]+h?r+h?a+h?)[\\s\\_\\-\\.]*((a?nd?)|(\\&)|((é|e)+t?))?[\\s\\_\\-\\.]*(m[iy]+th?r+h?a+h?))$",
+		"name": "Pyra & Mythra"
+	},
+	"mythra_pyra":{
+		"number": "80p",
+		"regex": "^((m[iy]+th?r+h?a+h?)[\\s\\_\\-\\.]*((a?nd?)|(\\&)|((é|e)+t?))?[\\s\\_\\-\\.]*(p[iy]+h?r+h?a+h?))$",
+		"name": "Mythra & Pyra"
+	},
+	"kazuya":{
+		"number": "81",
+		"regex": "^[kc]+[ao]+[sz]o?u(i|ï|y|(ill))[ao]+h?([\\s\\_\\-\\.]*mi+[cs]hi+m+[ao]+h?)?$",
+		"name": "Kazuya"
+	},
+	"sora":{
+		"number": "82",
+		"regex": "^s+[aoe]*r+[aoe]*$",
+		"name": "Sora"
+	}
+}

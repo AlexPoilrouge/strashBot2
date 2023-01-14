@@ -2,29 +2,23 @@ const fs= require( 'fs' );
 const path= require( 'path' );
 const child_process= require("child_process");
 
+const my_utils= require("../../utils")
+
 let hereLog= (...args) => {console.log("[playersDB]", ...args);};
+
+
+let fightersObj= undefined;
 
 function __loadFightersObj(){
     var fn= path.resolve(__dirname,"fighters.json")
-    if(fs.existsSync(fn)){
-        var data= fs.readFileSync(fn);
 
-        var r= undefined;
-        if(Boolean(data) && Boolean(r=JSON.parse(data))){
-            return r;
-        }
-        else{
-            hereLog(`[load_fighters] Error reading data from '${fn}'`);
-            return undefined;
-        }
+    fightersObj= my_utils.fighterStuff.getFighters()
+    if(!Boolean(fightersObj)){
+        fightersObj= my_utils.fighterStuff.loadFighters(fn)
     }
-    else{
-        hereLog(`[load_fighters]'${fn}' file not found`);
-        return undefined;
-    }
+
+    return fightersObj
 }
-
-let fightersObj= undefined;
 
 class PlayerDataManager{
     constructor(dbManager){
@@ -143,9 +137,17 @@ class PlayerDataManager{
             }
             else{
                 for (var key of keys){
+                    let l_name= name.toLowerCase()
                     var fighter= this.fightersObj[key]
                     var regex= (Boolean(fighter) && Boolean(fighter.regex))?(new RegExp(fighter.regex)):undefined
-                    if(Boolean(regex) && (Boolean(name.toLowerCase().match(regex)) || Boolean(name===fighter.number))){
+                    if( l_name===key ||
+                        (   Boolean(regex) && (
+                                Boolean(l_name.match(regex))
+                                || l_name===fighter.number.toLowerCase()
+                                || l_name===fighter.name.toLowerCase()
+                            )
+                        )
+                    ){
                         res= {"name": key, "number": fighter.number}
                         break;
                     }
@@ -249,13 +251,16 @@ class PlayerDataManager{
             var svg=
                 `<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n`+
                 `<svg width="416" height="96"\n`+
-                `\txmlns="http://www.w3.org/2000/svg">\n`;
+                `\txmlns="http://www.w3.org/2000/svg" `+
+                `xmlns:xlink="http://www.w3.org/1999/xlink">\n`;
             
             for(var i=0; i<icons.length; ++i){
                 var s= (i===0)?96:64
                 svg+= `\t<image xlink:href="${icons[i]}" width="${s}" height="${s}" x="${((i>0)?32:0)+(i+1)*64}" y="${96-s}"/>\n`
             }
             svg+= `</svg>`
+
+            // hereLog(`===> svg: ${svg}`)
 
             var svg_file= dir+`/${playerID}.svg`
             var b_success= true

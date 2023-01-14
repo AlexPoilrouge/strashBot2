@@ -43,7 +43,7 @@ class CommandSettings extends CommandData{
 
     setField(cmd_name, guild, fieldName, value){
         this._checkData(cmd_name, guild.id)
-        
+        // hereLog(`setField ${cmd_name} ${guild.id} ${fieldName} ${value}`)
         var commandFileSettings= undefined;
         var perGuildSettings= undefined;
         var obj= undefined;
