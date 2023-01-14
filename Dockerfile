@@ -10,7 +10,10 @@ RUN pacman -Syyu --noconfirm nodejs-lts-gallium gcc npm make openssh sudo nano g
 
 COPY . /tmp/recieved
 
-RUN echo "Add copy script as 'docker_test/copies.sh' if needed - " && ( bash /tmp/recieved/docker_test/copies.sh || echo 'none given' )
+RUN echo "Add copy script as 'docker_test/copies.sh' if needed - " && \
+    ( [ -f /tmp/recieved/docker_test/copies.sh ] && \
+        bash /tmp/recieved/docker_test/copies.sh || \
+        echo 'none given' )
 
 WORKDIR /tmp/recieved
 
