@@ -1,19 +1,20 @@
-const { REST, Routes } = require('discord.js');
+const { REST, Routes, Client } = require('discord.js');
 // const { clientId, guildId, token } = require('./config.json');
 const config= require('config');
 const fs = require('node:fs');
 const path= require( 'path' );
 
-let hereLog=    (...args) => {console.log("[registerSlash_dev]", ...args);};
+let hereLog=    (...args) => {console.log("[registerSlash]", ...args);};
 
 const modules_dir= "./modules"
 
 const commands = [];
 
 let clientId= config.get('StrashBot.clientID')
-let guildId= config.get('StrashBot.devGuildID')
+let devGuildId= config.get('StrashBot.devGuildID')
 let token= config.get('StrashBot.token')
 let debug= ["1","on","true","debug"].includes(config.get('StrashBot.debug').toLowerCase());
+
 
 
 let dir_path= path.resolve(__dirname, modules_dir)
@@ -51,19 +52,38 @@ for (const file of commandFiles) {
 const rest = new REST({ version: '10' }).setToken(token);
 
 // and deploy your commands!
-(async () => {
+let deploySlash= (async (g_id=undefined) => {
 	try {
 		hereLog(`Started refreshing ${commands.length} application (/) commands.`);
 
 		// The put method is used to fully refresh all commands in the guild with the current set
-		const data = await rest.put(
-			Routes.applicationGuildCommands(clientId, guildId),
-			{ body: commands },
-		);
 
-		hereLog(`Successfully reloaded ${data.length} application (/) commands.`);
+		let data= undefined
+		if(Boolean(g_id)){
+			data = await rest.put(
+				Routes.applicationGuildCommands(clientId, g_id),
+				{ body: commands },
+			);
+
+			hereLog(`Successfully reloaded ${data.length} application (/) commands for guild ${g_id}.`);
+		}
+		else{
+			data = await rest.put(
+				Routes.applicationGuildCommands(clientId),
+				{ body: commands },
+			);
+
+			hereLog(`Successfully reloaded ${data.length} application (/) commands for all guilds.`);
+		}
 	} catch (error) {
 		// And of course, make sure you catch and log any errors!
 		console.error(error);
 	}
-})();
+});
+
+if(Boolean(debug)){
+	await deploySlash(devGuildId)
+}
+else{
+	await deploySlash()
+}

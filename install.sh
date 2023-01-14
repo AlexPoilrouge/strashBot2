@@ -186,7 +186,7 @@ if "${SLASH_REGISTER}"; then
 
     echo "Registering slash dev commands…"
     echo "    (NODE_CONFIG_DIR=\"${NODE_CONFIG_DIR}\")}"
-    node js/registerSlash_dev.js
+    node js/registerSlash.js
 
     export NODE_CONFIG_DIR="${_NODE_CONFIG_DIR}"
 else
