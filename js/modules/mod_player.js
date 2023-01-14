@@ -300,9 +300,9 @@ async function S_S_CMD_player_about(interaction, utils){
         // let channel= interaction.channel
         let targetMember= await interaction.guild.members.fetch(targetUser.id)
         // await interaction.deleteReply()
-        
+
         let payload= {
-            content: `***${targetMember.nickname}***'s player infos:\n`+
+            content: `***${targetMember.displayName}***'s player infos:\n`+
                     `> ${playerTag.team?`[*${playerTag.team}*] `:''}${playerTag.name}`
         }
 

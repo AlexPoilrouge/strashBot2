@@ -713,7 +713,7 @@ async function S_S_CMD_top8_draw(interaction, utils){
                 content: `Generated top8 image: `,
                 files: [{
                     attachment: graph_results.file,
-                    name: `top8_${templateOpt}_${graph_results.file.split('.').at(-1)}`    
+                    name: `top8_${templateOpt}.${graph_results.file.split('.').at(-1)}`    
                 }]
             }
             if(!Boolean(channelOpt)){
