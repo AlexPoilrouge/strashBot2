@@ -82,8 +82,8 @@ let deploySlash= (async (g_id=undefined) => {
 });
 
 if(Boolean(debug)){
-	await deploySlash(devGuildId)
+	deploySlash(devGuildId)
 }
 else{
-	await deploySlash()
+	deploySlash()
 }
