@@ -1,5 +1,6 @@
 const Settings= require('./settings').Settings;
-const Commander= require('./commander').Commander;
+const ModulesHandler= require('./modulesHandler').ModulesHandler;
+const Discord= require('discord.js');
 
 const utils= require('./utils')
 
@@ -10,12 +11,12 @@ class Worker{
         this._bot= bot;
 
         this._settings= new Settings(this._bot);
-        this._commander= new Commander(this);
+        this._moduleHandler= new ModulesHandler(this);
     }
 
-    destroy(){
-        if(Boolean(this._commander)){
-            this._commander.destroy();
+    async destroy(){
+        if(Boolean(this._moduleHandler)){
+            await this._moduleHandler.destroy();
         }
     }
 
@@ -29,39 +30,46 @@ class Worker{
         hereLog("ready");
     }
 
-    processMessage(message, cacheRoom){
-        this._commander._msgRoomUpdate(cacheRoom);
-        let cmd= utils.commandDecompose(message, this._commander._cmd_prefix);
+    processMessage(message){
+        let cmd= utils.commandDecompose(message, this._moduleHandler._old_cmd_prefix);
         if(cmd){
-            this._commander.processCommand(cmd);
+            this._moduleHandler.processOldCommands(cmd);
         }
         else{
-            this._commander.onEvent('message',message);
+            this._moduleHandler.onEvent('messageCreate', message);
+        }
+    }
+
+    async interacting(interaction){
+        let processed= await this._moduleHandler.onSlashCommandInteraction(interaction)
+        processed= await this._moduleHandler.onAutoCompleteInteraction(interaction)
+
+        if(!processed){
+            this.event(Discord.Events.InteractionCreate, interaction)
         }
     }
 
     event(){
-        this._commander.onEvent(...arguments);
+        this._moduleHandler.onEvent(...arguments);
     }
 
     newGuild(guild){
-        this._commander._addGuildCmd(guild);
-        this._commander._addGuildDB(guild);
+        this._moduleHandler._addGuildCmd(guild);
+        this._moduleHandler._addGuildDB(guild);
     }
 
     byeGuild(guild){
-        this._commander._rmGuildCmd(guild);
-        this._commander._rmGuildDB(guild);
+        this._moduleHandler._rmGuildCmd(guild);
+        this._moduleHandler._rmGuildDB(guild);
     }
 
-    processDMessage(message, cacheRoom){
-        this._commander._msgRoomUpdate(cacheRoom);
-        let cmd= utils.commandDecompose(message, this._commander._cmd_prefix);
+    processDMessage(message){
+        let cmd= utils.commandDecompose(message, this._moduleHandler._old_cmd_prefix);
         if(cmd){
-            this._commander.processCommand(cmd, true);
+            this._moduleHandler.processOldCommands(cmd, true);
         }
         else{
-            this.event('dmessage', message);
+            this.event('messageCreate', message);
         }
     }
 

@@ -4,10 +4,12 @@
         "build": "STRASHBOT_BUILD",
         "source": "STRASHBOT_SRC",
 
+        "clientID": "STRASHBOT_CLIENTID",
         "token": "STRASHBOT_TOKEN",
 
         "masterID": "STRASHBOT_MASTERID",
 
-        "debug": "STRASHBOT_DEBUG"
+        "debug": "STRASHBOT_DEBUG",
+        "devGuildID": "STRASHBOT_DEVGUILDID"
     }
 }

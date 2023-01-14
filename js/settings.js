@@ -19,8 +19,7 @@ class Settings{
 
         fs.writeFile(this.guildConfigs.file, data, err => {
             if(err){
-                hereLog(`[FC Saving] Couldn't write in file '${this.guildConfigs.file}'…` );
-                hereLog(err);
+                hereLog(`[FC Saving] Couldn't write in file '${this.guildConfigs.file}'…`, err);
             }
         });
     }
