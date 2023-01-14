@@ -69,7 +69,7 @@ let deploySlash= (async (g_id=undefined) => {
 		}
 		else{
 			data = await rest.put(
-				Routes.applicationGuildCommands(clientId),
+				Routes.applicationCommands(clientId),
 				{ body: commands },
 			);
 
