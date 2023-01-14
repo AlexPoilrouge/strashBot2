@@ -357,7 +357,9 @@ async function S_S_CMD_player_about(interaction, utils){
     }
 }
 
-async function S_S_CMD_player_setPost(interaction, utils){
+async function S_CMD_player_setPost(interaction, utils){
+    await interaction.deferReply({ephemeral: true})
+    
     let channel= interaction.options.getChannel('channel') ?? interaction.channel
 
     utils.settings.set(interaction.guild, "post_channel", channel.id)
@@ -383,9 +385,6 @@ async function S_CMD__player(interaction, utils){
     }
     else if(subcommand==='about'){
         await S_S_CMD_player_about(interaction, utils)
-    }
-    else if(subcommand==='set-post'){
-        await S_S_CMD_player_setPost(interaction, utils)
     }
     else{
         await interaction.editReply(
@@ -532,17 +531,6 @@ let playerSlash1= {
                 .setName('user')
                 .setDescription("About anoth user")
             )
-        )
-        .addSubcommand(subcommand =>
-            subcommand
-            .setName('set-post')
-            .setDescription("Where to post players rosters")
-            .addChannelOption(option =>
-                option
-                .setName('channel')
-                .setDescription("the channel (current one if not given)")
-                .addChannelTypes(ChannelType.GuildText)
-            )
         ),
     async execute(interaction, utils){
         try{
@@ -564,6 +552,23 @@ let playerSlash1= {
         catch(err){
             hereLog(`[top8_autoComplete] Error! -\n\t${err}`)
         }
+    }
+}
+
+let playerSlash_channel= {
+    data: new SlashCommandBuilder()
+            .setName('roster-post-channel')
+            .setDescription("Where to post players rosters")
+            .setDefaultMemberPermissions(0)
+            .addChannelOption(option =>
+                option
+                .setName('channel')
+                .setDescription("the channel (current one if not given)")
+                .addChannelTypes(ChannelType.GuildText)
+                .setRequired(true)
+            ),
+    async execute(interaction, utils){
+        await S_CMD_player_setPost(interaction, utils)
     }
 }
 
@@ -594,7 +599,8 @@ async function init_perGuild(guild, utils){
 
 module.exports= {
     slash_builders: [
-        playerSlash1
+        playerSlash1,
+        playerSlash_channel
     ],
     oldGuildCommands: [
         {name: 'player', execute: ogc_player},
