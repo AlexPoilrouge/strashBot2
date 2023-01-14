@@ -606,6 +606,5 @@ module.exports= {
     //     guildMemberRemove: event_guildMemberRemove
     // },
     help_msg: "",
-    initPerGuild: init_perGuild,
-    devOnly: true
+    initPerGuild: init_perGuild
 }

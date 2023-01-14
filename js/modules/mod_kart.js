@@ -2754,7 +2754,6 @@ module.exports= {
     ],
     init: kart_init,
     initPerGuild: kart_init_per_guild,
-    destroy: kart_destroy,
-    devOnly: true
+    destroy: kart_destroy
 }
 

@@ -962,6 +962,5 @@ module.exports= {
         {name: 'top8', execute: ogc_top8}
     ],
     init: init,
-    initPerGuild: init_perGuild,
-    devOnly: true
+    initPerGuild: init_perGuild
 }

@@ -81,9 +81,14 @@ let deploySlash= (async (g_id=undefined) => {
 	}
 });
 
-if(Boolean(debug)){
-	deploySlash(devGuildId)
+if(commands.length>0){
+	if(Boolean(debug)){
+		deploySlash(devGuildId)
+	}
+	else{
+		deploySlash()
+	}
 }
 else{
-	deploySlash()
+	hereLog(`No modules found to add…`)
 }

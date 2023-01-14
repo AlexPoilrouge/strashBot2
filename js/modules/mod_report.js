@@ -442,6 +442,5 @@ module.exports= {
     help_msg: "",
     init: init,
     initPerGuild: init_perGuild,
-    destroy: destroy,
-    devOnly: true
+    destroy: destroy
 }
