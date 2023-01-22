@@ -577,7 +577,9 @@ function ogc_player(strashBotOldCmd, clearanceLvl, utils){
     let message= strashBotOldCmd.msg_obj;
 
     message.channel.send(`'sup? So… *!commands* are deprecated. lol 🤣\n\n`+
-        `Perhaps try a slash command like \`/${command}\`, see if something happens 🤷`
+        `Perhaps try a slash command, see if something happens 🤷\n`+
+        `\t- \`/player roster\` to change your fighters roster\n`+
+        `\t- \`/player tag\` to change your player tag + team`
     )
 
     return E_RetCode.REFUSAL
