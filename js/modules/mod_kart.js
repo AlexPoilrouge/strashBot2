@@ -1804,20 +1804,52 @@ async function S_CMD__kartInGames(interaction, utils){
     }
 }
 
+let __Update_Keys= {
+    mem_keys: {},
+    last: 0,
+    allowed_diff: 300000 //should be 5 min
+}
+
+function __readkey_from_file(configEntryName){
+    var key= __Update_Keys.mem_keys[configEntryName]
+
+    let now= Date.now()
+    if(!Boolean(key) || ((now-__Update_Keys.last)>__Update_Keys.allowed_diff)){
+        __Update_Keys.last= now
+        key= fs.readFileSync(path.resolve(kart_settings.api.token_keys[configEntryName]))
+        __Update_Keys.mem_keys[configEntryName]= key
+    }
+
+    return key
+}
+
+let JWT_SIGN_OPTIIONS= {
+    expiresIn: '1m',
+    algorithm:  "RS256"
+}
+
 function __api_generateUserPrivilegedToken(user, admin=false){
     var key= undefined
     if(Boolean(kart_settings.api && kart_settings.api.token_keys)){
-        if(admin &&
-            Boolean(kart_settings.api.token_keys.adminkey)
-        ){
-            key= kart_settings.api.token_keys.adminkey
+        try{
+            if(admin &&
+                Boolean(kart_settings.api.token_keys.adminSignkey)
+            ){
+                key= __readkey_from_file('adminSignkey')
+            }
+            else if(Boolean(kart_settings.api.token_keys.discorduserSignkey)){
+                key= __readkey_from_file('discorduserSignkey')
+            }
+            else{
+                hereLog(`[api_priviledged_tokens] couldn't get proper token for clearanceLvl (no key?)...`)
+                return undefined
+            }
+        } catch(err){
+            hereLog(`[api_priviledged_tokens] couldn't get proper token for clearanceLvl (no key files?)...`)
+            return undefined;
         }
-    }
-    if( (!Boolean(kart_settings.api && kart_settings.api.token_keys))
-        || ((!admin) && !Boolean(key=kart_settings.api.token_keys.discorduserkey))
-        || (admin && !Boolean(key=kart_settings.api.token_keys.adminkey))
-    ){
-        hereLog(`[api_priviledged_tokens] couldn't get proper token for clearanceLvl...`)
+    }else{
+        hereLog(`[api_priviledged_tokens] couldn't get proper token for clearanceLvl (no key files settings?)...`)
         return undefined
     }
 
@@ -1826,7 +1858,7 @@ function __api_generateUserPrivilegedToken(user, admin=false){
         id: user.id
     }
 
-    return jwt.sign({auth}, key, {expiresIn: '1m'})
+    return jwt.sign({auth}, key, JWT_SIGN_OPTIIONS)
 }
 
 async function __send_clipInfo_req(clipID ,interaction, utils, newClip=false){
