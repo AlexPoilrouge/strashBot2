@@ -1,6 +1,7 @@
 const { SlashCommandBuilder } = require("discord.js")
 
 const fs= require( 'fs' );
+const cron= require('node-cron');
 
 const my_utils= require('../utils.js')
 
@@ -442,6 +443,5 @@ module.exports= {
     help_msg: "",
     init: init,
     initPerGuild: init_perGuild,
-    destroy: destroy,
-    devOnly: true
+    destroy: destroy
 }

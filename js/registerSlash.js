@@ -69,7 +69,7 @@ let deploySlash= (async (g_id=undefined) => {
 		}
 		else{
 			data = await rest.put(
-				Routes.applicationGuildCommands(clientId),
+				Routes.applicationCommands(clientId),
 				{ body: commands },
 			);
 
@@ -81,9 +81,14 @@ let deploySlash= (async (g_id=undefined) => {
 	}
 });
 
-if(Boolean(debug)){
-	await deploySlash(devGuildId)
+if(commands.length>0){
+	if(Boolean(debug)){
+		deploySlash(devGuildId)
+	}
+	else{
+		deploySlash()
+	}
 }
 else{
-	await deploySlash()
+	hereLog(`No modules found to add…`)
 }

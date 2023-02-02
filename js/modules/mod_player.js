@@ -300,9 +300,9 @@ async function S_S_CMD_player_about(interaction, utils){
         // let channel= interaction.channel
         let targetMember= await interaction.guild.members.fetch(targetUser.id)
         // await interaction.deleteReply()
-        
+
         let payload= {
-            content: `***${targetMember.nickname}***'s player infos:\n`+
+            content: `***${targetMember.displayName}***'s player infos:\n`+
                     `> ${playerTag.team?`[*${playerTag.team}*] `:''}${playerTag.name}`
         }
 
@@ -357,7 +357,9 @@ async function S_S_CMD_player_about(interaction, utils){
     }
 }
 
-async function S_S_CMD_player_setPost(interaction, utils){
+async function S_CMD_player_setPost(interaction, utils){
+    await interaction.deferReply({ephemeral: true})
+    
     let channel= interaction.options.getChannel('channel') ?? interaction.channel
 
     utils.settings.set(interaction.guild, "post_channel", channel.id)
@@ -383,9 +385,6 @@ async function S_CMD__player(interaction, utils){
     }
     else if(subcommand==='about'){
         await S_S_CMD_player_about(interaction, utils)
-    }
-    else if(subcommand==='set-post'){
-        await S_S_CMD_player_setPost(interaction, utils)
     }
     else{
         await interaction.editReply(
@@ -532,17 +531,6 @@ let playerSlash1= {
                 .setName('user')
                 .setDescription("About anoth user")
             )
-        )
-        .addSubcommand(subcommand =>
-            subcommand
-            .setName('set-post')
-            .setDescription("Where to post players rosters")
-            .addChannelOption(option =>
-                option
-                .setName('channel')
-                .setDescription("the channel (current one if not given)")
-                .addChannelTypes(ChannelType.GuildText)
-            )
         ),
     async execute(interaction, utils){
         try{
@@ -567,12 +555,31 @@ let playerSlash1= {
     }
 }
 
+let playerSlash_channel= {
+    data: new SlashCommandBuilder()
+            .setName('roster-post-channel')
+            .setDescription("Where to post players rosters")
+            .setDefaultMemberPermissions(0)
+            .addChannelOption(option =>
+                option
+                .setName('channel')
+                .setDescription("the channel (current one if not given)")
+                .addChannelTypes(ChannelType.GuildText)
+                .setRequired(true)
+            ),
+    async execute(interaction, utils){
+        await S_CMD_player_setPost(interaction, utils)
+    }
+}
+
 function ogc_player(strashBotOldCmd, clearanceLvl, utils){
     let command= strashBotOldCmd.command;
     let message= strashBotOldCmd.msg_obj;
 
     message.channel.send(`'sup? So… *!commands* are deprecated. lol 🤣\n\n`+
-        `Perhaps try a slash command like \`/${command}\`, see if something happens 🤷`
+        `Perhaps try a slash command, see if something happens 🤷\n`+
+        `\t- \`/player roster\` to change your fighters roster\n`+
+        `\t- \`/player tag\` to change your player tag + team`
     )
 
     return E_RetCode.REFUSAL
@@ -594,7 +601,8 @@ async function init_perGuild(guild, utils){
 
 module.exports= {
     slash_builders: [
-        playerSlash1
+        playerSlash1,
+        playerSlash_channel
     ],
     oldGuildCommands: [
         {name: 'player', execute: ogc_player},
@@ -606,6 +614,5 @@ module.exports= {
     //     guildMemberRemove: event_guildMemberRemove
     // },
     help_msg: "",
-    initPerGuild: init_perGuild,
-    devOnly: true
+    initPerGuild: init_perGuild
 }

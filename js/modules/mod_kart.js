@@ -1846,8 +1846,8 @@ async function __send_clipInfo_req(clipID ,interaction, utils, newClip=false){
             if(Boolean(clip.thumbnail)) embed.thumbnail= { url: clip.thumbnail }
             if(Boolean(clip.description)) embed.description= clip.description
             if(Boolean(clip.submitter_id)){
-                await interaction.guild.fetch(clip.submitter_id).then(m =>{
-                    var name= (Boolean(m.nickname) && m.nickname.length>0)?m.nickname:m.user.username
+                await interaction.guild.members.fetch(clip.submitter_id).then(m =>{
+                    var name= m.displayName
 
                     embed.author= {
                         name,
@@ -2754,7 +2754,6 @@ module.exports= {
     ],
     init: kart_init,
     initPerGuild: kart_init_per_guild,
-    destroy: kart_destroy,
-    devOnly: true
+    destroy: kart_destroy
 }
 
