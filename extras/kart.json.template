@@ -15,8 +15,8 @@
         "port":"${SRB2K_API_PORT}",
         "root":"${SRB2K_API_ROOT}",
         "token_keys": {
-                "adminkey": "${SRB2K_API_TOKEN_KEY_ADMIN}",
-                "discorduserkey": "${SRB2K_API_TOKEN_KEY_DISCORDUSER}"
+                "adminSignkey": "${SRB2K_API_TOKEN_KEY_ADMIN_FILEPATH}",
+                "discorduserSignkey": "${SRB2K_API_TOKEN_KEY_DISCORDUSER_FILEPATH}"
         }
     },
     "dirs":{
