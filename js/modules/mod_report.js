@@ -74,7 +74,29 @@ ProblemCount.TYPES= TYPES
 var problems= new ProblemCount();
 
 function _reportCmdKart(guild, utils){
-    return '<h4>Nothing to show anymore</h4>'
+    var report_str= `<h4>cmd kart - roster:</h4>\n`
+
+    var post_status_channel_id= utils.settings.get(guild,"post_status_channel", "kart");
+
+    var msg=""
+    var post_chan= undefined;
+    if(!Boolean(post_status_channel_id)){
+        var _msg= `No post status channel set… (${post_status_channel_id})`
+        problems.add(guild.id, _msg, ProblemCount.TYPES.WARN)
+        msg+= _msg
+    }
+    else if (!Boolean(post_chan=guild.channels.cache.get(post_status_channel_id))){
+        var _msg= `Set post status channel is invalid… (${post_chan} - #${post_status_channel_id})`
+        problems.add(guild.id, _msg, ProblemCount.TYPES.ERROR)
+        msg+= _msg
+    }
+    else{
+        msg+= `Post kart status channel is set to <em>${post_chan.name}</em> (#${post_status_channel_id})`
+    }
+
+    report_str+= `<b> Post kart status channel:</b>\n${msg}<br/>\n`
+
+    return report_str;
 }
 
 async function _reportCmdPlayer(guild, utils){

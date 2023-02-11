@@ -7,6 +7,7 @@ const cron= require('node-cron');
 const axios= require('axios');
 const jwt= require("jsonwebtoken");
 const fetch = require('node-fetch');
+const {ActivityType}= require('discord.js');
 
 
 const my_utils= require('../utils.js')
@@ -284,6 +285,79 @@ function _askServInfos(address=undefined, port=undefined){
 
 var _oldServInfos= undefined;
 
+let PlayerNumSteps= [
+    {   number: 4,
+        message: "Looks like some guys wana race! 🏁",
+        coolDownTime: 4*60*1000 //4 min
+    },{ number: 8,
+        message: "More people just joined the party! 💪",
+        coolDownTime: 4*60*1000 //4 min
+    }, { number: 0,
+        message: "Fun's over… Going back to sleep 🛌",
+        comingFromTop: true
+    }
+]
+let CheckTimeCycleInterval= 2*60*60*1000; //2 hours
+
+var PlayerNumStepCheckInfos= {
+    iterator: 0,
+    lastNumOfPlayers: 0,
+    lastCheckStartTimeStamp: 0,
+    lastCheckStepTimeStamp: 0,
+}
+function __checkPlayerNumStep(numberOfPlayers){
+    if(numberOfPlayers<0){
+        PlayerNumStepCheckInfos= {
+            iterator: 0,
+            lastNumOfPlayers: 0,
+            lastCheckStartTimeStamp: 0,
+            lastCheckStepTimeStamp: 0,
+        }
+
+        return undefined;
+    }
+
+    let timeElapsed= Date.now()-PlayerNumStepCheckInfos.lastCheckStartTimeStamp;
+    if(timeElapsed<CheckTimeCycleInterval) return undefined;
+
+    if(PlayerNumStepCheckInfos.iterator===0 &&
+        PlayerNumStepCheckInfos.lastCheckStepTimeStamp<=0
+    ){  //allow for first step's coolDownTime to take effect
+        PlayerNumStepCheckInfos.lastCheckStepTimeStamp= Date.now()
+        return undefined;
+    }
+
+    var res= undefined;
+    let timeStepElapsed= Date.now()-PlayerNumStepCheckInfos.lastCheckStepTimeStamp
+    for(var i=PlayerNumStepCheckInfos.iterator; i<PlayerNumSteps.length; ++i){
+
+        let testThreshold= PlayerNumSteps[i];
+        if( ((  testThreshold.number>=PlayerNumStepCheckInfos.lastNumOfPlayers
+                &&  (!Boolean(testThreshold.comingFromTop))
+                &&  numberOfPlayers>=testThreshold.number
+            ) || (
+                testThreshold.comingFromTop
+                &&  PlayerNumStepCheckInfos.iterator>0 //need to at least have crossed first threshold…
+                &&  testThreshold.number<PlayerNumStepCheckInfos.lastNumOfPlayers
+                && numberOfPlayers<=testThreshold.number
+            )) && ( (!Boolean(testThreshold.coolDownTime)) || (testThreshold.coolDownTime<=timeStepElapsed) )
+        ){
+            PlayerNumStepCheckInfos.iterator= i+1;
+            PlayerNumStepCheckInfos.lastCheckStepTimeStamp= Date.now()
+
+            res= {number: testThreshold.number, message: testThreshold.message}
+        }
+    }
+    PlayerNumStepCheckInfos.lastNumOfPlayers= numberOfPlayers;
+    if(PlayerNumStepCheckInfos.iterator>=PlayerNumSteps.length){
+        PlayerNumStepCheckInfos.iterator= 0;
+        PlayerNumStepCheckInfos.lastCheckStepTimeStamp= 0
+        PlayerNumStepCheckInfos.lastCheckStartTimeStamp= Date.now();
+    }
+
+    return res
+}
+
 function _checkServerStatus(utils){
     var bot= utils.getBotClient();
 
@@ -291,6 +365,7 @@ function _checkServerStatus(utils){
         if((!Boolean(servInfo.service_status)) || (servInfo.service_status!=='UP')){
             // hereLog(`SRB2Kart server service status is '${servInfo.service_status}'`);
             bot.user.setActivity('');
+            __checkPlayerNumStep(-1)
         
             _oldServInfos= undefined;
         }
@@ -299,12 +374,53 @@ function _checkServerStatus(utils){
                 throw "Fetched bad servinfo";
             }
 
+            let numPlayer= servInfo.server.numberofplayer
+
+            let infoStep= __checkPlayerNumStep(numPlayer);
+            if(Boolean(infoStep)){
+                bot.guilds.fetch().then(guilds => {
+                    guilds.forEach(guild => {
+                        post_status_channel_id= utils.settings.get(guild,"post_status_channel");
+
+                        if(Boolean(post_status_channel_id)){
+                            guild.fetch().then(g => {
+                                g.channels.fetch(post_status_channel_id).then(post_channel => {
+                                    let color= (infoStep.number>4) ?
+                                                    0xff0000
+                                                :   (infoStep.number>0) ?
+                                                        0xffa500
+                                                    :   0x666666
+                                    post_channel.send({
+                                        embeds: [{
+                                            color,
+                                            title: `${numPlayer} playing`,
+                                            fields: [{
+                                                name: "StrashBot Karting",
+                                                value: infoStep.message,
+                                                inline: false
+                                            }],
+                                            footer: { text: 'strashbot.fr' }
+                                        }]
+                                    });
+                                }).catch(err => {
+                                    hereLog(`Counldn't find post channel ${post_status_channel_id} in ${g} - ${err}`)
+                                })
+                            }).catch(err => {
+                                hereLog(`Couldn't fetch guild ${guild} data - ${err}`)
+                            })
+                        }
+                    })
+                } ).catch(err => {
+                    hereLog(`No guilds to this bot? - ${err}`)
+                })
+            }
+
             if( ( !Boolean(_oldServInfos) || !Boolean(_oldServInfos.server)) ||
                 ( servInfo.server.numberofplayer !== _oldServInfos.server.numberofplayer )
             ){
-                if(servInfo.server.numberofplayer>1){
-                    hereLog(`Changes in srb2kart server status detected… (player count: ${servInfo.server.numberofplayer})`);
-                    bot.user.setActivity('Hosting SRB2Kart Races', { type: 'PLAYING' });
+                if(numPlayer>1){
+                    hereLog(`Changes in srb2kart server status detected… (player count: ${numPlayer})`);
+                    bot.user.setActivity('Hosting SRB2Kart Races', { type: ActivityType.Playing });
                 }
                 else{
                     hereLog(`Changes in srb2kart server status detected… (not enough player though)`);
@@ -348,7 +464,7 @@ function kart_init(utils){
     }
 
     if(!Boolean(status_job)){
-        status_job= cron.schedule('*/4 * * * *', () =>{
+        status_job= cron.schedule('*/1 * * * *', () =>{
             _checkServerStatus(utils)
         });
     }
@@ -2027,6 +2143,7 @@ async function _addNewKartClip(url, description, interaction, utils){
                 }
             }
             else{
+                hereLog(`[clipApiAdd] api error on '${api_clip_addr}' - ${err}`);
                 await interaction.editReply(
                     `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
                     `Error trying to add new clip…`
@@ -2292,6 +2409,54 @@ async function S_CMD__kartClips(interaction, utils){
             `Missing subcommand amongst: `+
             `\`here\`, \`ifno\`, \`remove\` or \`description\``
         )
+    }
+}
+
+async function S_CMD_postStatusChannel(interaction, utils){
+    await interaction.deferReply({ ephemeral: true })
+
+    let subcommand= interaction.options.getSubcommand()
+    if(subcommand==='post_status_channel'){
+        let channel= interaction.options.getChannel('set')
+        let stringOption= interaction.options.getString('do');
+
+        if(Boolean(channel)){
+            utils.settings.set(interaction.guild, 'post_status_channel', channel.id )
+
+            await interaction.editReply(
+                `Registered Status Posting Channel for player number tracking set to ${channel}.`
+            )
+        }
+        else if(stringOption==='clear'){
+            utils.settings.remove(interaction.guild, 'post_status_channel');
+
+            await interaction.editReply(
+                `Registered Status Posting Channel for player number tracking is cleared`
+            )
+        }
+        else{
+            let channel_id= utils.settings.get(interaction.guild, 'post_status_channel')
+            if(Boolean(channel_id)){
+                await interaction.guild.channels.fetch(channel_id).then(async channel => {
+                    await interaction.editReply(
+                        `Status Posting Channel for player number tracking is ${channel}`
+                    )
+                }).catch(async err => {
+                    await interaction.editReply(
+                        `${my_utils.emoji_retCode(E_RetCode.ERROR_CRITICAL)} internal error while`+
+                        ` fetching the *status_post_channel*…`
+                    )
+                    hereLog(
+                        `Couldn't fetch status_post_channel for '${channel_id}' - ${err}`
+                    )
+                })
+            }
+            else{
+                await interaction.editReply(
+                    `Status Posting Channel for player number tracking is not set…`
+                )
+            }
+        }
     }
 }
 
@@ -2705,6 +2870,44 @@ let slashKartClip= {
     }
 }
 
+let slaskKartDiscord= {
+    data: new SlashCommandBuilder()
+    .setName('kart_discord')
+    .setDescription('Link Strashbot Karting to discord through this bot.')
+    .setDefaultMemberPermissions(0)
+    .addSubcommand(subcommand => 
+        subcommand
+        .setName('post_status_channel')
+        .setDescription('Where to post the server player number tracking.')
+        .addChannelOption(option => 
+            option
+            .setName('set')
+            .setDescription('In which channel to post')
+        )
+        .addStringOption(option => 
+            option
+            .setName('do')
+            .setDescription('commands')
+            .addChoices(
+                { name: 'get', value: 'get' },
+                { name: 'clear', value: 'clear' }
+            )
+        )
+    ),
+    async execute(interaction, utils){
+        try{
+            await S_CMD_postStatusChannel(interaction, utils)
+        }
+        catch(err){
+            hereLog(`[kart_clips] Error! -\n\t${err} - ${err.message}`)
+            let msg= `${my_utils.emoji_retCode(E_RetCode.ERROR_CRITICAL)} Sorry, an internal error occured…`
+            if (interaction.deferred)
+                await interaction.editReply(msg)
+            else
+                await interaction.reply(msg)
+        }  
+    }
+}
 
 function kart_destroy(utils){
     hereLog("destroy…");
@@ -2779,7 +2982,8 @@ module.exports= {
         slashKartAddonManage,
         slashKartAddons,
         slashKartIngames,
-        slashKartClip
+        slashKartClip,
+        slaskKartDiscord
     ],
     oldGuildCommands: [
         {name: 'kart', execute: ogc_kart}
