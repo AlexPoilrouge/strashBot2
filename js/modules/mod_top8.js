@@ -214,7 +214,10 @@ function __rosterCharNameProcess(str){
                     ( Boolean(regex) && (
                             Boolean(input.toLowerCase().match(regex))
                             || l_input===fighter.number.toLowerCase()
-                            || l_input===fighter.name.toLowerCase()
+                            || ((   Array.isArray(fighter.name)
+                                    && fighter.name.some(n => l_input===n.toLowerCase()))
+                                ||( ((typeof fighter.name) === 'string')
+                                    &&  l_input===fighter.name.toLowerCase()))
                         )
                     )
                 ){
@@ -440,7 +443,8 @@ function inData_roster_fromNum_to_names(data){
                         f => f.number===m[1]
                     )
 
-                return `${Boolean(fighter)?fighter.name:'unknown'}${Boolean(m[3])?` ${m[3]}`:''}`
+                return `${Boolean(fighter)?(Array.isArray(fighter.name)?fighter.name[0]:fighter.name):'unknown'}`
+                        +`${Boolean(m[3])?` ${m[3]}`:''}`
             })
     }
 

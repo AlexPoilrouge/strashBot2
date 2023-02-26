@@ -218,6 +218,7 @@ function _autoStartServer(utils){
     })
 }
 
+
 function _askServInfos(address=undefined, port=undefined){
     var a= address, p= port;
     var m= undefined;
@@ -290,14 +291,14 @@ let PlayerNumSteps= [
         message: "Looks like some guys wana race! 🏁",
         coolDownTime: 4*60*1000 //4 min
     },{ number: 8,
-        message: "More people just joined the party! 💪",
+        message: "More people just joined the party! 🏎💨",
         coolDownTime: 4*60*1000 //4 min
     }, { number: 0,
         message: "Fun's over… Going back to sleep 🛌",
         comingFromTop: true
     }
 ]
-let CheckTimeCycleInterval= 2*60*60*1000; //2 hours
+let CheckTimeCycleInterval= 60*60*1000; //1 hour
 
 var PlayerNumStepCheckInfos= {
     iterator: 0,
@@ -358,6 +359,8 @@ function __checkPlayerNumStep(numberOfPlayers){
     return res
 }
 
+let lastMessagesPerGuild= {}
+
 function _checkServerStatus(utils){
     var bot= utils.getBotClient();
 
@@ -390,7 +393,8 @@ function _checkServerStatus(utils){
                                                 :   (infoStep.number>0) ?
                                                         0xffa500
                                                     :   0x666666
-                                    post_channel.send({
+                                    var msg=lastMessagesPerGuild[guild.id]
+                                    var msgContent= {
                                         embeds: [{
                                             color,
                                             title: `${numPlayer} playing`,
@@ -401,6 +405,23 @@ function _checkServerStatus(utils){
                                             }],
                                             footer: { text: 'strashbot.fr' }
                                         }]
+                                    }
+
+                                    ( (Boolean(msg)) ?
+                                            msg.fetch().then(m => {return m.reply(msgContent)})
+                                                .catch(err => {return post_channel.send(msgContent)})                                            
+                                        :   post_channel.send(msgContent)
+                                    ).then(message => {
+                                        const channelSnowflake = message.channel.id;
+                                        const messageSnowflake = message.id;
+
+                                        lastMessagesPerGuild[guild.id]= (numPlayer>0)? message : undefined
+                                        
+                                        fs.appendFile(path.join(__dirname, 'numPlayerStatus_sendMessages.txt'), 
+                                            `${channelSnowflake},${messageSnowflake}\n`,
+                                            (err) => {
+                                                if (err) hereLog(`Coundln't write ch;msg IDs to 'numPlayerStatus_sendMessages.txt''`);
+                                            });
                                     });
                                 }).catch(err => {
                                     hereLog(`Counldn't find post channel ${post_status_channel_id} in ${g} - ${err}`)
@@ -418,7 +439,7 @@ function _checkServerStatus(utils){
             if( ( !Boolean(_oldServInfos) || !Boolean(_oldServInfos.server)) ||
                 ( servInfo.server.numberofplayer !== _oldServInfos.server.numberofplayer )
             ){
-                if(numPlayer>1){
+                if(numPlayer>0){
                     hereLog(`Changes in srb2kart server status detected… (player count: ${numPlayer})`);
                     bot.user.setActivity('Hosting SRB2Kart Races', { type: ActivityType.Playing });
                 }
@@ -472,10 +493,46 @@ function kart_init(utils){
     hereLog("initialiazing all the stuff 🏁")
 }
 
+
+var clean_jobs= []
 function kart_init_per_guild(guild, utils){
-    // if(!Boolean(l_guilds.find(g => g.id===guild.id))){
-    //     l_guilds.push(guild)
-    // }
+    
+
+    if( (!Boolean(utils.settings.get(guild,"post_status_channel")))
+        &&  !Boolean(clean_jobs.find(gj => gj.id===guild.id))
+    ){
+        let clean_job= cron.schedule('0 6 * * *', async () => {
+            // Read the channel and message snowflakes from the file
+            const messageSnowflakes = fs.readFileSync(path.join(__dirname, 'numPlayerStatus_sendMessages.txt'), 'utf-8').split('\n');
+            
+            // Iterate over each line in the file and delete the corresponding message
+            for (const line of messageSnowflakes) {
+              if (line.trim() !== '') {
+                const [channelSnowflake, messageSnowflake] = line.split(',');
+                
+                try {
+                    const channel = await guild.channels.fetch(channelSnowflake);
+                    await channel.messages.delete(messageSnowflake);
+                    hereLog(`(clean_job){${guild}} Deleted message ${messageSnowflake} in channel ${channelSnowflake}`);
+                } catch (error) {
+                    hereLog(`(clean_job){${guild}} failed delete of ${messageSnowflake} in channel ${channelSnowflake}`,
+                            error
+                    );
+                }
+              }
+            }
+            
+            // Clear the file
+            fs.writeFile(path.join(__dirname, 'numPlayerStatus_sendMessages.txt'), '', (err) => {
+                if (err)
+                    hereLog(`(clean_job){${guild}} couldn't clear file 'numPlayerStatus_sendMessages.txt' `,
+                        err
+                    );
+            });
+        });
+
+        clean_jobs.push({id: guild.id, job: clean_job})
+    }
 }
 
 async function S_CMD__kartInfo(interaction, utils){
@@ -1277,10 +1334,10 @@ async function S_S_CMD_kartAddon_GetOrder(interaction, utils){
 }
 
 async function S_S_CMD_kartAddon_SetOrder(interaction, utils){
-    let attachement= interaction.options.getAttachment('order_config_file')
+    let attachment= interaction.options.getAttachment('order_config_file')
 
-    if(Boolean(attachement)){
-        var url= attachement.url;
+    if(Boolean(attachment)){
+        var url= attachment.url;
         
         if ( !Boolean(kart_settings) || !Boolean(kart_settings.dirs.main_folder) ){
             hereLog("[upload] no dest directory for addon order config dl");
@@ -1460,17 +1517,17 @@ async function __addonUpload(url, interaction, utils){
 }
 
 async function S_S_CMD_kartAddon_UploadNew(interaction, utils){
-    let attachement= interaction.options.getAttachment('kart_addon_file')
+    let attachment= interaction.options.getAttachment('kart_addon_file')
 
-    if(Boolean(attachement)){
-        let url= attachement.url
+    if(Boolean(attachment)){
+        let url= attachment.url
 
         await __addonUpload(url, interaction, utils)
     }
     else{
         await interaction.editReply(
             `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-            `SRB2Kart addon file expected as attachement…`
+            `SRB2Kart addon file expected as attachment…`
         );
     }
 }
@@ -1589,7 +1646,7 @@ async function S_CMD__kartAddonManager(interaction, utils){
 }
 
 async function S_S_CMD_kartAddons_List(interaction, utils){
-    let pattern= interaction.options.getString('pattern') ?? ""
+    let pattern= interaction.options.getString('search') ?? ""
     var list= _listAddonsConfig(pattern)
 
     if(Boolean(list)){
@@ -1597,46 +1654,16 @@ async function S_S_CMD_kartAddons_List(interaction, utils){
             list+=`\n\nStrashbot addons download: ${kart_settings.http_url}/strashbot_addons.zip`
         }
 
-        var resp= "Addons list for srb2kart server:\n"+list;
-        let lr= resp.length
-        if(lr>2000){
-            let ref_ix= 0
-            let last_space_ix= 0
-            for(var i=0; i<lr; ++i){
-                let ctrl_ch= resp[i]
+        var resp= "# Addons list for srb2kart server:\n"+list.replace(/\s+/g,'\n');
+        
 
-                if(ref_ix>2000){
-                    resp[last_space_ix]='\n'
-                    resp= resp.substring(0,last_space_ix)+'\n'+resp.substring(last_space_ix+1)
-                    ref_ix= i-last_space_ix
-                }
-
-                if(ctrl_ch===' '){
-                    last_space_ix= i
-                }
-                else if(ctrl_ch==='\n'){
-                    ref_ix= i
-                }
-                ++ref_ix
-            }
-        }
-
-        var chunkmessages= my_utils.splitMessage(resp)
-        if(chunkmessages.length>1){
-            var i=0
-            while(chunkmessages.length>0){
-                let chunk= chunkmessages.shift()
-                if((i++)===0){
-                    await interaction.editReply( chunk )
-                }
-                else{
-                    await interaction.followUp(chunk)
-                }
-            }
-        }
-        else{
-            await interaction.editReply( resp )
-        }
+        await interaction.editReply({
+            content: `List of ${Boolean(pattern)?'found ':''}installed addons.`,
+            files:[{
+                attachment: Buffer.from(resp),
+                name: `addon_list_${Date.now()}.md`
+            }]
+        })
     }
     else{
         await interaction.editReply(
@@ -1710,7 +1737,7 @@ function __cmd_fetchJsonInfo(kcmd){
 }
 
 async function S_S_CMD_kartInGames_Maps(interaction, utils, justCount=false){
-    let pattern= interaction.options.getString('pattern')
+    let pattern= interaction.options.getString('search')
     let search_terms= Boolean(pattern)? pattern.split(/\s/) : []
     let mapType= interaction.options.getString('type')
     mapType= ['battle','hell','banned'].includes(mapType)?mapType:undefined
@@ -1781,25 +1808,14 @@ async function S_S_CMD_kartInGames_Maps(interaction, utils, justCount=false){
     })
 
     if (l_ret.length>0 && !justCount){
-        let resp= `Found ${l_ret.length} maps:\n\n${l_ret.join('\n')}`
-
-        var chunkmessages= my_utils.splitMessage(resp)
-        if(chunkmessages.length>1){
-            let channel= interaction.channel
-            var i=0
-            while(chunkmessages.length>0){
-                let chunk= chunkmessages.shift()
-                if((i++)===0){
-                    await interaction.editReply( chunk )
-                }
-                else{
-                    await channel.send(chunk)
-                }
-            }
-        }
-        else{
-            await interaction.editReply( resp )
-        }
+        await interaction.editReply({
+            content: `Found ${l_ret.length} maps.`,
+            files: [{
+                attachment: Buffer.from(`# Found racers ${Boolean(pattern)?`(search '${pattern}') `:""}:\n\n`
+                                        +l_ret.join('\n')),
+                name: `found_maps_${Date.now()}.md`
+            }]
+        })
     }
     else if (l_ret.length>0)
         await interaction.editReply(`Found ${l_ret.length} maps!`)
@@ -1810,7 +1826,7 @@ async function S_S_CMD_kartInGames_Maps(interaction, utils, justCount=false){
 const SKIN_NUM_LIMIT= 255
 
 async function S_S_CMD_kartInGames_Racers(interaction, utils, justCount= false){
-    let pattern= interaction.options.getString('pattern') ?? ""
+    let pattern= interaction.options.getString('search') ?? ""
     let search_terms= pattern.split(/\s/)
 
     let speed_lookup= interaction.options.getNumber('speed') ?? undefined
@@ -1872,26 +1888,18 @@ async function S_S_CMD_kartInGames_Racers(interaction, utils, justCount= false){
         response+= `!\n\t⚠ Skins limit reached (*some skins might be missing*)!`
     }
 
-    if (l_ret.length>0 && !justCount)
-        response+= `\n\n${l_ret.join('\n')}`
-        
-
-    var chunkmessages= my_utils.splitMessage(response)
-    if(chunkmessages.length>1){
-        var i=0
-        while(chunkmessages.length>0){
-            let chunk= chunkmessages.shift()
-            if((i++)===0){
-                await interaction.editReply( chunk )
-            }
-            else{
-                await interaction.followUp(chunk)
-            }
-        }
+    
+    if (l_ret.length>0 && !justCount){
+        await interaction.editReply({
+            content: response,
+            files: [{
+                attachment: Buffer.from(`# Found racers ${Boolean(pattern)?`(search '${pattern}') `:""}:\n\n`
+                                        +l_ret.join('\n')),
+                name: `found_skins_${Date.now()}.md`
+            }]
+        })
     }
-    else{
-        await interaction.editReply( response )
-    }
+    else await interaction.editReply(response);        
 }
 
 async function S_CMD__kartInGames(interaction, utils){
@@ -1987,7 +1995,7 @@ async function __send_clipInfo_req(clipID ,interaction, utils, newClip=false){
 
             var embed= {}
             embed.title= newClip?
-                            `New clip on Strashèque! (n°${clipID})`
+                            `New clip on the Strashthèque! (n°${clipID})`
                         :   `Strashthèque clip id: ${clipID}`
             embed.url= `${kart_settings.web_page.base_url}/${kart_settings.web_page.clips_page}?clip=${clipID}`
             embed.timestamp=clip.timestamp
@@ -2210,7 +2218,7 @@ async function _send_clipsState(interaction, utils){
     })
 }
 
-async function S_S_CMD_kartClips_Here(interaction, utils){
+async function S_S_CMD_kartClips_New(interaction, utils){
     let attachment= interaction.options.getAttachment('clip_file')
     let given_url= interaction.options.getString('clip_url')
     let descr= interaction.options.getString('description')
@@ -2391,8 +2399,8 @@ async function S_CMD__kartClips(interaction, utils){
 
     let subcommand= interaction.options.getSubcommand()
 
-    if(subcommand==="here"){
-        await S_S_CMD_kartClips_Here(interaction, utils)
+    if(subcommand==="new"){
+        await S_S_CMD_kartClips_New(interaction, utils)
     }
     else if(subcommand==="info"){
         await S_S_CMD_kartClips_Info(interaction, utils)
@@ -2407,7 +2415,7 @@ async function S_CMD__kartClips(interaction, utils){
         await interaction.editReply(
             `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
             `Missing subcommand amongst: `+
-            `\`here\`, \`ifno\`, \`remove\` or \`description\``
+            `\`new\`, \`ifno\`, \`remove\` or \`description\``
         )
     }
 }
@@ -2588,7 +2596,7 @@ let slashKartAddonManage= {
         .addAttachmentOption(option =>
             option
             .setName('kart_addon_file')
-            .setDescription('Sumbit a new addon through file attachement')
+            .setDescription('Sumbit a new addon through file attachment')
             .setRequired(true)
         )
     )
@@ -2640,8 +2648,8 @@ let slashKartAddons= {
         .setDescription("List some of the installed addons")
         .addStringOption(option => 
             option
-            .setName('pattern')
-            .setDescription("pattern matching a part of the addon to look for")
+            .setName('search')
+            .setDescription("search for an addons matching the given pattern")
         )
     )
     .addSubcommand(subcommand =>
@@ -2674,8 +2682,8 @@ let slashKartIngames= {
         .setDescription("About the maps")
         .addStringOption(option => 
             option
-            .setName('pattern')
-            .setDescription("pattern matching a part of the map to look for")
+            .setName('search')
+            .setDescription("search for maps matching the given pattern")
         )
         .addStringOption(option => 
             option
@@ -2703,8 +2711,8 @@ let slashKartIngames= {
         .setDescription("Count the maps")
         .addStringOption(option => 
             option
-            .setName('pattern')
-            .setDescription("pattern matching a part of the map to look for")
+            .setName('search')
+            .setDescription("search for maps matching the given pattern")
         )
         .addStringOption(option => 
             option
@@ -2733,8 +2741,8 @@ let slashKartIngames= {
         .setDescription("About the racers/skins")
         .addStringOption(option => 
             option
-            .setName('pattern')
-            .setDescription("pattern matching a part of the playable characters to look for")
+            .setName('search')
+            .setDescription("search for skins matching the given pattern")
         )
         .addNumberOption(option =>
             option
@@ -2757,8 +2765,8 @@ let slashKartIngames= {
         .setDescription("Count the racers/skins")
         .addStringOption(option => 
             option
-            .setName('pattern')
-            .setDescription("pattern matching a part of the playable characters to look for")
+            .setName('search')
+            .setDescription("search for skins matching the given pattern")
         )
         .addNumberOption(option =>
             option
@@ -2796,7 +2804,7 @@ let slashKartClip= {
     .setDescription("Cools clips from Strashbot's SRB2Kart server and stuff")
     .addSubcommand(subcommand =>
         subcommand
-        .setName("here")
+        .setName("new")
         .setDescription("Add a new clip or check current ones (no options)")
         .addStringOption(option => 
             option

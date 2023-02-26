@@ -144,7 +144,10 @@ class PlayerDataManager{
                         (   Boolean(regex) && (
                                 Boolean(l_name.match(regex))
                                 || l_name===fighter.number.toLowerCase()
-                                || l_name===fighter.name.toLowerCase()
+                                || ((   Array.isArray(fighter.name)
+                                        && fighter.name.some(n => l_name===n.toLowerCase()))
+                                    ||( ((typeof fighter.name) === 'string')
+                                        && l_name===fighter.name.toLowerCase()) )
                             )
                         )
                     ){
