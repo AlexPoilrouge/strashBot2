@@ -405,11 +405,12 @@ function _checkServerStatus(utils){
                                             }],
                                             footer: { text: 'strashbot.fr' }
                                         }]
-                                    }
+                                    };
+                                    
 
                                     ( (Boolean(msg)) ?
-                                            msg.fetch().then(m => {return m.reply(msgContent)})
-                                                .catch(err => {return post_channel.send(msgContent)})                                            
+                                            msg.fetch().then(m => {return m.reply(msgContent);})
+                                                .catch(err => {return post_channel.send(msgContent);})                                            
                                         :   post_channel.send(msgContent)
                                     ).then(message => {
                                         const channelSnowflake = message.channel.id;
