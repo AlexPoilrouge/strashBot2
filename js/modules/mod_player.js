@@ -212,10 +212,22 @@ async function S_S_CMD_player_roster(interaction, utils){
         }
 
         if(res.length===0){
+            var pname= undefined
+            try{
+                var ptag= await playerDataManager.getPlayerTag(interaction.user.id);
+                if(Boolean(ptag)){
+                    pname= ptag.name
+                }
+            }
+            catch(err){
+                hereLog(`[set roster] didn't catch player name: ${err}`)
+                pname= undefined
+            }
             interaction.editReply(
                 `${my_utils.emoji_retCode(E_RetCode.SUCCESS)} `+
                 `New roster registered:\n\t`+
-                `${roster.map(f => `- ${f.name} (skin n°${f.color})`).join('\n\t')}`
+                `${roster.map(f => `- ${f.name} (skin n°${f.color})`).join('\n\t')}`+
+                ((Boolean(pname))?'':`\n\n( Don't forget to use the \`/player tag\` command to set your player name (same as start.gg plz) and you team's name (if any…). )`)
             )
         }
         else{
@@ -435,7 +447,6 @@ function __filterAC(list, input){
 }
 
 async function AC___player(interaction){
-    hereLog('hmmmmm')
     var choices= []
     const focusedOption = interaction.options.getFocused(true);
 
@@ -449,10 +460,7 @@ async function AC___player(interaction){
     choices= Object.keys(fightersObj).map( fk => {
             return {name: fightersObj[fk].name, value: fk}
         })
-    hereLog(`ah ${JSON.stringify(choices)}`)
     choices= __filterAC(choices, txt)
-
-    hereLog('lesgo: '+`${JSON.stringify(choices)}`)
 
     let l= choices.length
     if(l>0 && l<=3){
@@ -481,8 +489,6 @@ async function AC___player(interaction){
             }
         }
     }
-
-    hereLog(`yeeee: ${choices}`)
 
     await interaction.respond(
         choices
@@ -576,7 +582,6 @@ let playerSlash1= {
         }  
     },
     async autoComplete(interaction){
-        hereLog("ac?????")
         try{
             await AC___player(interaction)
         }
