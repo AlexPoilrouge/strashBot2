@@ -272,7 +272,8 @@
         "regex": "^((dres+eu((r)|(se))([\\s\\_\\-\\.]*(de[\\s\\_\\-\\.]*)?po?k(e|é)?mo?ns?)?)|((po?k(e|é)?mo?ns?[\\s\\_\\-\\.]*)?trainer)|(p[\\s\\_\\-\\.]*t)|(d[\\s\\_\\-\\.]*(d[\\s\\_\\-\\.]*)?p))$",
         "name": [
             "Dresseur de Pokémon",
-            "Pokémon Trainer"
+            "Pokémon Trainer",
+            "Pokemon Trainer"
         ]
     },
     "carapuce": {
@@ -426,7 +427,10 @@
         "number": "52",
         "regex": "^mii*[\\s\\_\\-\\.]*((sword([\\s\\_\\-\\.]*fight(eu?r))?)|((é|e)pé?e*(iste)?))$",
         "name": [
-            "Épéiste Mii"
+            "Épéiste Mii",
+            "Mii Swordfighter",
+            "Epéiste Mii",
+            "Epeiste Mii"
         ]
     },
     "mii_gunner": {
@@ -564,6 +568,7 @@
         "regex": "^(f(e|é)line?(ferno)?)|(inc(i(n(eroa?w?r)?)?)?)$",
         "name": [
             "Félinferno",
+            "Felinferno",
             "Incineroar"
         ]
     },

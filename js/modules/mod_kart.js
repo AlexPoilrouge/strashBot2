@@ -289,10 +289,10 @@ var _oldServInfos= undefined;
 let PlayerNumSteps= [
     {   number: 4,
         message: "Looks like some guys wana race! 🏁",
-        coolDownTime: 4*60*1000 //4 min
+        coolDownTime: 30*1000 //4 min
     },{ number: 8,
         message: "More people just joined the party! 🏎💨",
-        coolDownTime: 4*60*1000 //4 min
+        coolDownTime: 30*1000 //4 min
     }, { number: 0,
         message: "Fun's over… Going back to sleep 🛌",
         comingFromTop: true
@@ -418,10 +418,10 @@ function _checkServerStatus(utils){
 
                                         lastMessagesPerGuild[guild.id]= (numPlayer>0)? message : undefined
                                         
-                                        fs.appendFile(path.join(__dirname, 'numPlayerStatus_sendMessages.txt'), 
+                                        fs.appendFile(path.join(__dirname, `numPlayerStatus_sendMessages_${message.guildId}.txt`), 
                                             `${channelSnowflake},${messageSnowflake}\n`,
                                             (err) => {
-                                                if (err) hereLog(`Coundln't write ch;msg IDs to 'numPlayerStatus_sendMessages.txt''`);
+                                                if (err) hereLog(`Coundln't write ch;msg IDs to 'numPlayerStatus_sendMessages_${message.guildId}.txt''`);
                                             });
                                     });
                                 }).catch(err => {
@@ -486,7 +486,7 @@ function kart_init(utils){
     }
 
     if(!Boolean(status_job)){
-        status_job= cron.schedule('*/1 * * * *', () =>{
+        status_job= cron.schedule('*/2 * * * *', () =>{
             _checkServerStatus(utils)
         });
     }
@@ -502,9 +502,11 @@ function kart_init_per_guild(guild, utils){
     if( (!Boolean(utils.settings.get(guild,"post_status_channel")))
         &&  !Boolean(clean_jobs.find(gj => gj.id===guild.id))
     ){
-        let clean_job= cron.schedule('0 6 * * *', async () => {
+        let clean_job= cron.schedule('* 6 * * *', async () => {
             // Read the channel and message snowflakes from the file
-            const messageSnowflakes = fs.readFileSync(path.join(__dirname, 'numPlayerStatus_sendMessages.txt'), 'utf-8').split('\n');
+            if(!fs.existsSync(`numPlayerStatus_sendMessages_${guild.id}.txt`)) return;
+
+            const messageSnowflakes = fs.readFileSync(path.join(__dirname, `numPlayerStatus_sendMessages_${guild.id}.txt`), 'utf-8').split('\n');
             
             // Iterate over each line in the file and delete the corresponding message
             for (const line of messageSnowflakes) {
@@ -513,8 +515,11 @@ function kart_init_per_guild(guild, utils){
                 
                 try {
                     const channel = await guild.channels.fetch(channelSnowflake);
-                    await channel.messages.delete(messageSnowflake);
-                    hereLog(`(clean_job){${guild}} Deleted message ${messageSnowflake} in channel ${channelSnowflake}`);
+                    if(Boolean(channel) && channel.guild.id===guild.id){
+                        let message= await channel.messages.fetch(messageSnowflake);
+                        message.delete();
+                        hereLog(`(clean_job){${guild}} Deleted message ${messageSnowflake} in channel ${channelSnowflake}`);
+                    }
                 } catch (error) {
                     hereLog(`(clean_job){${guild}} failed delete of ${messageSnowflake} in channel ${channelSnowflake}`,
                             error
@@ -524,9 +529,9 @@ function kart_init_per_guild(guild, utils){
             }
             
             // Clear the file
-            fs.writeFile(path.join(__dirname, 'numPlayerStatus_sendMessages.txt'), '', (err) => {
+            fs.writeFile(path.join(__dirname, `numPlayerStatus_sendMessages_${guild.id}.txt`), '', (err) => {
                 if (err)
-                    hereLog(`(clean_job){${guild}} couldn't clear file 'numPlayerStatus_sendMessages.txt' `,
+                    hereLog(`(clean_job){${guild}} couldn't clear file 'numPlayerStatus_sendMessages_${guild.id}.txt' `,
                         err
                     );
             });
@@ -2931,6 +2936,13 @@ function kart_destroy(utils){
     if(Boolean(status_job)){
         delete status_job;
         status_job= undefined;
+    }
+
+    for(g in clean_jobs){
+        if(Boolean(clean_jobs[g])){
+            delete clean_jobs[g]
+            clean_jobs[g]= undefined;
+        }
     }
 }
 
