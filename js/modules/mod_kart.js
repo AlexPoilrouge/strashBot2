@@ -499,12 +499,13 @@ var clean_jobs= []
 function kart_init_per_guild(guild, utils){
     
 
-    if( (!Boolean(utils.settings.get(guild,"post_status_channel")))
-        &&  !Boolean(clean_jobs.find(gj => gj.id===guild.id))
-    ){
-        let clean_job= cron.schedule('* 6 * * *', async () => {
+    if( !Boolean(clean_jobs.find(gj => gj.id===guild.id)) ){
+        let clean_job= cron.schedule('0 6 * * *', async () => {
             // Read the channel and message snowflakes from the file
-            if(!fs.existsSync(`numPlayerStatus_sendMessages_${guild.id}.txt`)) return;
+            if(!fs.existsSync(path.join(__dirname, `numPlayerStatus_sendMessages_${guild.id}.txt`))){
+                hereLog(`file ${path.join(__dirname, `numPlayerStatus_sendMessages_${guild.id}.txt`)} not here…`)
+                return;
+            }
 
             const messageSnowflakes = fs.readFileSync(path.join(__dirname, `numPlayerStatus_sendMessages_${guild.id}.txt`), 'utf-8').split('\n');
             
