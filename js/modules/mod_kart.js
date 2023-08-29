@@ -2080,12 +2080,6 @@ function __isURLDiscordEphermeralAttachment(url){
 }
 
 async function _addNewKartClip(url, description, interaction, utils){
-    let data= {
-        submitter_id: interaction.user.id,
-        description,
-        url
-    }
-    
     let token= __api_generateUserPrivilegedToken(
         interaction.user, utils.getMasterID()===interaction.user.id
     )
@@ -2107,9 +2101,20 @@ async function _addNewKartClip(url, description, interaction, utils){
             (interaction.channel.send({
                 content: description,
                 files: [url]
-            }))
-        :   new Promise(resolve => {resolve();})
-    ).then( async () => {
+            })).then( msg => { return {
+                    submitter_id: interaction.user.id,
+                    description,
+                    url: (msg && msg.attachments.first() && msg.attachments.first().url)
+                }
+            })
+        :   new Promise(resolve => {resolve(
+                {
+                    submitter_id: interaction.user.id,
+                    description,
+                    url 
+                }
+            );})
+    ).then( async data => {
         axios.post(api_clip_addr, data, {headers: {'x-access-token': token}})
             .then(async response => {
                 if(response.status===200){
