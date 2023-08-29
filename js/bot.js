@@ -31,7 +31,8 @@ class StrashBot extends Discord.Client{
                 Discord.GatewayIntentBits.DirectMessageReactions,
                 Discord.GatewayIntentBits.MessageContent,
                 Discord.GatewayIntentBits.GuildMembers
-            ]
+            ],
+            rest: {timeout: 300_000}
         });
 
         this._msgCache= MSG_CACHE;

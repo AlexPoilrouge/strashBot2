@@ -2074,6 +2074,11 @@ async function __send_clipInfo_req(clipID ,interaction, utils, newClip=false){
     })
 }
 
+function __isURLDiscordEphermeralAttachment(url){
+    let rgx= /https?\:\/\/cdn\.discordapp\.com\/ephemeral\-attachments\/[0-9]+\/[0-9]+\/\S+/
+    return Boolean(url.match(rgx))
+}
+
 async function _addNewKartClip(url, description, interaction, utils){
     let data= {
         submitter_id: interaction.user.id,
@@ -2096,76 +2101,91 @@ async function _addNewKartClip(url, description, interaction, utils){
         `${kart_settings.api.host}${(Boolean(kart_settings.api.port)?`:${kart_settings.api.port}`:'')}`+
         `${kart_settings.api.root}/clip/new`
 
-    return (await axios.post(api_clip_addr, data, {headers: {'x-access-token': token}})
-        .then(async response => {
-            if(response.status===200){
-                if(Boolean(response.data && response.data.insertedId)){
-                    await __send_clipInfo_req(
-                        response.data.insertedId, interaction, utils,
-                        true
+    let ephemeralURL= __isURLDiscordEphermeralAttachment(url)
+    return (
+         ephemeralURL?
+            (interaction.channel.send({
+                content: description,
+                files: [url]
+            }))
+        :   new Promise(resolve => {resolve();})
+    ).then( async () => {
+        axios.post(api_clip_addr, data, {headers: {'x-access-token': token}})
+            .then(async response => {
+                if(response.status===200){
+                    if(Boolean(response.data && response.data.insertedId)){
+                        await __send_clipInfo_req(
+                            response.data.insertedId, interaction, utils,
+                            !ephemeralURL
                         )
+                    }
+                    else{
+                        await interaction.editReply(
+                            `New clip at Strashtèque! https://strashbot.fr/gallery.html?clip=${clipID}`
+                        )
+                    }
                 }
                 else{
+                    hereLog(`[clipApiAdd] bad api response on '${api_clip_addr}' - status: ${response.status}`)
                     await interaction.editReply(
-                        `New clip at Strashtèque! https://strashbot.fr/gallery.html?clip=${clipID}`
+                        `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                        `Error trying to add new clip to *strashthèque*…`
                     )
                 }
-            }
-            else{
-                hereLog(`[clipApiAdd] bad api response on '${api_clip_addr}' - status: ${response.status}`)
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                    `Error trying to add new clip…`
-                )
-            }
-        }).catch(async err =>{
-            if(Boolean(err.response) && err.response.status===403){
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
-                    `{403} you lack necessary privileges to add new clip`
-                )
-            }
-            else if(Boolean(err.response) && err.response.status===440){
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                    `{440} the url/file to try to register as clip isn't valid:\n`+
-                    `Please only:\n\t* youtube links\n\t* streamable.com links\n\t* .gif,.mp4,.webm links/file`
-                )
-            }
-            else if(Boolean(err.response) && err.response.status===400){
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                    `{400} missing or invalid url?`
-                )
-            }
-            else if(Boolean(err.response) && err.response.status===441){
-                hereLog(`[clipApiAdd] bad identification for user ${author.id} - ${JSON.stringify(response.data)}`)
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                    `{441} Error: user input rejected`
-                )
-            }
-            else if(Boolean(err.response) && err.response.status===409){
-                if(Boolean(response.data && response.data.resource)){
-                    f_c_id= err.response.data.resource.split('/')[2]
+            }).catch(async err =>{
+                if(Boolean(err.response) && err.response.status===403){
+                    await interaction.editReply(
+                        `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
+                        `{403} you lack necessary privileges to add new clip`
+                    )
+                }
+                else if(Boolean(err.response) && err.response.status===440){
+                    await interaction.editReply(
+                        `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                        `{440} the url/file to try to register as clip isn't valid:\n`+
+                        `Please only:\n\t* youtube links\n\t* streamable.com links\n\t* .gif,.mp4,.webm links/file`
+                    )
+                }
+                else if(Boolean(err.response) && err.response.status===400){
+                    await interaction.editReply(
+                        `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                        `{400} missing or invalid url?`
+                    )
+                }
+                else if(Boolean(err.response) && err.response.status===441){
+                    hereLog(`[clipApiAdd] bad identification for user ${author.id} - ${JSON.stringify(response.data)}`)
+                    await interaction.editReply(
+                        `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                        `{441} Error: user input rejected`
+                    )
+                }
+                else if(Boolean(err.response) && err.response.status===409){
+                    if(Boolean(response.data && response.data.resource)){
+                        f_c_id= err.response.data.resource.split('/')[2]
 
-                    await __send_clipInfo_req(f_c_id, interaction, utils)
+                        await __send_clipInfo_req(f_c_id, interaction, utils)
+                    }
+                    else{
+                        await interaction.editReply(
+                            `Clip already found at Strashthèque: https://strashbot.fr/gallery.html?clip=${clipID}`
+                        )
+                    }
                 }
                 else{
+                    hereLog(`[clipApiAdd] api error on '${api_clip_addr}' - ${err}`);
                     await interaction.editReply(
-                        `Clip already found at Strashthèque: https://strashbot.fr/gallery.html?clip=${clipID}`
+                        `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                        `Error trying to add new clip…`
                     )
                 }
-            }
-            else{
-                hereLog(`[clipApiAdd] api error on '${api_clip_addr}' - ${err}`);
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                    `Error trying to add new clip…`
-                )
-            }
-        })
-    )
+            })
+    }).catch(async err => {
+        hereLog(`[clipApiAdd] initial send error '${api_clip_addr}' - ${err}}`);
+        await interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+            `Error trying to add new clip to *strashthèque*…`
+        )
+    })
 }
 
 async function _clipsState(){
