@@ -212,10 +212,22 @@ async function S_S_CMD_player_roster(interaction, utils){
         }
 
         if(res.length===0){
+            var pname= undefined
+            try{
+                var ptag= await playerDataManager.getPlayerTag(interaction.user.id);
+                if(Boolean(ptag)){
+                    pname= ptag.name
+                }
+            }
+            catch(err){
+                hereLog(`[set roster] didn't catch player name: ${err}`)
+                pname= undefined
+            }
             interaction.editReply(
                 `${my_utils.emoji_retCode(E_RetCode.SUCCESS)} `+
                 `New roster registered:\n\t`+
-                `${roster.map(f => `- ${f.name} (skin n°${f.color})`).join('\n\t')}`
+                `${roster.map(f => `- ${f.name} (skin n°${f.color})`).join('\n\t')}`+
+                ((Boolean(pname))?'':`\n\n( Don't forget to use the \`/player tag\` command to set your player name (same as start.gg plz) and you team's name (if any…). )`)
             )
         }
         else{
@@ -338,7 +350,8 @@ async function S_S_CMD_player_about(interaction, utils){
                             f => f.number===skin_num
                         )
                         if(Boolean(fighter)){
-                            rosterStr+= `> \t- ${fighter.name} (skin n°${skin_color})\n`
+                            rosterStr+= `> \t- ${Array.isArray(fighter.name)?fighter.name[0]:fighter.name}`
+                                        +` (skin n°${skin_color})\n`
                         }
                     }
                 }
@@ -400,17 +413,34 @@ function __filterAC(list, input){
     let rgx= /(.+\S)\s+[0-9]?$/
     let res= []
     for(let item of list){
-        let _n= item.name.toLowerCase()
         let test= _input
         let m= test.match(rgx)
         if(Boolean(m)){
             test= m[1]
         }
-        if(_n===test)
-            return [ item ]
-        if(_n.startsWith(_input)){
-            res.push(item)
+
+        var ok= false
+        if(Array.isArray(item.name)){
+            for(let name of item.name){
+                let _n= name.toLowerCase()
+                if(name===test){
+                    return [ item ]
+                }
+                else if(_n.startsWith(_input)){
+                    ok= true
+                }
+            }
         }
+        else{
+            let _n= item.name.toLowerCase()
+            if(_n===test)
+                return [ item ]
+            if(_n.startsWith(_input)){
+                ok= true
+            }
+        }
+
+        if(ok){ res.push(item);}
     }
 
     return res
@@ -441,10 +471,16 @@ async function AC___player(interaction){
             let ch= _choices[j]
             for(let i=0; i<=Math.ceil(7/l); ++i){
                 let chObj= {
-                    name: `${ch.name} ${i}`,
+                    name: `${Array.isArray(ch.name)?ch.name[0]:ch.name} ${i}`,
                     value: `${ch.value} ${i}` 
                 }
-                if (txt.startsWith(chObj.name.toLowerCase())){
+                if (
+                    (   Array.isArray(ch.name)
+                        &&  ch.name.some(n => txt.startsWith(n.toLowerCase()))
+                    )
+                    ||( ((typeof ch.name) === 'string')
+                        &&  txt.startsWith(chObj.name.toLowerCase()))
+                ){
                     _t= true
                     choices= [ chObj ]
                     break;
