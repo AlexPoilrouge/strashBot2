@@ -403,7 +403,8 @@ let reportSlash1= {
                     .setName('set')
                     .setDescription('[Master only] toggles daily auto report.')
                 )
-            ),
+            )
+            .setDMPermission(false),
     async execute(interaction, utils){
         try{
             await S_CMD__report(interaction, utils)

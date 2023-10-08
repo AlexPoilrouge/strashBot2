@@ -567,7 +567,8 @@ let playerSlash1= {
                 .setName('user')
                 .setDescription("About anoth user")
             )
-        ),
+        )
+        .setDMPermission(false),
     async execute(interaction, utils){
         try{
             await S_CMD__player(interaction, utils)
@@ -602,7 +603,8 @@ let playerSlash_channel= {
                 .setDescription("the channel (current one if not given)")
                 .addChannelTypes(ChannelType.GuildText)
                 .setRequired(true)
-            ),
+            )
+            .setDMPermission(false),
     async execute(interaction, utils){
         await S_CMD_player_setPost(interaction, utils)
     }

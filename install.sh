@@ -139,7 +139,7 @@ find ./js -type f -exec bash -c 'install_file "$0" "$1"' {} "${ROOT_DIR}/${STRAS
 install ./bot_main.js ./README.md ./package.json ./version.txt "${ROOT_DIR}/${STRASHBOT_DIR}"
 
 mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}/js/modules/data"
-install extras/kart.json "${ROOT_DIR}/${STRASHBOT_DIR}/js/modules/data"
+install extras/{kart.json,craft.json} "${ROOT_DIR}/${STRASHBOT_DIR}/js/modules/data"
 
 mkdir -p "${ROOT_DIR}/${STRASHBOT_DIR}/js/modules/top8gen/smashgg"
 install extras/smashgg_infos.json "${ROOT_DIR}/${STRASHBOT_DIR}/js/modules/top8gen/smashgg"
@@ -151,7 +151,7 @@ if "${SYSTEMD_INSTALL}"; then
     install extras/srb2kart_serv.service "${ROOT_DIR}/${SERVICE_INSTALL_PATH}" -m 644
 
     mkdir -p "${ROOT_DIR}/${SUDOERS_DIR}"
-    install extras/10-strashbot-kartserv-systemd "${ROOT_DIR}/${SUDOERS_DIR}" -m 644
+    install extras/{10-strashbot-kartserv-systemd,10-strashbot-craft-ctrl} "${ROOT_DIR}/${SUDOERS_DIR}" -m 644
 
     systemctl daemon-reload
 fi
@@ -167,8 +167,11 @@ if ! [ -f "${GUILD_CONFIG_FILE}" ] || [ "$( cat "${GUILD_CONFIG_FILE}" )" == "" 
 fi
 
 install extras/{record_lmp_read.py,server_script.sh,addon_script.sh} "${ROOT_DIR}/home/${STRASHBOT_USER}/${SRB2KART_DIR}"
-
 chown -R "${STRASHBOT_USER}:${STRASHBOT_USER}" "${ROOT_DIR}/${STRASHBOT_DIR}"
+
+mkdir -p "${ROOT_DIR}/home/${STRASHBOT_USER}/${CRAFT_DIR}"
+install extras/craft_script.sh "${ROOT_DIR}/home/${STRASHBOT_USER}/${CRAFT_DIR}"
+chown -R "${STRASHBOT_USER}:${STRASHBOT_USER}" "${ROOT_DIR}/home/${STRASHBOT_USER}/${CRAFT_DIR}"
 
 cd "${ROOT_DIR}/${STRASHBOT_DIR}"
 

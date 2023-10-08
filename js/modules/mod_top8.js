@@ -891,7 +891,8 @@ let slashTop8= {
                     .setName('inline_options')
                     .setDescription("old fashioned i.e.: ?top7a-char1=\"Mario 1\" etc.")
                 )
-            ),
+            )
+            .setDMPermission(false),
     async execute(interaction, utils){
         try{
             await S_CMD__top8(interaction, utils)
