@@ -16,7 +16,7 @@ let testSlash1= {
     }
 }
 
-function event_messageCreate(utils){
+async function event_messageCreate(utils){
     hereLog('yay new message!');
 }
 

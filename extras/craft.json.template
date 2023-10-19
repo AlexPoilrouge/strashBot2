@@ -7,7 +7,8 @@
     },
     "api":{
             "minecraft_player_url":"https://api.mojang.com/users/profiles/minecraft",
-            "bedrock_server_status_url":"https://api.mcstatus.io/v2/status"
+            "minecraft_profile_url":"https://sessionserver.mojang.com/session/minecraft/profile",
+            "bedrock_server_status_url":"https://api.mcstatus.io/v2/status/bedrock"
     },
     "dirs":{
             "main_folder":"/home/${STRASHBOT_USER}/${CRAFT_DIR}"

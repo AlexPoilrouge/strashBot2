@@ -2958,7 +2958,7 @@ function kart_destroy(utils){
 
 let E_RetCode= my_utils.Enums.CmdRetCode
 
-function ogc_kart(strashBotOldCmd, clearanceLvl, utils){
+async function ogc_kart(strashBotOldCmd, clearanceLvl, utils){
     let message= strashBotOldCmd.msg_obj
     let args= strashBotOldCmd.args
     let cmd= strashBotOldCmd.command

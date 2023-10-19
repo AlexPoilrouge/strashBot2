@@ -183,19 +183,19 @@ class ModulesHandler{
         }
     }  
 
-    onEvent(event){
-        this.loaded_modules.forEach(lMod =>{
+    async onEvent(event){
+        for(var lMod of this.loaded_modules){
             if(lMod.events){
                 let modEventFunc= lMod.events[event]
                 if(Boolean(modEventFunc)){
                     try{
-                        modEventFunc(...Array.from(arguments).slice(1), this._utils(lMod.__moduleName));
+                        await modEventFunc(...Array.from(arguments).slice(1), this._utils(lMod.__moduleName));
                     } catch(err){
                         hereLog(`Error handling event '${event}' for module '${lMod.__moduleName}'\n${err}`)
                     }
                 }
             }
-        });
+        }
     }
 
     async onSlashCommandInteraction(interaction){
