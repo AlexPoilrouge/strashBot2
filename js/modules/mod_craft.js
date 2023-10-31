@@ -68,6 +68,7 @@ function isServerServiceActive(){
 let id_link_json_file="data/craft_id_link.json"
 
 async function linkUserDiscordMinecraft(discordId, uuid){
+    hereLog(`[TEST] lUDM(${discordId}, ${uuid})`)
     var idLink_obj= {}
 
     let fn_links= path.resolve(__dirname,id_link_json_file)
@@ -75,14 +76,20 @@ async function linkUserDiscordMinecraft(discordId, uuid){
     if(fs.existsSync(fn_links)){
         idLink_obj = my_utils.loadJSONFile(fn_links)
     }
+    hereLog(`[TEST] => ${JSON.stringify(idLink_obj)}`)
 
     if(Boolean(idLink_obj)){
         for(var k in idLink_obj){
+            hereLog(`[TEST] ===> k= ${k}`)
             if(k===discordId){
+                hereLog(`[TEST] === ==> y`)
                 var old_value= idLink_obj[k]
                 idLink_obj[k]= uuid
                 if(my_utils.writeJSON(idLink_obj, fn_links)){
                     return {status: 'changed', old_value}
+                }
+                else{
+                    throw {status: 'error_write'}
                 }
             }
             
@@ -119,7 +126,7 @@ async function rmUserDiscordMinecraftLink(id){
         }
 
         var d_id= Object.keys(idLink_obj).find(k => idLink_obj[k]===id)
-        if(Boolean(uuid)){
+        if(Boolean(d_id)){
             delete idLink_obj[d_id]
             if(my_utils.writeJSON(idLink_obj, fn_links))
                 return {status: 'remove_uuid', discord_id: d_id, uuid: id}
@@ -416,7 +423,18 @@ async function S_S_CMD_craftServer_join(interaction, utils){
                 catch(err){ nb_players= undefined; }
 
                 try{
-                    var linkRes= linkUserDiscordMinecraft(interaction.user.id, res.player.id)
+                    var linkRes= await linkUserDiscordMinecraft(interaction.user.id, res.player.id)
+                    hereLog(`[TEST] linkRES is ${JSON.stringify(linkRes)}`)
+
+                    //this means a user changed his uuid => remove old uuid from allowlist
+                    if(linkRes && linkRes.status==='changed'){
+                        try{
+                            removeUUIDFromAllowList(linkRes.old_value)
+                        }
+                        catch(err){
+                            hereLog(`Couldn't remove ${username}'s old id from allowlist… - ${err}`)
+                        }
+                    }
                 }
                 catch(err){
                     hereLog(`[user_join] couldn't link user ${interaction.user} with uuid ${res.player.id}…\n`
@@ -681,43 +699,58 @@ async function allowID(id){
     }
 }
 
+function removeUUIDFromAllowList(uuid){
+    var data= undefined
+    if(data=my_utils.loadJSONFile(craft_settings.files.allowlist)){
+        hereLog(`[TEST] data is smthg like ${JSON.stringify(data)}`)
+        if(Boolean(data) && Array.isArray(data)){
+            data= data.filter(e => (e.uuid!==uuid))
+
+            if(!call_rewriteAllowlist_json(data)){
+                hereLog(`[rmUUIDFromAllowlist](${uuid}) couldn't update allowlist`);
+                throw undefined
+            }
+            hereLog(`[rmUUIDFromAllowlist](${uuid}) removing access from '${craft_settings.files.allowlist}'`);
+
+            return data;
+        }
+        else{
+            hereLog(`[rmUUIDFromAllowlist](${uuid}) Error reading data from '${craft_settings.files.allowlist}' (${JSON.stringify(r)})`);
+            throw undefined;
+        }
+    }
+    else{
+        hereLog(`[rmUUIDFromAllowlist](${uuid}) `)
+    }
+}
+
 async function disallowID(id){ //from discord_user_id or uuid
+    hereLog(`[TEST] disallowID(${id})`)
     try{
         let userData= await getLink(id)
+        hereLog(`[TEST] userdata be like ${JSON.stringify(userData)}`)
 
         if(userData && userData.status && userData.status.startsWith("found")){
             var data= undefined
-            if(data=my_utils.loadJSONFile(craft_settings.files.allowlist)){
-                if(Boolean(data) && Array.isArray(data)){
-                    data= data.filter(e => (e.uuid!==userData.uuid))
-
-                    if(!call_rewriteAllowlist_json(data)){
-                        hereLog(`[disallowID] couldn't update allowlist`);
-                        throw undefined
-                    }
-                    hereLog(`[disallowID] removing access from '${craft_settings.files.allowlist}' for ${id}`);
-
-                    try{
-                        rmUserDiscordMinecraftLink(id)
-                    }
-                    catch(err){
-                        hereLog(`[disallowID] error removing id links for ${id}… - ${JSON.stringify(err)}`)
-                    }
-
-                    return data;
-                }
-                else{
-                    hereLog(`[disallowID] Error reading data from '${craft_settings.files.allowlist}' (${JSON.stringify(r)})`);
-                    throw undefined;
-                }
+            try{
+                data= removeUUIDFromAllowList(userData.uuid)
             }
-            else{
-                hereLog(`[disallowID] Error reading data; ${craft_settings.files.allowlist} doesn't seem to exists…'`);
+            catch(err){
+                throw err
+            }
+            try{
+                await rmUserDiscordMinecraftLink(id)
+            }
+            catch(err){
+                hereLog(`[disallowID] error removing id links for ${id}… - ${JSON.stringify(err)}`)
                 throw undefined;
             }
+
+            return data
         }
         else{
             hereLog(`[disallowID] Error trying to fetch user data for id ${id}…`)
+            throw undefined;
         }
     }
     catch(err){
@@ -738,28 +771,46 @@ async function S_CMD__craftAdmin(interaction, utils) {
         var msg= ""
         if(discordUserOption){
             let r_priv= utils.settings.get(interaction.guild, "roles_privileges")
-            await (new Promise((resolve, reject) => {
-                    if(r_priv['Visitor'])
-                        discordUserOption.roles.remove(r_priv['Visitor'])
-                            .then(member => resolve(member))
-                            .catch(err => resolve(discordUserOption))
-                    else resolve(discordUserOption)
-                })).then(member => {
-                    if(r_priv['Crafter'])
-                        return discordUserOption.roles.remove(r_priv['Crafter'])
-                    else throw undefined
-                })
-                .then(member => {
-                    msg+= `Disallowing user ${discordUserOption}\n`
-                })
-                .catch( err => {} )
+            var roleRemoval= false
+            if(Boolean(r_priv)){
+                for(let r_s of ['Visitor', 'Crafter']){
+                    try{
+                        await discordUserOption.roles.remove(r_priv[r_s])
+                        roleRemoval= true
+                        msg+= `Disallowing ${discordUserOption}`
+                    }
+                    catch(err){}
+                }
+            }
+            if(!roleRemoval){
+                try{
+                    await disallowID(discordUserOption.id)
+                    msg+= `Disallowing ${discordUserOption}`
+                }
+                catch(err){
+                    hereLog(`[disallow cmd] failed to disallow from discord user ${discordUserOption} (no set roles)… - ${err}`)
+                }
+            }
         }
         if(mcUserOption){
+            var mcUserInfo= undefined
             try{
-                await disallowID(mcUserOption)
+                mcUserInfo= await getMCUserInfo(mcUserOption)
+                hereLog(`[TEST] mcUserInfo ${JSON.stringify(mcUserInfo)}`)
+                if(mcUserInfo && mcUserInfo.result==='OK')
+                    await disallowID(mcUserInfo.player.id)
+                else
+                    await disallowID(mcUserInfo)
                 msg+= `Disallowing MC user '${mcUserOption}'`
             }
-            catch(err){}
+            catch(err){
+                if(!mcUserInfo){
+                    hereLog(`[disallow cmd] couldn't fetch mcUsr info for ${mcUserInfo}`)
+                }
+                else{
+                    hereLog(`[disallow cmd] failed trying to disallow ${mcUserOption} (${JSON.stringify(mcUserInfo)})…`)
+                }
+            }
         }
 
         if(Boolean(msg)){
