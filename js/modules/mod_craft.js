@@ -158,8 +158,8 @@ async function getLink(id){
 }
 
 
-function getCraftPrivilege(interaction, utils){
-    var privileges= utils.settings.get(interaction.guild, "roles_privileges")
+async function getCraftPrivilege(interaction, utils){
+    var privileges= await utils.settings.safe.get(interaction.guild, "roles_privileges")
     if(privileges){
         var privMax= CRAFT_PRIVILEGE.Outsider;
         for(var status in privileges){
@@ -305,7 +305,7 @@ async function _runningCmdIfNoPlayer(interaction, utils, cmdname, cmd){
         run_command= true
     }
     else if(force){
-        run_command= (getCraftPrivilege(interaction, utils)>=CRAFT_PRIVILEGE.Operator)
+        run_command= ((await getCraftPrivilege(interaction, utils))>=CRAFT_PRIVILEGE.Operator)
     }
 
     if(run_command){
@@ -351,9 +351,21 @@ async function _runningCmdIfNoPlayer(interaction, utils, cmdname, cmd){
     }
 }
 
+async function isDiscordMemberBlocked(member, utils){
+    var privileges= await utils.settings.safe.get(member.guild, 'roles_privileges')
+
+    hereLog(`ùTestù checking inf dude ${member} is blocked (priv ${JSON.stringify(privileges)})`)
+
+    if(!Boolean(privileges)) throw {status: "NO_DATA", message:'unable to obtain provilege data'};
+
+    hereLog(`ùTestù hmmmmm…`)
+
+    return Boolean(privileges['Blocked']) && member.roles.cache.has(privileges['Blocked'])
+}
+
 async function discardRole(role, utils, status=undefined){
     hereLog(`èèWTFéé hoooo ${role}`)
-    var privileges= utils.settings.get(role.guild, 'roles_privileges')
+    var privileges= await utils.settings.safe.get(role.guild, 'roles_privileges')
     hereLog(`ééHHEEEèè ${JSON.stringify(privileges)}`)
     
     if(!Boolean(privileges)) return
@@ -374,7 +386,7 @@ async function discardRole(role, utils, status=undefined){
             delete privileges[privilege]
         }
         hereLog(`==test== no privileges is  ${JSON.stringify(privileges)}`)
-        utils.settings.set(role.guild, 'roles_privileges', privileges)
+        await utils.settings.safe.set(role.guild, 'roles_privileges', privileges)
 
         role.guild.members.fetch(async members => {
             for(var member of members){
@@ -408,7 +420,17 @@ async function S_S_CMD_craftServer_Restart(interaction, utils){
 async function S_S_CMD_craftServer_join(interaction, utils){
     let username= interaction.options.getString('username');
 
-    if(Boolean(username)){
+    var isblocked= false
+    try{ isblocked= await isDiscordMemberBlocked(interaction.member, utils)}
+    catch(err){ isblocked= false;}
+    if(isblocked){
+        hereLog(`{cmd join} ye, ${interaction.member} is like block y'know`)
+        await interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
+            `User access seems to be blocked…`
+        )
+    }
+    else if(Boolean(username)){
         let res= await getMCUserInfo(username)
         if(res.result==='OK'){
             if(allowUser(res.player.name, res.player.id)){
@@ -551,8 +573,120 @@ async function S_S_CMD_craftServer_info(interaction, utils){
     })
 }
 
+//lookupStr can be: discord id, mc uuid, or mc username
+async function lookupData(lookupStr){
+    var link_info= undefined
+
+    try{
+        link_info= await getLink(lookupStr)
+    }
+    catch(err){
+        hereLog(`[about_cmd] link look up failed - ${err}`)
+        link_info= undefined
+    }
+
+    if(Boolean(link_info) &&
+        ((!Boolean(link_info.status)) || !link_info.status.startsWith('found'))
+    ){
+        hereLog(`[about_cmd] no mc_link info found for '${lookupStr}'…`)
+        link_info= undefined
+    }
+
+    var mcReqRes= undefined
+    try{
+        mcReqRes= await getMCUserInfo((Boolean(link_info))?link_info.uuid:lookupStr)
+    }
+    catch(err){
+        hereLog(`[about_cmd] couldn't lookup MC data for '${lookupStr}'…`)
+        mcReqRes= undefined
+    }
+
+    if(Boolean(mcReqRes)  && mcReqRes.result==='OK'){
+        if(Boolean(link_info)){
+            link_info.minecraft_name= mcReqRes.player.name
+        }
+        else{
+            link_info= {uuid: mcReqRes.player.id, minecraft_name: mcReqRes.player.name}
+        }
+    }
+
+    return link_info;
+}
+
+async function S_S_CMD_craftServer_about(interaction, utils){
+    let memberOpt= interaction.options.getMember('mention')
+    let mcinfoOpt= interaction.options.getString('minecraft_id')
+
+    let lookupStr= (Boolean(memberOpt))? memberOpt.id : mcinfoOpt
+    var resInfoUserStrList= []
+
+    let allowedData= my_utils.loadJSONFile(craft_settings.files.allowlist)
+
+    let usrDataToStr= (data) => {
+        if(!Boolean(data)) return `[${memberOpt}/${mcinfoOpt}] no data`;
+        
+        return  `${Boolean(data.minecraft_name)?`${data.minecraft_name} `:''}`+
+                `${Boolean(data.uuid)?`{${data.uuid}}`:''}`+
+                `${(Boolean(data.minecraft_name) || Boolean(data.uuid))?' => ':''}`+
+                `<@${data.discord_id}>`;
+    }
+    if(Boolean(lookupStr)){
+        var res= await lookupData(lookupStr)
+        var resStr= usrDataToStr(res)
+
+        if(Boolean(memberOpt)){
+            var isblocked= false
+            try{ isblocked= await isDiscordMemberBlocked(interaction.member, utils)}
+            catch(err){ isblocked= false;}
+            if(isblocked) resStr+= " [BLOCKED]"
+        }
+        if(Boolean(res) && Boolean(res.uuid) && Boolean(allowedData)
+            && Boolean(allowedData.find(item => item.uuid===res.uuid))
+        ){
+            resStr+= " [ALLOWED]"
+        }
+
+        resInfoUserStrList.push(resStr)
+    }
+    else{
+        for(var item of allowedData){
+            if(Boolean(item && item.uuid)){
+                resInfoUserStrList.push( usrDataToStr(
+                    await lookupData(item.uuid)
+                ))
+            }
+            else{
+                resInfoUserStrList.push(JSON.stringify(item))
+            }
+        }
+    }
+
+    if(resInfoUserStrList.length>0){
+        await interaction.editReply( {
+            embeds: [
+                {
+                    title: "Registered users",
+                    color: 0xf20a00,
+        
+                    fields: [ {
+                        name: "about players",
+                        value: '- '+resInfoUserStrList.join('\n-')
+                    }]
+
+                }
+            ]
+        } )
+    }
+    else {
+        await interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+            `no data found…`
+        )
+    }
+}
+
 async function S_CMD__craftServer(interaction, utils) {
-    await interaction.deferReply()
+    await interaction.deferReply({ ephemeral: true })
 
     let subcommand= interaction.options.getSubcommand()
 
@@ -571,6 +705,9 @@ async function S_CMD__craftServer(interaction, utils) {
     else if(subcommand==="info"){
         await S_S_CMD_craftServer_info(interaction, utils)
     }
+    else if(subcommand==='about'){
+        await S_S_CMD_craftServer_about(interaction, utils)
+    }
     else{
         await interaction.editReply(
             `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
@@ -583,7 +720,7 @@ async function S_CMD__craftServer(interaction, utils) {
 async function S_S_CMD__checkStatus(interaction, utils, role){
     let all= (role===undefined)
 
-    let privileges= utils.settings.get(interaction.guild, "roles_privileges") ?? {}
+    let privileges= await utils.settings.safe.get(interaction.guild, "roles_privileges") ?? {}
 
     if(all) {
         let status= Object.keys(privileges)
@@ -624,7 +761,7 @@ async function S_S_CMD__checkStatus(interaction, utils, role){
 async function S_S_CMD__roleManage(interaction, utils, role, status){
     let erase= (!Boolean(role))
 
-    var privileges= utils.settings.get(interaction.guild, "roles_privileges") ?? {}
+    var privileges= await utils.settings.safe.get(interaction.guild, "roles_privileges") ?? {}
     if(!erase){ //set role
         let rewritten_role= privileges[status]
 
@@ -632,7 +769,7 @@ async function S_S_CMD__roleManage(interaction, utils, role, status){
         privileges[status]= role.id
         hereLog(`~~test~~ now priv is like: ${JSON.stringify(privileges)}`)
 
-        utils.settings.set(interaction.guild, "roles_privileges", privileges)
+        await utils.settings.safe.set(interaction.guild, "roles_privileges", privileges)
 
         var msg= ""
         if(rewritten_role){
@@ -661,7 +798,7 @@ async function S_S_CMD__roleManage(interaction, utils, role, status){
                 hereLog(`[roleManage] error trying to discard deleted role ${role}… - ${err}`)
             }
 
-            utils.settings.set(interaction.guild, "roles_privileges", privileges)
+            await utils.settings.safe.set(interaction.guild, "roles_privileges", privileges)
         }
         
         await interaction.editReply(
@@ -675,7 +812,7 @@ async function allowID(id){
     try{
         let userData= await getLink(id)
 
-        if(userData && userData.startsWith("found")){
+        if(userData && userData.status && userData.status.startsWith("found")){
             let res= await getMCUserInfo(userData.uuid)
             if(res.result==='OK'){
                 if(allowUser(res.player.name, res.player.id)){
@@ -760,7 +897,7 @@ async function disallowID(id){ //from discord_user_id or uuid
 }
 
 async function S_CMD__craftAdmin(interaction, utils) {
-    await interaction.deferReply()
+    await interaction.deferReply({ ephemeral: true })
 
     let subcommand= interaction.options.getSubcommand()
 
@@ -770,7 +907,7 @@ async function S_CMD__craftAdmin(interaction, utils) {
 
         var msg= ""
         if(discordUserOption){
-            let r_priv= utils.settings.get(interaction.guild, "roles_privileges")
+            let r_priv= await utils.settings.safe.get(interaction.guild, "roles_privileges")
             var roleRemoval= false
             if(Boolean(r_priv)){
                 for(let r_s of ['Visitor', 'Crafter']){
@@ -901,13 +1038,28 @@ let craftSlash= {
             .setName("info")
             .setDescription("Info about Minecraft Bedrock server")   
         )
+        .addSubcommand(subcommand =>
+            subcommand
+            .setName("about")
+            .setDescription('information about MC users')
+            .addMentionableOption(option =>
+                option
+                .setName('mention')
+                .setDescription('discord user')
+            )
+            .addStringOption(option =>
+                option
+                .setName('minecraft_id')
+                .setDescription('minecraft user')
+            )
+        )
         .setDMPermission(false),
     async execute(interaction, utils){
         try{
             await S_CMD__craftServer(interaction, utils)
         }
         catch(err){
-            hereLog(`[craft_server] Error! -\n\t${err} - ${err.message}`)
+            hereLog(`[craft_server] Error! -\n\t${err} - ${err && err.message}`)
             let msg= `${my_utils.emoji_retCode(E_RetCode.ERROR_CRITICAL)} Sorry, an internal error occured…`
             if (interaction.deferred)
                 await interaction.editReply(msg)
@@ -956,6 +1108,7 @@ let craftAdminSlash= {
                     { name: 'Crafter', value: 'Crafter'},
                     { name: 'Check status', value: 'status' }
                 )
+                .setRequired(true)
             )
             .addRoleOption(option =>
                 option
@@ -969,7 +1122,7 @@ let craftAdminSlash= {
             await S_CMD__craftAdmin(interaction, utils)
         }
         catch(err){
-            hereLog(`[craft_admin] Error! -\n\t${err} - ${err.message}`)
+            hereLog(`[craft_admin] Error! -\n\t${err} - ${err && err.message}`)
             let msg= `${my_utils.emoji_retCode(E_RetCode.ERROR_CRITICAL)} Sorry, an internal error occured…`
             if (interaction.deferred)
                 await interaction.editReply(msg)
@@ -989,43 +1142,53 @@ async function event_roleDelete(role, utils){
 }
 
 async function event_memberUpdate(oldMember, newMember, utils){
-    var privileges= utils.settings.get(role.guild, 'roles_privileges')
+    var privileges= await utils.settings.safe.get(newMember.guild, 'roles_privileges')
     
     if(!Boolean(privileges)) return
 
-    var removedRolesId= oldMember.roles.cache.filter(role => (!newMember.roles.cache.includes(role))).map(r=>r.id)
-    var addedRolesId= newMember.roles.cache.filter(role => (!oldMember.roles.cache.includes(role))).map(r=>r.id)
+    var removedRolesId= oldMember.roles.cache.filter(role => (!newMember.roles.cache.has(role.id))).map(r=>r.id)
+    var addedRolesId= newMember.roles.cache.filter(role => (!oldMember.roles.cache.has(role.id))).map(r=>r.id)
+
+    hereLog(`èTesté removedRolesId - ${JSON.stringify(removedRolesId)}`)
+    hereLog(`èTesté addedRolesId - ${JSON.stringify(addedRolesId)}`)
 
     var removedPrivileges= Object.keys(privileges).filter(priv => removedRolesId.includes(privileges[priv]))
     var addedPrivileges= Object.keys(privileges).filter(priv => addedRolesId.includes(privileges[priv]))
-    var currentPrivileges= Object.keys(privileges).filter(priv => newMember.roles.cache.includes(privileges[priv]))
+    var currentPrivileges= Object.keys(privileges).filter(priv => newMember.roles.cache.has(privileges[priv]))
 
-    let isNowAllowed= removedPrivileges.includes('Blocked')
+    hereLog(`&Test& removedPrivileges: ${JSON.stringify(removedPrivileges)}`)
+    hereLog(`&Test& addedPrivileges: ${JSON.stringify(addedPrivileges)}`)
+    hereLog(`&Test& currentPrivileges: ${JSON.stringify(currentPrivileges)}`)
+
+    let isNowAllowed= Boolean(privileges['Blocked']) && removedPrivileges.includes(privileges['Blocked'])
                     &&  Boolean(currentPrivileges.find(priv => CRAFT_PRIVILEGE[priv]>CRAFT_PRIVILEGE.Outsider))
     let isNowDisallowed= (!isNowAllowed)
                         && (!Boolean(currentPrivileges.find(priv => CRAFT_PRIVILEGE[priv]>CRAFT_PRIVILEGE.Outsider)))
-                        && (!Boolean(removedPrivileges.find(priv => CRAFT_PRIVILEGE[priv]>CRAFT_PRIVILEGE.Outsider)))
+                        && (Boolean(removedPrivileges.find(priv => CRAFT_PRIVILEGE[priv]>CRAFT_PRIVILEGE.Outsider)))
     if(isNowDisallowed){
+        hereLog(`{roleTest} isNowDisallowed (${oldMember} - ${newMember} - ${JSON.stringify(privileges)})`)
         try{
             await disallowID(newMember.id)
             alreadyDissalowed= true
         }
         catch(err){
-            hereLog(`{memberRoleRemove} error trying to disallow ${member} (lost [${privileges}] privilege)… - ${err}`)
+            hereLog(`{memberRoleRemove} error trying to disallow ${newMember} (lost [${privileges}] privilege)… - ${err}`)
         }
     }
     else if(isNowAllowed){
+        hereLog(`{roleTest} isNowAllowed (${oldMember} - ${newMember} - ${JSON.stringify(privileges)})`)
         try{
             await allowID(newMember.id)
         }
         catch(err){
-            hereLog(`{memberRoleRemove} error trying to allow ${member} (lost [${privileges}] privilege)… - ${err}`)
+            hereLog(`{memberRoleRemove} error trying to allow ${newMember} (lost [${privileges}] privilege)… - ${err}`)
         }
     }
 
     //unless 'Blocked' is added, we process privilege list to see
     // and try to allow user according to granted privileges
     if(!addedPrivileges.includes('Blocked')){
+        hereLog(`{roleTest}  no block (${oldMember} - ${newMember} - ${JSON.stringify(privileges)})`)
         if(Boolean(addedPrivileges.find(priv => CRAFT_PRIVILEGE[priv]>CRAFT_PRIVILEGE.Outsider))){
             try{
                 await allowID(newMember.id)
@@ -1036,6 +1199,7 @@ async function event_memberUpdate(oldMember, newMember, utils){
         }
     }
     else{
+        hereLog(`{roleTest}  is block (${oldMember} - ${newMember} - ${JSON.stringify(privileges)})`)
         try{
             await disallowID(newMember.id)
         }

@@ -1,6 +1,8 @@
 const fs= require('fs');
 const path= require( 'path' );
 
+var Mutex = require('async-mutex').Mutex;
+
 const my_utils= require('../utils');
 const CommandData = require('./CommandData');
 
@@ -14,6 +16,8 @@ let hereLog= (...args) => {console.log("[CommandSettings]", ...args);};
 class CommandSettings extends CommandData{
     constructor(){
         super("commands")
+
+        this.mutex= new Mutex();
     }
 
     getField(cmd_name, guild, fieldName){
@@ -89,6 +93,24 @@ class CommandSettings extends CommandData{
             delete obj[fieldName];
             this._saveData(cmd_name, guild.id);
         }
+    }
+
+    getField_Mtx(cmd_name, guild, fieldName){
+        return this.mutex.runExclusive( () => {
+            return this.getField(cmd_name, guild, fieldName)
+        })
+    }
+
+    setField_Mtx(cmd_name, guild, fieldName, value){
+        return this.mutex.runExclusive( () => {
+            return this.setField(cmd_name, guild, fieldName, value)
+        })
+    }
+
+    removeField_Mtx(cmd_name, guild, fieldName){
+        return this.mutex.runExclusive( () => {
+            this.removeField(cmd_name, guild, fieldName)
+        })
     }
 }
 

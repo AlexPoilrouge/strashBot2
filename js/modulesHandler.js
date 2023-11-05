@@ -49,6 +49,20 @@ class ModulesHandler{
                     var mod= module_name ?? mod_name;
                     this._cmdSettings.removeField(mod, guild, field);
                 },
+                safe: {
+                    set: (guild, field, value, module_name=undefined) => {
+                        var mod= module_name ?? mod_name;
+                        return this._cmdSettings.setField_Mtx(mod, guild, field, value);
+                    },
+                    get: (guild, field, module_name=undefined) => {
+                        var mod= module_name ?? mod_name;
+                        return this._cmdSettings.getField_Mtx(mod, guild, field);
+                    },
+                    remove: (guild, field, module_name=undefined) => {
+                        var mod= module_name ?? mod_name;
+                        this._cmdSettings.removeField_Mtx(mod, guild, field);
+                    }
+                }
             },
             getDataBase: (guild) =>{
                 return Boolean(guild)?this._db_guilds[guild.id]:undefined;
