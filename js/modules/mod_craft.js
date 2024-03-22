@@ -5,6 +5,7 @@ const path= require('path')
 const child_process= require("child_process");
 const cron= require('node-cron');
 const axios= require('axios');
+const crypto= require('crypto')
 
 const my_utils= require('../utils.js');
 const { util } = require("config");
@@ -138,6 +139,7 @@ async function rmUserDiscordMinecraftLink(id){
 }
 
 async function getLink(id){
+    hereLog(`[:TMP] getLink(${id}) …`)
     let fn_links= path.resolve(__dirname,id_link_json_file)
 
     if(!fs.existsSync(fn_links)){
@@ -149,7 +151,9 @@ async function getLink(id){
         let uuid= idLink_obj[id]
         if(uuid) return {status: 'found_discord_id', discord_id: id, uuid}
 
+        hereLog(`[:TMP] idKink_obj: ${JSON.stringify(idLink_obj)}…`)
         let d_id= Object.keys(idLink_obj).find(k => idLink_obj[k]===id)
+        hereLog(`[:TMP] => d_id: ${d_id}`)
         if(d_id) return {status: 'found_uuid', discord_id: d_id, uuid: id}
 
         return {status: 'not_found'}
@@ -575,10 +579,25 @@ async function S_S_CMD_craftServer_info(interaction, utils){
 
 //lookupStr can be: discord id, mc uuid, or mc username
 async function lookupData(lookupStr){
-    var link_info= undefined
-
+    var mcReqRes= undefined
     try{
-        link_info= await getLink(lookupStr)
+        mcReqRes= await getMCUserInfo((Boolean(link_info))?link_info.uuid:lookupStr)
+        hereLog(`[about_cmd:TMP] MCUserInfo: ${JSON.stringify(mcReqRes)} …`)
+    }
+    catch(err){
+        hereLog(`[about_cmd](1) couldn't lookup MC data for '${lookupStr}'…`)
+        mcReqRes= undefined
+    }
+
+    var lookup= lookupStr
+    if (mcReqRes.result && mcReqRes.result==='OK'){
+        lookup= mcReqRes.player.id
+    }
+    
+    var link_info= undefined
+    try{
+        link_info= await getLink(lookup)
+        hereLog(`[about_cmd:TMP] link_info: ${JSON.stringify(link_info)}`)
     }
     catch(err){
         hereLog(`[about_cmd] link look up failed - ${err}`)
@@ -592,14 +611,6 @@ async function lookupData(lookupStr){
         link_info= undefined
     }
 
-    var mcReqRes= undefined
-    try{
-        mcReqRes= await getMCUserInfo((Boolean(link_info))?link_info.uuid:lookupStr)
-    }
-    catch(err){
-        hereLog(`[about_cmd] couldn't lookup MC data for '${lookupStr}'…`)
-        mcReqRes= undefined
-    }
 
     if(Boolean(mcReqRes)  && mcReqRes.result==='OK'){
         if(Boolean(link_info)){
@@ -608,6 +619,17 @@ async function lookupData(lookupStr){
         else{
             link_info= {uuid: mcReqRes.player.id, minecraft_name: mcReqRes.player.name}
         }
+    }
+    else if(Boolean(link_info)){ //retry getMCUserInfo in case param lookupStr wasn't uuid nor playername
+        try{
+            mcReqRes= await getMCUserInfo(link_info.uuid)
+            hereLog(`[about_cmd:TMP] MCUserInfo: ${JSON.stringify(mcReqRes)} …`)
+        }
+        catch(err){
+            hereLog(`[about_cmd](2) couldn't lookup MC data for '${lookupStr}'…`)
+            mcReqRes= undefined
+        }
+        link_info.minecraft_name= mcReqRes.player.name
     }
 
     return link_info;
@@ -808,6 +830,73 @@ async function S_S_CMD__roleManage(interaction, utils, role, status){
     }
 }
 
+const initialization_vector = "OBVENroyauifM1g6"
+
+async function S_S_CMD__updateServer(interaction, utils){
+    let versionNumOption= interaction.options.getString('version_number')
+    var keyPass= interaction.options.getString('key_pass')
+
+    if(!Boolean(versionNumOption)){
+        await interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+            `Need a num ver…`
+        );
+
+        return;
+    }
+
+    var updateKey= craft_settings.update_key
+    let uk_l= updateKey.length
+    updateKey= (uk_l<32)? (updateKey+('0'.repeat(32-uk_l))) : (updateKey.substring(0,32))
+    hereLog(`[tmp-updateServer] (${uk_l}) '${updateKey}'`)
+    const cipher= crypto.createCipheriv('aes-256-cbc', Buffer.from(updateKey), Buffer.from(initialization_vector))
+    let hourSalt= `${Math.floor(Date.now()/3600000)}`
+    let textTest= hourSalt+versionNumOption
+    let compareEncrypted= cipher.update(textTest, 'utf8', 'hex')
+    compareEncrypted+= cipher.final('hex')
+    let passed= (keyPass===compareEncrypted.toString())
+    if (!passed){
+        await interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
+            `You shall not pass!`
+        );
+        return;
+    }
+
+    var b= false
+    var code= 0
+    try{
+        // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.server_commands.stop))?cmd:"false";
+        var cmd= `${craft_settings.config_commands.server_update} "${versionNumOption}"`
+        child_process.execSync(cmd, {timeout: 876000}).toString();
+        b= true
+    }
+    catch(err){
+        hereLog("Error while stopping server: "+err);
+        b= false
+        code= err.status
+    }
+
+    if(b){
+        await interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.SUCCESS)} `+
+            `Server updated`
+        );
+    }
+    else{
+        let statusStr = [
+            "Unknown error",
+            `Failed to download server v${versionNumOption}`,
+            `Server installation failure`,
+            `Update is blocked atm…`
+        ]
+        await interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+            `${statusStr[code ?? 0]}`
+        );
+    }
+}
+
 async function allowID(id){
     try{
         let userData= await getLink(id)
@@ -983,11 +1072,14 @@ async function S_CMD__craftAdmin(interaction, utils) {
             )
         }
     }
+    else if(subcommand=='update_server'){
+        await S_S_CMD__updateServer(interaction, utils)
+    }
     else{
         await interaction.editReply(
             `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
             `Missing subcommand amongst: `+
-            `\`roles\`, or \`disallow\``
+            `\`roles\`, \`disallow\` or \`update_server\``
         )
     }
 }
@@ -1088,11 +1180,11 @@ let craftAdminSlash= {
                 .setName('mention')
                 .setDescription('discord user')    
             )
-            .addBooleanOption(option =>
-                option
-                .setName("force_reboot")
-                .setDescription('Force server reboot after operation for immediate effect')
-            )
+            // .addBooleanOption(option =>
+            //     option
+            //     .setName("force_reboot")
+            //     .setDescription('Force server reboot after operation for immediate effect')
+            // )
         )
         .addSubcommand(subcommand =>
             subcommand
@@ -1105,7 +1197,7 @@ let craftAdminSlash= {
                 .addChoices(
                     { name: 'Operator', value: 'Operator' },
                     { name: 'Blocked', value: 'Blocked' },
-                    { name: 'Crafter', value: 'Crafter'},
+                    //{ name: 'Crafter', value: 'Crafter'},
                     { name: 'Check status', value: 'status' }
                 )
                 .setRequired(true)
@@ -1114,6 +1206,23 @@ let craftAdminSlash= {
                 option
                 .setName("role")
                 .setDescription("Role to which to give the status (clear if empty)")
+            )
+        )
+        .addSubcommand(subcommand =>
+            subcommand
+            .setName('update_server')
+            .setDescription("Update server to given version")
+            .addStringOption(option =>
+                option
+                .setName("version_number")
+                .setDescription("Number of new version (e.g.:1.20.71.01)") 
+                .setRequired(true)
+            )
+            .addStringOption(option =>
+                option
+                .setName("key_pass")
+                .setDescription("key password") 
+                .setRequired(true)
             )
         )
         .setDMPermission(false),

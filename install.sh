@@ -170,7 +170,7 @@ install extras/{record_lmp_read.py,server_script.sh,addon_script.sh} "${ROOT_DIR
 chown -R "${STRASHBOT_USER}:${STRASHBOT_USER}" "${ROOT_DIR}/${STRASHBOT_DIR}"
 
 mkdir -p "${ROOT_DIR}/home/${STRASHBOT_USER}/${CRAFT_DIR}"
-install extras/craft_script.sh "${ROOT_DIR}/home/${STRASHBOT_USER}/${CRAFT_DIR}"
+install extras/{craft_script.sh,mc_no_update.lst} "${ROOT_DIR}/home/${STRASHBOT_USER}/${CRAFT_DIR}"
 chown -R "${STRASHBOT_USER}:${STRASHBOT_USER}" "${ROOT_DIR}/home/${STRASHBOT_USER}/${CRAFT_DIR}"
 
 cd "${ROOT_DIR}/${STRASHBOT_DIR}"

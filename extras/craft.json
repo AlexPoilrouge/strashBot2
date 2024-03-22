@@ -18,10 +18,12 @@
             "gamestatus":"/opt/minecraft-bedrock-server/MC_game_status.json"
     },
     "config_commands":{
-            "update_join":"/home/strashbot/mc_bedrock/craft_script.sh UPDATE_JOIN"
+            "update_join":"/home/strashbot/mc_bedrock/craft_script.sh UPDATE_JOIN",
+            "server_update":"/home/strashbot/mc_bedrock/craft_script.sh SERVER_UPDATE"
     },
     "server":{
             "name":"Strashbot",
             "address":"localhost"
-    }
+    },
+    "update_key": "test_key-oJDnUTV2cZzs2wI13r8i1k5"
 }

@@ -6,7 +6,7 @@ COPY ./docker/mirrorlist /etc/pacman.d/mirrorlist
 
 RUN pacman-db-upgrade
 
-RUN pacman -Syyu --noconfirm nodejs-lts-hydrogen gcc npm make openssh sudo nano git imagemagick openssh libssh2 boost-libs inkscape zip
+RUN pacman -Syyu --noconfirm nodejs-lts-hydrogen gcc npm make openssh sudo nano git imagemagick openssh libssh2 boost-libs inkscape zip unzip wget
 
 COPY . /tmp/recieved
 

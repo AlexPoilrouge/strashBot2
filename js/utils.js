@@ -544,6 +544,10 @@ function emoji_retCode(rcode){
     return '❌';
 }
 
+function strMatchesDiscordID(str){
+    return Boolean(str.match(/^[0,9]{15-21}$/));
+}
+
 module.exports.JSONCheck= JSONCheck;
 module.exports.loadJSONFile= loadJSONFile;
 module.exports.writeJSON= writeJSON;
