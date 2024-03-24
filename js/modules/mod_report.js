@@ -127,6 +127,27 @@ async function _reportCmdPlayer(guild, utils){
     return report_str;
 }
 
+async function _reportCmdCraft(guild, utils){
+    var report_str= `<h4>cmd craft :</h4>\n`
+
+    var msg= ""
+    var roles_privileges= await utils.settings.safe.get(guild, "roles_privileges", "craft")
+    if (Boolean(roles_privileges)) {
+        msg+= "<ul>"
+        for(var status in roles_privileges){
+            let role_id= roles_privileges[status];
+            var role= undefined;
+            if (Boolean(role= guild.roles.resolveId(role_id))){
+                msg+= `<li><em>${role}</em>: ${role}</li>`
+            }
+        }
+        msg+= "<ul>"
+    }
+    report_str+= `<b> Roles privileges:</b>\n${msg}<br/>`
+    
+    return report_str;
+}
+
 function _reportPPTCmd(guild, utils){
     let bot= utils.getBotClient()
 
@@ -311,6 +332,11 @@ async function _runReportGuild(guild, utils, interaction= undefined){
     if(moduleExists('player')){
         report_str+= await _reportCmdPlayer(guild, utils);
         
+        report_str+= `<br/>\n`
+    }
+    if(moduleExists('craft')){
+        report_str+= await _reportCmdCraft(guild, utils);
+
         report_str+= `<br/>\n`
     }
     report_str+= problems.printGuildProblemsSummary(guild.id)
