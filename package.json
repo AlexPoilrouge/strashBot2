@@ -9,9 +9,10 @@
   "author": "Dr_Nope",
   "license": "ISC",
   "dependencies": {
+    "async-mutex": "^0.4.0",
     "axios": "^1.2.1",
     "config": "^3.3.8",
-    "discord.js": "^14.7.1",
+    "discord.js": "^14.13.0",
     "fs": "0.0.1-security",
     "glob": "^8.0.3",
     "googleapis": "^110.0.0",

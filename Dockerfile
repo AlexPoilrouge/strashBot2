@@ -6,7 +6,7 @@ COPY ./docker/mirrorlist /etc/pacman.d/mirrorlist
 
 RUN pacman-db-upgrade
 
-RUN pacman -Syyu --noconfirm nodejs-lts-gallium gcc npm make openssh sudo nano git imagemagick openssh libssh2 boost-libs inkscape zip
+RUN pacman -Syyu --noconfirm nodejs-lts-hydrogen gcc npm make openssh sudo nano git imagemagick openssh libssh2 boost-libs inkscape zip unzip wget
 
 COPY . /tmp/recieved
 
@@ -17,9 +17,9 @@ RUN echo "Add copy script as 'docker_test/copies.sh' if needed - " && \
 
 WORKDIR /tmp/recieved
 
-RUN ssh-keyscan $( [ -f /tmp/ssh_host ] && head -n1 /tmp/ssh_host || echo "127.0.0.1" ) >> /root/.ssh/known_hosts
+RUN ssh-keyscan $( [ -f /tmp/ssh_host ] && head -n1 /tmp/ssh_host || echo "127.0.0.1" ) >> /root/.ssh/known_hosts || echo "no keys…"
 
-RUN echo "'docker_test/values.txt' must be provided…" && cp -vf docker_test/values.txt ./values.txt
+RUN echo "'docker_test/values.txt' must be provided…" && cp -vf docker_test/values.txt ./values.txt || echo "…but isn't…"
 
 ARG Register_Slash=""
 ENV STRASHBOT_SLASH_REGISTER "${Register_Slash}"

@@ -68,6 +68,43 @@ JSONCheck ={
     },
 };
 
+function loadJSONFile(filepath){
+    try{
+        if(fs.existsSync(filepath)){
+            var data= fs.readFileSync(filepath);
+
+            var r= undefined;
+            if(Boolean(data) && Boolean(r=JSON.parse(data))){
+                return r;
+            }
+            else{
+                hereLog(`[load_json]('${filepath}') Error reading data from file`);
+                return undefined;
+            }
+        }
+        else{
+            hereLog(`[load_json]('${filepath}')  Error reading data; file doesn't seem to exists…'`);
+            return undefined;
+        }
+    } catch(err){
+        hereLog(`[load_json]('${filepath}') Critical erreur reading data from file…\n\t${err}`)
+        return undefined
+    }
+}
+
+function writeJSON(data, filepath) {
+    try {
+        const jsonData = JSON.stringify(data, null, 2);
+
+        fs.writeFileSync(filepath, jsonData);
+
+        return filepath
+    } catch (error) {
+        hereLog(`[load_json]('${filepath}') Error writing data:\n\t${error}`);
+        return undefined
+    }
+}
+
 function commandDecompose(message, prefix='!'){
     if(!message.content.startsWith(prefix)){
         return null;
@@ -507,7 +544,13 @@ function emoji_retCode(rcode){
     return '❌';
 }
 
+function strMatchesDiscordID(str){
+    return Boolean(str.match(/^[0,9]{15-21}$/));
+}
+
 module.exports.JSONCheck= JSONCheck;
+module.exports.loadJSONFile= loadJSONFile;
+module.exports.writeJSON= writeJSON;
 module.exports.commandDecompose= commandDecompose;
 module.exports.commandNameFromFilePath= commandNameFromFilePath;
 module.exports.commandArgsOptionsExtract= commandArgsOptionsExtract;

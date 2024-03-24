@@ -30,13 +30,13 @@ class Worker{
         hereLog("ready");
     }
 
-    processMessage(message){
+    async processMessage(message){
         let cmd= utils.commandDecompose(message, this._moduleHandler._old_cmd_prefix);
         if(cmd){
-            this._moduleHandler.processOldCommands(cmd);
+            await this._moduleHandler.processOldCommands(cmd);
         }
         else{
-            this._moduleHandler.onEvent('messageCreate', message);
+            await this._moduleHandler.onEvent('messageCreate', message);
         }
     }
 
@@ -49,8 +49,8 @@ class Worker{
         }
     }
 
-    event(){
-        this._moduleHandler.onEvent(...arguments);
+    async event(){
+        await this._moduleHandler.onEvent(...arguments);
     }
 
     newGuild(guild){

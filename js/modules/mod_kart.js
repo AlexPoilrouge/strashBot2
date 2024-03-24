@@ -10,7 +10,8 @@ const fetch = require('node-fetch');
 const {ActivityType}= require('discord.js');
 
 
-const my_utils= require('../utils.js')
+const my_utils= require('../utils.js');
+const { util } = require("config");
 
 
 let hereLog= (...args) => {console.log("[Kart_Module]", ...args);};
@@ -22,30 +23,8 @@ var l_guilds= [];
 
 const KART_JSON="data/kart.json"
 
-function _loadKartJSON(){
-    var fn= path.resolve(__dirname, KART_JSON)
-    try{
-        if(fs.existsSync(fn)){
-            var data= fs.readFileSync(fn);
 
-            var r= undefined;
-            if(Boolean(data) && Boolean(r=JSON.parse(data))){
-                return r;
-            }
-            else{
-                hereLog(`[load_kart_json] Error reading data from '${KART_JSON}'`);
-                return undefined;
-            }
-        }
-        else{
-            hereLog(`[load_kart_json] Error reading data; ${fn} doesn't seem to exists…'`);
-            return undefined;
-        }
-    } catch(err){
-        hereLog(`[load_kart_json] Critical erreur reading data from '${KART_JSON}'…\n\t${err}`)
-        return undefined
-    }
-}
+let _loadKartJSON= () => my_utils.loadJSONFile(path.resolve(__dirname, KART_JSON))
 
 
 function __kartCmd(command){
@@ -2524,7 +2503,8 @@ let slashKartPassword= {
     data: new SlashCommandBuilder()
             .setName('kart_password')
             .setDescription("Get the Strashbot SRB2Kart's server's login")
-            .setDefaultMemberPermissions(0),
+            .setDefaultMemberPermissions(0)
+            .setDMPermission(false),
     async execute(interaction, utils){
         try{
             await S_CMD__kartPassword(interaction, utils)
@@ -2584,7 +2564,8 @@ let slashKartStartStop= {
                     .setName('set')
                     .setDescription('Sumbit a new server config')
                 )
-            ),
+            )
+            .setDMPermission(false),
     async execute(interaction, utils){
         try{
             await S_CMD__kartServer(interaction, utils)
@@ -2653,7 +2634,8 @@ let slashKartAddonManage= {
             .setDescription("Addon's complete filename")
             .setRequired(true)
         )
-    ),
+    )
+    .setDMPermission(false),
     async execute(interaction, utils){
         try{
             await S_CMD__kartAddonManager(interaction, utils)
@@ -2894,7 +2876,8 @@ let slashKartClip= {
             .setDescription("new description")
             .setMaxLength(512) 
         ) 
-    ),
+    )
+    .setDMPermission(false),
     async execute(interaction, utils){
         try{
             await S_CMD__kartClips(interaction, utils)
@@ -2933,7 +2916,8 @@ let slaskKartDiscord= {
                 { name: 'clear', value: 'clear' }
             )
         )
-    ),
+    )
+    .setDMPermission(false),
     async execute(interaction, utils){
         try{
             await S_CMD_postStatusChannel(interaction, utils)
@@ -2974,7 +2958,7 @@ function kart_destroy(utils){
 
 let E_RetCode= my_utils.Enums.CmdRetCode
 
-function ogc_kart(strashBotOldCmd, clearanceLvl, utils){
+async function ogc_kart(strashBotOldCmd, clearanceLvl, utils){
     let message= strashBotOldCmd.msg_obj
     let args= strashBotOldCmd.args
     let cmd= strashBotOldCmd.command

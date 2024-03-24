@@ -1,0 +1,29 @@
+{
+    "server_commands":{
+            "start":"/bin/systemctl start minecraft-bedrock-server",
+            "stop":"/bin/systemctl stop minecraft-bedrock-server",
+            "restart":"/bin/systemctl restart minecraft-bedrock-server",
+            "is_active":"/bin/systemctl is-active minecraft-bedrock-server"
+    },
+    "api":{
+            "minecraft_player_url":"https://api.mojang.com/users/profiles/minecraft",
+            "minecraft_profile_url":"https://sessionserver.mojang.com/session/minecraft/profile",
+            "bedrock_server_status_url":"https://api.mcstatus.io/v2/status/bedrock"
+    },
+    "dirs":{
+            "main_folder":"/home/strashbot/mc_bedrock"
+    },
+    "files":{
+            "allowlist":"/opt/minecraft-bedrock-server/allowlist.json",
+            "gamestatus":"/opt/minecraft-bedrock-server/MC_game_status.json"
+    },
+    "config_commands":{
+            "update_join":"/home/strashbot/mc_bedrock/craft_script.sh UPDATE_JOIN",
+            "server_update":"/home/strashbot/mc_bedrock/craft_script.sh SERVER_UPDATE"
+    },
+    "server":{
+            "name":"Strashbot",
+            "address":"localhost"
+    },
+    "update_key": "test_key-oJDnUTV2cZzs2wI13r8i1k5"
+}
