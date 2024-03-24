@@ -1418,6 +1418,5 @@ module.exports= {
     initPerGuild: init_perGuild,
     clearGuild: undefined,
     destroy: undefined,
-    modMessage: undefined,
-    devOnly: true
+    modMessage: undefined
 }
