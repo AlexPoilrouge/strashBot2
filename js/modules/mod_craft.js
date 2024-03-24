@@ -255,7 +255,11 @@ function allowUser(name, uuid){
 
 
 async function S_S_CMD_craftServer_Start(interaction, utils){
-    if (isDiscordMemberBlocked(interaction.member,utils)){
+    var isblocked= false
+    try{ isblocked= await isDiscordMemberBlocked(interaction.member, utils)}
+    catch(err){ isblocked= false;}
+
+    if (isblocked){
         hereLog(`{cmd start} ye, ${interaction.member} is like block y'know`)
         await interaction.editReply(
             `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
@@ -292,7 +296,11 @@ async function S_S_CMD_craftServer_Start(interaction, utils){
 }
 
 async function _runningCmdIfNoPlayer(interaction, utils, cmdname, cmd){
-    if (isDiscordMemberBlocked(interaction.member,utils)){
+    var isblocked= false
+    try{ isblocked= await isDiscordMemberBlocked(interaction.member, utils)}
+    catch(err){ isblocked= false;}
+            
+    if(isblocked){
         hereLog(`{cmd ${cmdname}} ye, ${interaction.member} is like block y'know`)
         await interaction.editReply(
             `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
