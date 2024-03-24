@@ -57,7 +57,7 @@ function isServerServiceActive(){
     try{
         var ret=child_process.execSync(craft_settings.server_commands.is_active, {timeout: 32000});
 
-        return ret==="active"
+        return String(ret).trim()==="active"
     }
     catch(err){
         return false
