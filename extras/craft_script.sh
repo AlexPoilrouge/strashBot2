@@ -64,6 +64,7 @@ case "$CMD" in
         if wget "${COMPLETE_URL}" -P "${SCRIPT_DIR}" &> "${SCRIPT_DIR}/update.log"; then
             if unzip -o "${SCRIPT_DIR}/${SERV_ZIP_FILE_NAME}" -x $(<${MC_SERVER_NOUPDATE_FILE}) -d "${MC_DIR}" &> "${SCRIPT_DIR}/update_install.log"; 
             then
+                echo "${VERSION}" > "${MC_DIR}/version.txt"
                 chown -Rf "${MC_USER_GRP}" "${MC_DIR}"
                 clean_update
                 exit 0

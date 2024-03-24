@@ -559,6 +559,15 @@ async function S_S_CMD_craftServer_info(interaction, utils){
         hereLog(`[info_cmd] couldn't fetch players status on file \`${craft_settings.files.gamestatus}\`: ${err}`)
     }
 
+    var serv_version= undefined
+    try{
+        serv_version= String(fs.readFileSync(craft_settings.files.version)).trim()
+    }
+    catch(err){
+        hereLog(`[info_cmd] couldn't read Bedrock Server's version file or data - ${err}`)
+        serv_version= undefined
+    }
+
     await interaction.editReply( {
         embeds: [{
             title: "Bedrock server Status",
@@ -593,6 +602,10 @@ async function S_S_CMD_craftServer_info(interaction, utils){
                                     ('-'+playersStatus.playerlist.map(e=>`*${e}*`).join('\n-'))
                                 :   '-'
                             ):  '-'
+                }, {
+                    name: 'server version',
+                    inline: true,
+                    value: serv_version ?? 'unknown'
                 }
             ]
         }]

@@ -15,7 +15,8 @@
     },
     "files":{
             "allowlist":"/opt/minecraft-bedrock-server/allowlist.json",
-            "gamestatus":"/opt/minecraft-bedrock-server/MC_game_status.json"
+            "gamestatus":"/opt/minecraft-bedrock-server/MC_game_status.json",
+            "version":"/opt/minecraft-bedrock-server/version.txt"
     },
     "config_commands":{
             "update_join":"/home/strashbot/mc_bedrock/craft_script.sh UPDATE_JOIN",
