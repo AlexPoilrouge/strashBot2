@@ -325,11 +325,8 @@ async function _runningCmdIfNoPlayer(interaction, utils, cmdname, cmd){
         nb_players= -1
     }
 
-    var run_command= false;
-    if(nb_players>0){
-        run_command= true
-    }
-    else if(force){
+    var run_command= (nb_players<=0);
+    if(!run_command && force){
         run_command= ((await getCraftPrivilege(interaction, utils))>=CRAFT_PRIVILEGE.Operator)
     }
 
