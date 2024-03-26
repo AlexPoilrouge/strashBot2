@@ -20,7 +20,7 @@
     },
     "config_commands":{
             "update_join":"sudo /home/${STRASHBOT_USER}/${CRAFT_DIR}/craft_script.sh UPDATE_JOIN",
-            "server_update":"/home/strashbot/mc_bedrock/craft_script.sh SERVER_UPDATE"
+            "server_update":"sudo /home/${STRASHBOT_USER}/${CRAFT_DIR}/craft_script.sh SERVER_UPDATE"
     },
     "server":{
             "name":"${MC_BEDROCK_SERVER_NAME}",
