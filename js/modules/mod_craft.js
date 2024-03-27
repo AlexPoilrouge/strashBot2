@@ -364,10 +364,11 @@ async function _runningCmdIfNoPlayer(interaction, utils, cmdname, cmd){
         else{
             await interaction.editReply(
                 `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
-                (nb_players<0) ?
+                ( (nb_players<0) ?
                         ( `There was a problem fetching server status. ` +
                          `As a security measure '${cmdname} is prohibited (new to use '*force*' option).` )
                     :   `Players seem to be playing (only ${cmdname} with '*force*' option can work).`
+                )
             );
         }
     }
@@ -541,7 +542,8 @@ async function S_S_CMD_craftServer_info(interaction, utils){
         servInfo= {}
         if(response && response.data){
             servInfo.online= response.data.online
-            servInfo.players= response.data.players 
+            servInfo.players= response.data.players
+            servInfo.version= (response.data.version? response.data.version.name : undefined) 
         }
         else{
             servInfo.online= false
@@ -559,13 +561,15 @@ async function S_S_CMD_craftServer_info(interaction, utils){
         hereLog(`[info_cmd] couldn't fetch players status on file \`${craft_settings.files.gamestatus}\`: ${err}`)
     }
 
-    var serv_version= undefined
-    try{
-        serv_version= String(fs.readFileSync(craft_settings.files.version)).trim()
-    }
-    catch(err){
-        hereLog(`[info_cmd] couldn't read Bedrock Server's version file or data - ${err}`)
-        serv_version= undefined
+    var serv_version= servInfo.version
+    if(!Boolean(serv_version)){
+        try{
+            serv_version= String(fs.readFileSync(craft_settings.files.version)).trim()
+        }
+        catch(err){
+            hereLog(`[info_cmd] couldn't read Bedrock Server's version file or data - ${err}`)
+            serv_version= undefined
+        }
     }
 
     await interaction.editReply( {
@@ -605,7 +609,7 @@ async function S_S_CMD_craftServer_info(interaction, utils){
                 }, {
                     name: 'server version',
                     inline: true,
-                    value: serv_version ?? 'unknown'
+                    value: serv_version ? serv_version.split('.').slice(0,3).join('.') : 'unknown'
                 }
             ]
         }]
