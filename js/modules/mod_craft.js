@@ -1003,11 +1003,23 @@ async function allowID(id){
     }
 }
 
+function UUID_separatorFormat(uuid, seperator='-'){
+    var formated=""
+    let end= 64;
+    var _i=0
+    for(i of [8,12,16,20,64]){
+        formated+= uuid.substring(_i,i) + ((i!=end)?seperator:'')
+        _i=i
+    }
+
+    return formated
+}
+
 function removeUUIDFromAllowList(uuid){
     var data= undefined
     if(data=my_utils.loadJSONFile(craft_settings.files.allowlist)){
         if(Boolean(data) && Array.isArray(data)){
-            data= data.filter(e => (e.uuid!==uuid))
+            data= data.filter(e => !([uuid, UUID_separatorFormat(uuid)].includes(e.uuid)))
 
             if(!call_rewriteAllowlist_json(data)){
                 hereLog(`[rmUUIDFromAllowlist](${uuid}) couldn't update allowlist`);
@@ -1030,9 +1042,9 @@ function removeUUIDFromAllowList(uuid){
 async function disallowID(id){ //from discord_user_id or uuid
     try{
         let userData= await getLink(id)
-
+        
+        var data= undefined
         if(userData && userData.status && userData.status.startsWith("found")){
-            var data= undefined
             try{
                 data= removeUUIDFromAllowList(userData.uuid)
             }
@@ -1049,8 +1061,18 @@ async function disallowID(id){ //from discord_user_id or uuid
 
             return data
         }
+        else if(userData && userData.status==="nothing"){
+            try{
+                data= removeUUIDFromAllowList(id)
+            }
+            catch(err){
+                throw(err)
+            }
+
+            return data;
+        }
         else{
-            hereLog(`[disallowID] Error trying to fetch user data for id ${id}…`)
+            hereLog(`[disallowID] Error trying to fetch user data for id ${id}… - ${JSON.stringify(userData)}`)
             throw undefined;
         }
     }
