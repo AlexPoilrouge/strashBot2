@@ -232,8 +232,8 @@ function allowUser(name, uuid){
     var data= undefined
     if(data=my_utils.loadJSONFile(craft_settings.files.allowlist)){
         if(Boolean(data) && Array.isArray(data)){
-            data= data.filter(e => (e.uuid!==uuid))
-            data.push({name, uuid})
+            data= data.filter(e => (e.uuid.split('-').join('')!==uuid.split('-').join('')))
+            data.push({name, uuid: UUID_separatorFormat(uuid)})
 
             if(!call_rewriteAllowlist_json(data)){
                 hereLog(`[allowUser] couldn't update allowlist`);
