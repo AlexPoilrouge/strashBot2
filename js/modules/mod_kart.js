@@ -265,18 +265,32 @@ function _askServInfos(address=undefined, port=undefined){
 
 var _oldServInfos= undefined;
 
-let PlayerNumSteps= [
-    {   number: 4,
-        message: "Looks like some guys wana race! 🏁",
-        coolDownTime: 30*1000 //4 min
-    },{ number: 8,
-        message: "More people just joined the party! 🏎💨",
-        coolDownTime: 30*1000 //4 min
-    }, { number: 0,
-        message: "Fun's over… Going back to sleep 🛌",
-        comingFromTop: true
-    }
-]
+let AppThresholds= {
+    srb2kart: [
+        {   number: 4,
+            message: "Looks like some guys wana race on some good'ol SRB2Kart! 🏁",
+            coolDownTime: 30*1000 //4 min
+        },{ number: 8,
+            message: "More people just joined the SRB2Kart party!!! 🏎💨",
+            coolDownTime: 30*1000 //4 min
+        }, { number: 0,
+            message: "Fun's over… SRB2Kart is going back to sleep 🛌",
+            comingFromTop: true
+        }
+    ],
+    ringracers: [
+        {   number: 4,
+            message: "Looks like some guys are hungy for some rings! 🏁",
+            coolDownTime: 30*1000 //4 min
+        },{ number: 8,
+            message: "More people are racing *at the next level*! 🏎💨",
+            coolDownTime: 30*1000 //4 min
+        }, { number: 0,
+            message: "Fun's over… No more rings for robotnik… 🛌",
+            comingFromTop: true
+        }
+    ]
+}
 let CheckTimeCycleInterval= 60*60*1000; //1 hour
 
 var PlayerNumStepCheckInfos= {
@@ -285,7 +299,7 @@ var PlayerNumStepCheckInfos= {
     lastCheckStartTimeStamp: 0,
     lastCheckStepTimeStamp: 0,
 }
-function __checkPlayerNumStep(numberOfPlayers){
+function __checkPlayerNumStep(numberOfPlayers, appnum=1){
     if(numberOfPlayers<0){
         PlayerNumStepCheckInfos= {
             iterator: 0,
@@ -306,6 +320,8 @@ function __checkPlayerNumStep(numberOfPlayers){
         PlayerNumStepCheckInfos.lastCheckStepTimeStamp= Date.now()
         return undefined;
     }
+
+    let PlayerNumSteps= (appnum>1)? AppThresholds.ringracers : AppThresholds.srb2kart
 
     var res= undefined;
     let timeStepElapsed= Date.now()-PlayerNumStepCheckInfos.lastCheckStepTimeStamp
@@ -340,6 +356,12 @@ function __checkPlayerNumStep(numberOfPlayers){
 
 let lastMessagesPerGuild= {}
 
+function ___AppNum_fromServDataObj(servData){
+    return ( (servData && servData.application) ?
+                    (servData.application.toLowerCase()==='ringracers')? 2 : 1
+                :   0 );
+}
+
 function _checkServerStatus(utils){
     var bot= utils.getBotClient();
 
@@ -357,8 +379,9 @@ function _checkServerStatus(utils){
             }
 
             let numPlayer= servInfo.server.numberofplayer
+            let AppNum= ___AppNum_fromServDataObj(servInfo.server)
 
-            let infoStep= __checkPlayerNumStep(numPlayer);
+            let infoStep= __checkPlayerNumStep(numPlayer, AppNum);
             if(Boolean(infoStep)){
                 bot.guilds.fetch().then(guilds => {
                     guilds.forEach(guild => {
@@ -378,7 +401,7 @@ function _checkServerStatus(utils){
                                             color,
                                             title: `${numPlayer} playing`,
                                             fields: [{
-                                                name: "StrashBot Karting",
+                                                name: `StrashBot Kart${AppNum===2?'R':''}ing`,
                                                 value: infoStep.message,
                                                 inline: false
                                             }],
@@ -421,7 +444,7 @@ function _checkServerStatus(utils){
             ){
                 if(numPlayer>0){
                     hereLog(`Changes in srb2kart server status detected… (player count: ${numPlayer})`);
-                    bot.user.setActivity('Hosting SRB2Kart Races', { type: ActivityType.Playing });
+                    bot.user.setActivity(`Hosting ${(AppNum>1)?"Dr Robotnik's Ring Races":"SRB2Kart Races"}`, { type: ActivityType.Playing });
                 }
                 else{
                     hereLog(`Changes in srb2kart server status detected… (not enough player though)`);
@@ -550,9 +573,10 @@ async function S_CMD__kartInfo(interaction, utils){
             ){
                 embed.title= `${ss.servername}`
             }
-            if(Boolean(ss) && Boolean(ss.application)
-                && ss.application.length>0
-            ){
+
+            let AppNum= ___AppNum_fromServDataObj(ss)
+
+            if(AppNum>0){
                 embed.footer= {
                     text:
                         `---\n${ss.application}` +
@@ -581,7 +605,7 @@ async function S_CMD__kartInfo(interaction, utils){
                 name: 'Map',
                 value:
                     `${Boolean(ss)?
-                        `${ss.mapname} - *${ss.maptitle}*`
+                        `${(AppNum===1)?`${ss.mapname} - `:''}*${ss.maptitle}*`
                     :   'erreur'
                     }`,
                 inline: true
@@ -596,13 +620,27 @@ async function S_CMD__kartInfo(interaction, utils){
                 inline: true
             })
 
-            if(Boolean(ss) && [2,3].includes(ss.gametype)){
+            if(AppNum>1 && ss.gametypename){
+                embed.fields.push({
+                    name: 'Gametype',
+                    value: `${ss.gametypename}`,
+                    inline: true
+                })
+            }
+            else if(Boolean(ss) && [2,3].includes(ss.gametype)){
                 embed.fields.push({
                     name: (ss.gametype===2)?'KartSpeed':'Gametype',
                     value: (ss.gametype===2 && Boolean(ss.kartspeed))?
                             ss.kartspeed
                         :   "Battle",
                     inline: true
+                })
+            }
+
+            if(AppNum>1 && ss.avgpwrlvl!==undefined){
+                embed.fields.push({
+                    name: "Average Powerlevel",
+                    value: `${ss.avgpwrlvl}`
                 })
             }
 
