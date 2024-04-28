@@ -637,6 +637,21 @@ async function S_CMD__kartInfo(interaction, utils){
                 })
             }
 
+            if(AppNum>1 && Boolean(ss.kartvars)){
+                embed.fields.push({
+                    name: "Server type",
+                    value: (ss.kartvars.isdedicated)? "Dedicated" : "Listen",
+                    inline: true
+                })
+
+                let gear= ss.kartvars.gear ?? 0
+                embed.fields.push({
+                    name: "Gear (speed)",
+                    value: `${gear} (${(gear>2)?"hard":((gear===1)?"normal":"easy")})`,
+                    inline: true
+                })
+            }
+
             if(AppNum>1 && ss.avgpwrlvl!==undefined){
                 embed.fields.push({
                     name: "Average Powerlevel",
