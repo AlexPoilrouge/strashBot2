@@ -647,7 +647,7 @@ async function S_CMD__kartInfo(interaction, utils){
                 let gear= ss.kartvars.gear ?? 0
                 embed.fields.push({
                     name: "Gear (speed)",
-                    value: `${gear} (${(gear>2)?"hard":((gear===1)?"normal":"easy")})`,
+                    value: `${gear} (${(gear>2)?"hard":((gear===2)?"normal":"easy")})`,
                     inline: true
                 })
             }
