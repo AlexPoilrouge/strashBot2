@@ -749,7 +749,7 @@ function _getPassword(){
     b= false;
     stdout= undefined;
     try{
-        var cmd= __kartCmd("eval 'cat ${HOME}/.TMP_PASS'");
+        var cmd= __kartCmd("eval 'cat ${HOME}/.ringracers/.TMP_PASS'");
         stdout=child_process.execSync(cmd,{timeout: 16000}).toString().replace('\n','');
         b= true;
     }
