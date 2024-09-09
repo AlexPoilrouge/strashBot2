@@ -1,0 +1,20 @@
+#!/bin/bash
+
+
+export STRASHBOT_VER=""
+export STRASHBOT_BUILD=""
+export STRASHBOT_SRC="{{ git.url }}"
+
+export STRASHBOT_CLIENTID="{{ discord_bot.client_id }}"
+export STRASHBOT_TOKEN="{{ discord_bot.token }}"
+
+export STRASHBOT_MASTERID="{{ discord_bot.master_user_id }}"
+
+export STRASHBOT_DEBUG="{{ discord_bot.debug }}"
+export STRASHBOT_DEVGUILDID="{{ discord_bot.dev_guild_id }}"
+
+if [ "$1" == "SLASH_REGISTER" ]; then
+    node js/registerSlash.js
+else
+    node bot_main.js
+fi

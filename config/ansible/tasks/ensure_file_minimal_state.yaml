@@ -1,0 +1,15 @@
+- name: Check if {{ file_info.path }} exists
+  stat:
+    path: "{{ file_info.path }}"
+  register: file_stat
+
+- name: Check if {{ file_info.path }} is empty
+  shell: 'test -s {{ file_info.path }} || echo "empty"'
+  register: file_empty
+  when: file_stat.stat.exists
+
+- name: Create or overwrite {{ file_info.path }} with '{}' if it doesn't exist or is empty
+  copy:
+    dest: "{{ file_info.path }}"
+    content: "{{ file_info.fallback_content }}"
+  when: not file_stat.stat.exists or file_empty.stdout == "empty"

@@ -8,6 +8,7 @@ const axios= require('axios');
 const jwt= require("jsonwebtoken");
 const fetch = require('node-fetch');
 const {ActivityType}= require('discord.js');
+const {CallApi,Method}= require('./utils/api_call.js')
 
 
 const my_utils= require('../utils.js');
@@ -25,6 +26,8 @@ const KART_JSON="data/kart.json"
 
 
 let _loadKartJSON= () => my_utils.loadJSONFile(path.resolve(__dirname, KART_JSON))
+
+let apiCaller= undefined
 
 
 function __kartCmd(command){
@@ -74,7 +77,7 @@ function __clearScores(user=undefined){
     }
 }
 
-function _serverRunningStatus_API(){
+function _serverRunningStatus_API(karter="ringracers"){
     return new Promise( (resolve, reject) => {
         if (!Boolean(kart_settings)){
             hereLog(`[server status] bad config…`);
@@ -82,10 +85,13 @@ function _serverRunningStatus_API(){
         }
 
         if(Boolean(kart_settings.api) && Boolean(kart_settings.api.host)){
-            api_addr=`${kart_settings.api.host}${(Boolean(kart_settings.api.port)?`:${kart_settings.api.port}`:'')}${kart_settings.api.root}/service`
+            // api_addr=`${kart_settings.api.host}${(Boolean(kart_settings.api.port)?`:${kart_settings.api.port}`:'')}${kart_settings.api.root}/service`
     
-            axios.get(api_addr)
-                .then(response => {
+            // axios.get(api_addr)
+            apiCaller.Call("info",
+                {   method: "get",
+                    values: { karter }  }
+            ).then(response => {
                     if( response.status===200 &&
                         Boolean(response.data) && Boolean(response.data.status)
                     ){
@@ -471,6 +477,11 @@ function kart_init(utils){
         hereLog("Not able to load 'kart.json' setting…");
         return
     }
+    apiCaller= new CallApi( kart_settings.api.host,
+                            {   port: kart_settings.api.port,
+                                api_root: kart_settings.api.root 
+                            })
+    apiCaller.registerEndPoint("info", "info/:karter")
     _initAddonsConfig();
 
     if(!Boolean(stop_job)){

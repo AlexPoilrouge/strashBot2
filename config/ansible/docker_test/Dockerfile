@@ -1,12 +1,10 @@
-# FROM alpine:latest
-# FROM my_alpine:0.1
 FROM archlinux:latest
 
-COPY ./docker/mirrorlist /etc/pacman.d/mirrorlist
+COPY docker_test/mirrorlist /etc/pacman.d/mirrorlist
 
 RUN pacman-db-upgrade
 
-RUN pacman -Syyu --noconfirm \
+RUN	 pacman -Syyu --noconfirm \
                 nodejs-lts-hydrogen \
                 gcc \
                 npm \
@@ -25,26 +23,32 @@ RUN pacman -Syyu --noconfirm \
                 unzip \
                 wget
 
-RUN mkdir -p /var/app/strashBot
+RUN  /usr/bin/ssh-keygen -A
 
-COPY config /var/app/strashBot/config
-COPY js /var/app/strashBot/js
-COPY extras /var/app/strashBot/extras
-COPY package.json install.sh kart.js /var/app/strashBot/
+RUN  sed -i -e 's/^\#UsePAM no/UsePAM no/g' /etc/ssh/sshd_config
 
-WORKDIR /var/app/strashBot
+EXPOSE	 22
+
+ARG SSH_USER="ansible_test"
+ARG SSH_PASSWORD="P@55w0rd"
+
+RUN useradd -m ${SSH_USER}
+
+RUN echo ${SSH_USER}:${SSH_PASSWORD} | chpasswd
+
+RUN echo "${SSH_USER} ALL = (root) NOPASSWD:ALL" > /etc/sudoers.d/${SSH_USER}
+
+RUN chmod 0400 /etc/sudoers.d/${SSH_USER}
+
+
+COPY docker_test/data /tmp/recieved
 
 RUN echo "Add copy script as 'docker_test/copies.sh' if needed - " && \
-    ( [ -f /var/app/strashBot/config/ansible/docker_test/copies.sh ] && \
-        bash /var/app/strashBot/config/ansible/docker_test/copies.sh || \
+    ( [ -f /tmp/recieved/copies.sh ] && \
+        bash /tmp/recieved/copies.sh || \
         echo 'none given' )
 
 RUN ssh-keyscan $( [ -f /tmp/ssh_host ] && head -n1 /tmp/ssh_host || echo "127.0.0.1" ) >> /root/.ssh/known_hosts || echo "no keys…"
 
-ARG Register_Slash=""
-ENV STRASHBOT_SLASH_REGISTER "${Register_Slash}"
 
-RUN chmod u+x install.sh
-RUN ./install.sh -d
-
-CMD "./launch.sh"
+CMD	 ["/usr/sbin/sshd", "-D"]

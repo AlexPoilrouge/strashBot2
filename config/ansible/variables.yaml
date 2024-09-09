@@ -1,0 +1,68 @@
+root_dir: /
+install_dir: /var/app/strashBot
+
+docker_test: "{{ docker_test_flag | default(false) }}"
+
+systemd:
+  install: true
+
+nginx:
+  install: true
+
+git:
+  url: https://github.com/AlexPoilrouge/strashBot2.git
+  branch: "{{ git_branch_var | default('master') }}"
+  cloned_repo_dir: /var/sources/strashBot2
+  remove_on_finish: true
+
+strashbot:
+  username: strashbot
+  home: "/home/strashbot"
+
+discord_bot:
+  client_id:
+  token:
+  master_user_id:
+  debug: false
+  dev_guild_id:
+  register_slash: false
+
+web_pages:
+  base_url: https://strashbot.fr
+  gallery_route: "galery.html"
+
+racers:
+  - name: ringracers
+    server:
+      commands:
+        start: "/home/strashbot/.ringracers/addon_script.sh START_SERV"
+        stop: "/home/strashbot/.ringracers/addon_script.sh STOP_SERV"
+        restart: "/home/strashbot/.ringracers/addon_script.sh RESTART_SERV"
+        is_active: "/home/strashbot/.ringracers/addon_script.sh IS_ACTIVE_SERV"
+      through_ssh: true
+      ip: 193.70.41.86
+      address: strashbot.fr
+      port:
+      distant_user: strashbot
+    api:
+      host: https://strashbot.fr
+      port:
+      root: /kart
+      token_keys_paths:
+        admin_signing_key: /var/app/keys/admin_jwtRS256.key
+        discord_user_signing_key: /var/app/keys/jwtRS256.key
+    directories:
+      main: /home/strashbot/.ringracers
+      addons_dl: /home/strashbot/.ringracers/addons/installed
+    http_url: https://strashbot.fr/.ringracers
+
+craft:
+  directory: /home/strashbot/mc_bedrock
+  service: minecraft-bedrock-server
+  bedrock_server:
+    name: Strashbot
+    address: localhost
+    update_key: "test_key-oJDnUTV2cZzs2wI13r8i1k5"
+
+startgg:
+  token:

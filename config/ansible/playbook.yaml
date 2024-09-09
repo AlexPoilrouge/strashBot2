@@ -1,0 +1,88 @@
+- name: strashbot_install
+  vars_files:
+    - "{{ variables_file_var | default('./variables.yaml') }}"
+  become: true
+  hosts: "{{ host_var | default('all') }}"
+
+  tasks:
+    - include_tasks: ./tasks/source_fetch.yaml
+
+    - name: creating strashbot user
+      ansible.builtin.user:
+        name: "{{ strashbot.username }}"
+        home: "{{ strashbot.home }}"
+
+    - name: "Sources install [ {{ item }} ]"
+      ansible.builtin.copy:
+        remote_src: true        
+        src: "{{ server_source_dir }}/{{ item }}"
+        dest: "{{ root_dir }}/{{ install_dir }}/{{ item }}"
+        mode: 0744
+        owner: "{{ strashbot.username }}"
+        group: "{{ strashbot.username }}"
+      loop:
+        - "js/"
+        - "bot_main.js"
+        - "tsconfig.json"
+        - "version.txt"
+        - "package.json"
+        - "config/default.json"
+        - "config/custom-environment-variables.json"
+        - "extras/craft_script.sh"
+      loop_control:
+        loop_var: item
+    - name: "Sources install [ craft_script ]"
+      ansible.builtin.copy:
+        remote_src: true        
+        src: "{{ craft.directory }}"
+        dest: "{{ root_dir }}/{{ install_dir }}/extras/craft_script.sh"
+        mode: 0744
+        owner: "{{ strashbot.username }}"
+        group: "{{ strashbot.username }}"
+
+    - include_tasks: ./tasks/install_templates.yaml
+      loop:
+        - { filename: "kart.json", dest_dir: "{{ root_dir }}/{{ install_dir }}/extras" }
+        - { filename: "launch.sh", dest_dir: "{{ root_dir }}/{{ install_dir }}" }
+        - { filename: "strashbot.service", dest_dir: "{{ root_dir }}/etc/systemd/system" }
+        - { filename: "smashgg_infos.json", dest_dir: "{{ root_dir }}/{{ install_dir }}/js/modules/data" }
+        - { filename: "craft.json", dest_dir: "{{ root_dir }}/{{ install_dir }}/js/modules/top8gen/smashgg" }
+        - { filename: "10-strashbot-craft-ctrl", dest_dir: "{{ root_dir }}/etc/sudoers.d" }
+      loop_control:
+        loop_var: template_info
+
+    - include_tasks: ./tasks/ensure_file_minimal_state.yaml
+      loop:
+        - { path: "{{ root_dir }}/{{ install_dir }}/data/guildConfigs.json", fallback_content: "{}" }
+      loop_control:
+        loop_var: file_info
+
+    - name: Install packages based on package.json.
+      community.general.npm:
+        path: "{{ root_dir }}/{{ install_dir }}"
+    - name: Building typescript code
+      ansible.builtin.command: npm run build
+      args:
+        chdir: "{{ root_dir }}/{{ install_dir }}"
+    - name: Registering slash commands
+      ansible.builtin.command: npm run register_slash
+      args:
+        chdir: "{{ root_dir }}/{{ install_dir }}"
+      when: discord_bot.register_slash is defined and discord_bot.register_slash
+
+    - name: Systemd reload
+      when: systemd is defined and systemd.install is defined and systemd.install and ( ( docker_test is undefined ) or ( not docker_test ) )
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+    - name: "'strashbot' service restart"
+      when: systemd is defined and systemd.install is defined and systemd.install and ( ( docker_test is undefined ) or ( not docker_test ) )
+      ansible.builtin.systemd_service:
+        name: "strashbot"
+        state: restarted
+        enabled: true
+
+    - name: "remove source repo"
+      when: git is defined and git.remove_on_finish is defined and git.remove_on_finish 
+      ansible.builtin.file:
+        path: "{{ root_dir }}/{{ git.cloned_repo_dir }}"
+        state: absent

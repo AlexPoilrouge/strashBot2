@@ -1,0 +1,11 @@
+- name: "prepariting directory {{ template_info.filename }}"
+  ansible.builtin.file:
+    path: "{{ template_info.dest_dir }}"
+    state: directory
+    mode: 0755
+    owner: "{{ strashbot.username }}"
+    group: "{{ strashbot.username }}"
+- name: "installing file {{ template_info.filename }}"
+  ansible.builtin.template:
+    src: "./templates/{{ template_info.filename }}.j2"
+    dest: "{{ template_info.dest_dir }}/{{ template_info.filename }}"
