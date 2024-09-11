@@ -31,6 +31,7 @@ web_pages:
   base_url: https://strashbot.fr
   gallery_route: "galery.html"
 
+default_racer: ringracers
 racers:
   - name: ringracers
     server:
@@ -49,8 +50,8 @@ racers:
       port:
       root: /kart
       token_keys_paths:
-        admin_signing_key: /var/app/keys/admin_jwtRS256.key
-        discord_user_signing_key: /var/app/keys/jwtRS256.key
+        admin_signing_key:
+        discord_user_signing_key:
     directories:
       main: /home/strashbot/.ringracers
       addons_dl: /home/strashbot/.ringracers/addons/installed

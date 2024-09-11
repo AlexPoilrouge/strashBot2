@@ -23,8 +23,8 @@
             "server_update":"sudo {{ craft.directory }}/${CRAFT_DIR}/craft_script.sh SERVER_UPDATE"
     },
     "server":{
-            "name":"{{ bedrock_server.name }}",
-            "address":"{{ bedrock_server.address }}"
+            "name":"{{ craft.bedrock_server.name }}",
+            "address":"{{ craft.bedrock_server.address }}"
     },
-    "update_key": "{{ bedrock_server.update_key }}"
+    "update_key": "{{ craft.bedrock_server.update_key }}"
 }

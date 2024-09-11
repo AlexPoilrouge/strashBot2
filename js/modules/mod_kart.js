@@ -8,7 +8,9 @@ const axios= require('axios');
 const jwt= require("jsonwebtoken");
 const fetch = require('node-fetch');
 const {ActivityType}= require('discord.js');
-const {CallApi,Method}= require('./utils/api_call.js')
+
+const {CallApi,Method}= require('./utils/api_call')
+const KS= require('./utils/kart_settings')
 
 
 const my_utils= require('../utils.js');
@@ -17,7 +19,7 @@ const { util } = require("config");
 
 let hereLog= (...args) => {console.log("[Kart_Module]", ...args);};
 
-var kart_settings= undefined;
+var kart_settings= new KS.KartSettings();
 
 var l_guilds= [];
 
@@ -31,12 +33,13 @@ let apiCaller= undefined
 
 
 function __kartCmd(command){
-    var ks= undefined, srv_cmd= undefined;
+    var ks= undefined;
+    var srv= {}
     return (Boolean(ks=kart_settings) && Boolean(command))?
-                (Boolean(srv_cmd=ks.server_commands) && srv_cmd.through_ssh)?
-                    Boolean(srv_cmd.server_ip) && Boolean(srv_cmd.distant_user)?
-                        (`ssh ${srv_cmd.distant_user}@${srv_cmd.server_ip}`+
-                            ((srv_cmd.server_port)?` -p ${srv_cmd.server_port}`:'')
+                (Boolean(kart_settings.grf('server_commands.through_ssh')))?
+                    Boolean(srv.ip=kart_settings.grf('server_commands.server_ip')) && Boolean(srv.user=kart_settings.grf('server_commands.distant_user'))?
+                        (`ssh ${srv.user}@${srv.ip}`+
+                            ((srv.port=kart_settings.grf('server_commands.server_port'))?` -p ${srv.port}`:'')
                             + ` ${command}`
                         )
                     :       "false"
@@ -47,8 +50,7 @@ function __kartCmd(command){
 function _initAddonsConfig(){
     b= false;
     try{
-        // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.init))?cmd:"false";
-        var cmd= __kartCmd(kart_settings.config_commands.init)
+        var cmd= __kartCmd(kart_settings.grf('config_commands.init'))
         child_process.execSync(cmd, {timeout: 32000});
         b= true;
     }
@@ -60,8 +62,9 @@ function _initAddonsConfig(){
 }
 
 function __clearScores(user=undefined){
-    if(Boolean(kart_settings.config_commands.clear_score)){
-        var cmd= __kartCmd(kart_settings.config_commands.clear_score)
+    var clrScr= undefined
+    if(Boolean(clrScr=kart_settings.grf('config_commands.clear_score'))){
+        var cmd= __kartCmd(clrScr)
         try{
             str=child_process.execSync(`${cmd}${(Boolean(user))?` ${user.id}`:''}`, {timeout: 16000}).toString();
         }
@@ -79,45 +82,35 @@ function __clearScores(user=undefined){
 
 function _serverRunningStatus_API(karter="ringracers"){
     return new Promise( (resolve, reject) => {
-        if (!Boolean(kart_settings)){
+        if ((!Boolean(kart_settings)) || !Boolean(apiCaller)){
             hereLog(`[server status] bad config…`);
             reject("Bad info - couldn't access kart_settings…")
         }
+        
+        apiCaller.Call("info",
+            {   method: "get",
+                values: { karter }  }
+        ).then(response => {
+                if( response.status===200 &&
+                    Boolean(response.data) && Boolean(response.data.status)
+                ){
+                    hereLog(`[server status] from ${kart_settings.grf('api.root')}/service: ${response.data.status.toUpperCase()}`)
+                    resolve(response.data.status.toUpperCase());
+                }
 
-        if(Boolean(kart_settings.api) && Boolean(kart_settings.api.host)){
-            // api_addr=`${kart_settings.api.host}${(Boolean(kart_settings.api.port)?`:${kart_settings.api.port}`:'')}${kart_settings.api.root}/service`
-    
-            // axios.get(api_addr)
-            apiCaller.Call("info",
-                {   method: "get",
-                    values: { karter }  }
-            ).then(response => {
-                    if( response.status===200 &&
-                        Boolean(response.data) && Boolean(response.data.status)
-                    ){
-                        hereLog(`[server status] from ${kart_settings.api.root}/service: ${response.data.status.toUpperCase()}`)
-                        resolve(response.data.status.toUpperCase());
-                    }
+                resolve('UNAVAILABLE');
+        }).catch(err => {
+            hereLog(`[server status] API ${api_addr} error - ${err}`)
 
-                    resolve('UNAVAILABLE');
-                }).catch(err => {
-                    hereLog(`[server status] API ${api_addr} error - ${err}`)
-
-                    resolve('UNAVAILABLE');
-                });
-        }
-        else{
-            hereLog(`[server status] bad api settings…`);
-            reject("Bad api - no api set in settings…")
-        }
+            resolve('UNAVAILABLE');
+        });
     });
 }
 
 function _stopServer(force=false){
     var str=undefined
     try{
-        // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.server_commands.stop))?cmd:"false";
-        var cmd= __kartCmd(kart_settings.server_commands.stop)
+        var cmd= __kartCmd(kart_settings.grf('server_commands.stop'))
         str=child_process.execSync(cmd+`${(force)?" FORCE":""}`, {timeout: 32000}).toString();
     }
     catch(err){
@@ -169,8 +162,7 @@ async function _isServerRunning(){
 function _startServer(){
     b= false;
     try{
-        // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.server_commands.start))?cmd:"false";
-        var cmd= __kartCmd(kart_settings.server_commands.start)
+        var cmd= __kartCmd(kart_settings.grf('server_commands.start'))
         child_process.execSync(cmd, {timeout: 32000});
         b= true;
     }
@@ -226,7 +218,7 @@ function _askServInfos(address=undefined, port=undefined){
             reject("Bad info - couldn't access kart_settings…")
         }
 
-        if(Boolean(kart_settings.api) && Boolean(kart_settings.api.host)){
+        if(Boolean(kart_settings.grf('api.host'))){
             ( ( Boolean(p) || Boolean(a))?
                     new Promise( (res, rej) => {rej("SKIP");} )
                 :   _serverRunningStatus_API()
@@ -236,7 +228,8 @@ function _askServInfos(address=undefined, port=undefined){
                     return { status: 'UNAVAILABLE' }
                 })
                 .then( service_res => {
-                    let api_info_addr=`${kart_settings.api.host}${(Boolean(kart_settings.api.port)?`:${kart_settings.api.port}`:'')}${kart_settings.api.root}/info${query}`
+                    var p= undefined
+                    let api_info_addr=`${kart_settings.grf('api.host')}${(Boolean(p=kart_settings.grf('api.port'))?`:${p}`:'')}${kart_settings.grf('api.root')}/info${query}`
 
                     if (service_res==='DOWN') resolve( {service_status: 'DOWN'} );
                     else {
@@ -473,13 +466,11 @@ var start_job= undefined;
 var status_job= undefined;
 
 function kart_init(utils){
-    if(!Boolean(kart_settings=_loadKartJSON())){
-        hereLog("Not able to load 'kart.json' setting…");
-        return
-    }
-    apiCaller= new CallApi( kart_settings.api.host,
-                            {   port: kart_settings.api.port,
-                                api_root: kart_settings.api.root 
+    kart_settings.loadFromJSON();
+
+    apiCaller= new CallApi( kart_settings.grf('api.host'),
+                            {   port: kart_settings.grf('api.port'),
+                                api_root: kart_settings.grf('api.root') 
                             })
     apiCaller.registerEndPoint("info", "info/:karter")
     _initAddonsConfig();
@@ -795,7 +786,7 @@ async function S_CMD__kartPassword(interaction, utils){
 function _startServer(){
     b= false;
     try{
-        var cmd= __kartCmd(kart_settings.server_commands.start)
+        var cmd= __kartCmd(kart_settings.grf('server_commands.start'))
         child_process.execSync(cmd, {timeout: 32000});
         b= true;
     }
@@ -833,8 +824,7 @@ async function S_S_CMD_KartServer_Start(interaction, utils){
 function _stopServer(force=false){
     var str=undefined
     try{
-        // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.server_commands.stop))?cmd:"false";
-        var cmd= __kartCmd(kart_settings.server_commands.stop)
+        var cmd= __kartCmd(kart_settings.grf('server_commands.stop'))
         str=child_process.execSync(cmd+`${(force)?" FORCE":""}`, {timeout: 32000}).toString();
     }
     catch(err){
@@ -883,8 +873,7 @@ async function S_S_CMD_KartServer_Stop(interaction, utils){
 function _restartServer(force=false){
     str=undefined;
     try{
-        // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.server_commands.restart))?cmd:"false";
-        var cmd= __kartCmd(kart_settings.server_commands.restart)
+        var cmd= __kartCmd(kart_settings.grf('server_commands.restart'))
         str= child_process.execSync(cmd+`${(force)?" FORCE":""}`, {timeout: 32000}).toString();
     }
     catch(err){
@@ -938,7 +927,7 @@ async function S_S_CMD_KartServer_Restart(interaction, utils){
 async function S_S_CMD_KartServer_Logs(interaction, utils){
     var str= undefined
     try{
-        var cmd= __kartCmd(kart_settings.config_commands.get_log);
+        var cmd= __kartCmd(kart_settings.grf('config_commands.get_log'));
         str= child_process.execSync(cmd, {timeout: 16000}).toString();
     }
     catch(err){
@@ -947,9 +936,9 @@ async function S_S_CMD_KartServer_Logs(interaction, utils){
     }
 
     if(Boolean(str)){
-        if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
-            if(Boolean(kart_settings.http_url) ){
-                await interaction.editReply(`Server's last recorded logs: ${kart_settings.http_url}/${str}`)
+        if(Boolean(kart_settings.grf('server_commands.through_ssh'))){
+            if(Boolean(kart_settings.grf('http_url')) ){
+                await interaction.editReply(`Server's last recorded logs: ${kart_settings.grf('http_url')}/${str}`)
             }
             else{
                 await interaction.editReply(
@@ -1087,7 +1076,7 @@ async function __ssh_download_cmd(cmd, url, utils, fileName=undefined){
         return
     }
     var addr=undefined, dUser=undefined;
-    if(!Boolean(addr=kart_settings.server_commands.server_ip) || !Boolean(dUser=kart_settings.server_commands.distant_user)){
+    if(!Boolean(addr=kart_settings.grf('server_commands.server_ip')) || !Boolean(dUser=kart_settings.grf('server_commands.distant_user'))){
         // hereLog("[ssh dl] missing distant user or addr info…")
         // channel.send(`❌ Internal error…`);
         return
@@ -1110,9 +1099,10 @@ async function __ssh_download_cmd(cmd, url, utils, fileName=undefined){
 
 
     let exe_p= ( async () => { return new Promise( (resolve,reject) =>{
+        var p= undefined
         let ssh_cmd= `ssh ${dUser}@${addr}`+
-            ( (Boolean(kart_settings.server_commands.server_port))?
-                ` -p ${kart_settings.server_commands.server_port}`
+            ( (Boolean(p=kart_settings.grf('server_commands.server_port')))?
+                ` -p ${p}`
                 : ``
             ) +
             ` ${cmd} ${url} ${Boolean(fileName)?fileName:''}`;
@@ -1175,7 +1165,7 @@ async function S_S_CMD_KartServer_Config(interaction, utils){
     if(!Boolean(setAttachmentOpt)){
         var str= undefined
         try{
-            var cmd= __kartCmd(kart_settings.config_commands.get_config);
+            var cmd= __kartCmd(kart_settings.grf('config_commands.get_config'));
             str= child_process.execSync(cmd, {timeout: 32000}).toString();
         }
         catch(err){
@@ -1184,9 +1174,9 @@ async function S_S_CMD_KartServer_Config(interaction, utils){
         }
 
         if(Boolean(str)){
-            if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
-                if(Boolean(kart_settings.http_url)){
-                    await interaction.editReply(`Srb2kart server's startup user config file: ${kart_settings.http_url}/${str}`);
+            if(Boolean(kart_settings.grf('server_commands.through_ssh'))){
+                if(Boolean(kart_settings.grf('http_url'))){
+                    await interaction.editReply(`Srb2kart server's startup user config file: ${kart_settings.grf('http_url')}/${str}`);
                 }
                 else{
                     await interaction.editReply(
@@ -1221,7 +1211,7 @@ async function S_S_CMD_KartServer_Config(interaction, utils){
     else{
         let url= setAttachmentOpt.url
 
-        if ( !Boolean(kart_settings) || !Boolean(kart_settings.dirs.main_folder) ){
+        if ( !Boolean(kart_settings.grf('dirs.main_folder')) ){
             hereLog("[cfg upload] no dest directory for cfg dl");
             await interaction.editReply(
                 `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
@@ -1230,15 +1220,15 @@ async function S_S_CMD_KartServer_Config(interaction, utils){
         }
         else if(url.endsWith('.cfg')){
             var _b= false;
-            if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
+            if(Boolean(kart_settings.grf('server_commands.through_ssh'))){
                 _b= await __ssh_download_cmd(
-                    kart_settings.config_commands.add_config_url,
+                    kart_settings.grf('config_commands.add_config_url'),
                     url, utils
                 );
             }
             else{
                 _b= await __downloading(url,
-                    kart_settings.dirs.main_folder, utils, "new_startup.cfg"
+                    kart_settings.grf('dirs.main_folder'), utils, "new_startup.cfg"
                 );
             }
 
@@ -1253,7 +1243,7 @@ async function S_S_CMD_KartServer_Config(interaction, utils){
 
             var str= undefined
             try{
-                var cmd= __kartCmd(kart_settings.config_commands.change_config);
+                var cmd= __kartCmd(kart_settings.grf('config_commands.change_config'));
                 str= child_process.execSync(cmd+" new_startup.cfg", {timeout: 16000}).toString();
             }
             catch(err){
@@ -1263,7 +1253,7 @@ async function S_S_CMD_KartServer_Config(interaction, utils){
 
             if(Boolean(str)){
                 // hereLog(`[change cfg] ret: ${str}`)
-                let payload= (str==="updated" && !kart_settings.server_commands.through_ssh)?
+                let payload= (str==="updated" && !kart_settings.grf('server_commands.through_ssh'))?
                     {
                         files: [{
                             attachment: `${str}`,
@@ -1274,15 +1264,15 @@ async function S_S_CMD_KartServer_Config(interaction, utils){
                     payload.content=
                         `\`startup.cfg\` a bien été mis à jour.\n`+
                         `Cependant, cela n'aura aucun effet pour la session déjà en cours\n` +
-                        ( (kart_settings.server_commands.through_ssh)?
-                            `\nDiff: ${kart_settings.http_url}/startup.cfg.diff`
+                        ( (kart_settings.grf('server_commands.through_ssh'))?
+                            `\nDiff: ${kart_settings.grf('http_url')}/startup.cfg.diff`
                             : "Diff generated file"
                         )
                 }
                 else{
                     payload.content= 
-                        (kart_settings.server_commands.through_ssh)?
-                                `\nDiff: ${kart_settings.http_url}/startup.cfg.diff`
+                        (kart_settings.grf('server_commands.through_ssh'))?
+                                `\nDiff: ${kart_settings.grf('http_url')}/startup.cfg.diff`
                             :   "Diff generated file" 
                 }
                 interaction.editReply(payload)
@@ -1335,7 +1325,7 @@ async function S_CMD__kartServer(interaction, utils){
 async function S_S_CMD_kartAddon_GetOrder(interaction, utils){
     var str= undefined
     try{
-        var cmd= __kartCmd(kart_settings.config_commands.get_addon_load_config);
+        var cmd= __kartCmd(kart_settings.grf('config_commands.get_addon_load_config'));
         str= child_process.execSync(cmd, {timeout: 32000}).toString();
     }
     catch(err){
@@ -1344,10 +1334,10 @@ async function S_S_CMD_kartAddon_GetOrder(interaction, utils){
     }
 
     if(Boolean(str)){
-        if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
-            if(Boolean(kart_settings.http_url)){
+        if(Boolean(kart_settings.grf('server_commands.through_ssh'))){
+            if(Boolean(kart_settings.grf('http_url'))){
                 await interaction.editReply(
-                    `Srb2kart server's addons load order config file: ${kart_settings.http_url}/${str}`
+                    `Srb2kart server's addons load order config file: ${kart_settings.grf('http_url')}/${str}`
                 );
             }
             else{
@@ -1389,7 +1379,7 @@ async function S_S_CMD_kartAddon_SetOrder(interaction, utils){
     if(Boolean(attachment)){
         var url= attachment.url;
         
-        if ( !Boolean(kart_settings) || !Boolean(kart_settings.dirs.main_folder) ){
+        if ( !Boolean(kart_settings.grf('dirs.main_folder')) ){
             hereLog("[upload] no dest directory for addon order config dl");
             await interaction.editReply(
                 `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
@@ -1398,15 +1388,15 @@ async function S_S_CMD_kartAddon_SetOrder(interaction, utils){
         }
         else{
             var _b= false;
-            if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
+            if(Boolean(kart_settings.grf('server_commands.through_ssh'))){
                 _b= await __ssh_download_cmd(
-                    kart_settings.config_commands.add_addon_order_config_url,
+                    kart_settings.grf('config_commands.add_addon_order_config_url'),
                     url, utils
                 );
             }
             else{
                 _b= await __downloading(url,
-                    kart_settings.dirs.main_folder, utils, "new_addon_load_order.txt"
+                    kart_settings.grf('dirs.main_folder'), utils, "new_addon_load_order.txt"
                 );
             }
 
@@ -1421,7 +1411,7 @@ async function S_S_CMD_kartAddon_SetOrder(interaction, utils){
 
             var str= undefined
             try{
-                var cmd= __kartCmd(kart_settings.config_commands.change_addon_order_config);
+                var cmd= __kartCmd(kart_settings.grf('config_commands.change_addon_order_config'));
                 str= child_process.execSync(cmd+" new_addon_load_order.txt", {timeout: 16000}).toString();
             }
             catch(err){
@@ -1431,7 +1421,7 @@ async function S_S_CMD_kartAddon_SetOrder(interaction, utils){
 
             if(Boolean(str)){
                 // hereLog(`[change cfg] ret: ${str}`)
-                let payload= (str==="updated" && !kart_settings.server_commands.through_ssh)?
+                let payload= (str==="updated" && !kart_settings.grf('server_commands.through_ssh'))?
                     {
                         files: [{
                             attachment: `${str}`,
@@ -1441,8 +1431,8 @@ async function S_S_CMD_kartAddon_SetOrder(interaction, utils){
                 
                 let runNot= () => {
                     payload.content=
-                        ( (kart_settings.server_commands.through_ssh)?
-                                `\nDiff: ${kart_settings.http_url}/addon_load_order.txtdiff`
+                        ( (kart_settings.grf('server_commands.through_ssh'))?
+                                `\nDiff: ${kart_settings.grf('http_url')}/addon_load_order.txtdiff`
                             :   "Diff generated file"
                         )
                 }
@@ -1451,8 +1441,8 @@ async function S_S_CMD_kartAddon_SetOrder(interaction, utils){
                         payload.content=
                             `\`addon_load_order.txt\` a bien été mis à jour.\n`+
                             `Cependant, cela n'aura aucun effet pour la session déjà en cours\n` +
-                            ( (kart_settings.server_commands.through_ssh)?
-                                    `\nDiff: ${kart_settings.http_url}/addon_load_order.txt.diff`
+                            ( (kart_settings.grf('server_commands.through_ssh'))?
+                                    `\nDiff: ${kart_settings.grf('http_url')}/addon_load_order.txt.diff`
                                 :   "Diff generated file"
                             )
                     }
@@ -1485,7 +1475,7 @@ function _listAddonsConfig(arg=""){
     var str= undefined;
     try{
         // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.list))?cmd:"false";
-        var cmd= __kartCmd(kart_settings.config_commands.list)
+        var cmd= __kartCmd(kart_settings.grf('config_commands.list'))
         str= child_process.execSync(cmd+((Boolean(arg))?` ${arg}`:""), {timeout: 16000}).toString();
     }
     catch(err){
@@ -1519,9 +1509,9 @@ async function __addonUpload(url, interaction, utils){
             `Seuls les fichiers addons d'extension \`${ext}\` sont acceptés…`
         )
     }
-    else if (!Boolean(kart_settings) || !Boolean(kart_settings.dirs.main_folder) ||
-        (!_serv_run && !Boolean(kart_settings.dirs.dl_dirs.permanent)) ||
-        !Boolean(kart_settings.dirs.dl_dirs.temporary)
+    else if (!Boolean(kart_settings.grf('dirs.main_folder')) ||
+        (!_serv_run && !Boolean(kart_settings.grf('dirs.dl_dirs.permanent'))) ||
+        !Boolean(kart_settings.grf('dirs.dl_dirs.temporary'))
     ){
         hereLog("[addons add] no dest directory for addon dl");
         await interaction.editReply(
@@ -1531,13 +1521,13 @@ async function __addonUpload(url, interaction, utils){
     }
     else{
         var destDir= (_serv_run)?
-            kart_settings.dirs.dl_dirs.temporary :
-            kart_settings.dirs.dl_dirs.permanent;
+            kart_settings.grf('dirs.dl_dirs.temporary') :
+            kart_settings.grf('dirs.dl_dirs.permanent');
         
         var _b=false;
-        if(Boolean(kart_settings.server_commands) && kart_settings.server_commands.through_ssh){
+        if(Boolean(kart_settings.grf('server_commands')) && kart_settings.grf('server_commands.through_ssh')){
             _b= (await __ssh_download_cmd(
-                    kart_settings.config_commands.addon_url,
+                    kart_settings.grf('config_commands.addon_url'),
                     url, utils
                 ) );
         }
@@ -1602,7 +1592,7 @@ function _removeAddonsConfig(arg){
     var r=false;
     try{
         // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.remove))?cmd:"false";
-        var cmd= __kartCmd(kart_settings.config_commands.remove)
+        var cmd= __kartCmd(kart_settings.grf('config_commands.remove'))
         str= child_process.execSync(cmd+` ${arg}`, {timeout: 32000}).toString();
         r=true;
     }
@@ -1616,7 +1606,7 @@ function _updateAddonsConfig(){
     b= false;
     try{
         // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_settings.config_commands.update))?cmd:"false";
-        var cmd= __kartCmd(kart_settings.config_commands.update)
+        var cmd= __kartCmd(kart_settings.grf('config_commands.update'))
         child_process.execSync(cmd, {timeout: 32000});
         b= true;
     }
@@ -1700,8 +1690,8 @@ async function S_S_CMD_kartAddons_List(interaction, utils){
     var list= _listAddonsConfig(pattern)
 
     if(Boolean(list)){
-        if(!Boolean(pattern) && Boolean(kart_settings) && Boolean(kart_settings.http_url)){
-            list+=`\n\nStrashbot addons download: ${kart_settings.http_url}/strashbot_addons.zip`
+        if(!Boolean(pattern) && Boolean(kart_settings.grf('http_url'))){
+            list+=`\n\nStrashbot addons download: ${kart_settings.grf('http_url')}/strashbot_addons.zip`
         }
 
         var resp= "# Addons list for srb2kart server:\n"+list.replace(/\s+/g,'\n');
@@ -1724,9 +1714,9 @@ async function S_S_CMD_kartAddons_List(interaction, utils){
 }
 
 async function S_S_CMD_kartAddons_Zip(interaction, utils){
-    if(Boolean(kart_settings) && Boolean(kart_settings.http_url)){
+    if(Boolean(kart_settings.grf('http_url'))){
         await interaction.editReply(
-            `You can try downloading the SRB2Kart server's addons at: ${kart_settings.http_url}/strashbot_addons.zip`
+            `You can try downloading the SRB2Kart server's addons at: ${kart_settings.grf('http_url')}/strashbot_addons.zip`
         );
     }
     else{
@@ -1794,7 +1784,7 @@ async function S_S_CMD_kartInGames_Maps(interaction, utils, justCount=false){
     let includeSections= interaction.options.getString('sections') ?? 'all'
     includeSections= ['all','section_only','no_section'].includes(includeSections)?includeSections:'all'
 
-    if(!Boolean(kart_settings) || !Boolean(kart_settings.config_commands)){
+    if(!Boolean(kart_settings.grf('config_commands'))){
         hereLog(`[fetchInfos] bad config…`);
         await interaction.editReply(
             `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
@@ -1803,7 +1793,7 @@ async function S_S_CMD_kartInGames_Maps(interaction, utils, justCount=false){
         return
     }
 
-    let mapObj= __cmd_fetchJsonInfo(kart_settings.config_commands.maps_info)
+    let mapObj= __cmd_fetchJsonInfo(kart_settings.grf('config_commands.maps_info'))
 
     if(!(Boolean(mapObj)) || !(Boolean(mapObj.maps))){
         hereLog(`[mapInfos] couldn't fetch maps infos…`)
@@ -1882,7 +1872,7 @@ async function S_S_CMD_kartInGames_Racers(interaction, utils, justCount= false){
     let speed_lookup= interaction.options.getNumber('speed') ?? undefined
     let weight_lookup= interaction.options.getNumber('weight') ?? undefined
 
-    if(!Boolean(kart_settings) || !Boolean(kart_settings.config_commands)){
+    if(!Boolean(kart_settings.grf('config_commands'))){
         hereLog(`[fetchInfos] bad config…`);
         await interaction.editReply(
             `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
@@ -1891,7 +1881,7 @@ async function S_S_CMD_kartInGames_Racers(interaction, utils, justCount= false){
         return
     }
 
-    let skinObj= __cmd_fetchJsonInfo(kart_settings.config_commands.skins_info)
+    let skinObj= __cmd_fetchJsonInfo(kart_settings.grf('config_commands.skins_info'))
 
     if(!(Boolean(skinObj)) || !(Boolean(skinObj.skins))){
         hereLog(`[skinInfos] couldn't fetch skins infos…`)
@@ -1990,7 +1980,7 @@ function __readkey_from_file(configEntryName){
     let now= Date.now()
     if(!Boolean(key) || ((now-__Update_Keys.last)>__Update_Keys.allowed_diff)){
         __Update_Keys.last= now
-        key= fs.readFileSync(path.resolve(kart_settings.api.token_keys[configEntryName]))
+        key= fs.readFileSync(path.resolve(kart_settings.get(`api.token_keys.${configEntryName}`)))
         __Update_Keys.mem_keys[configEntryName]= key
     }
 
@@ -2004,14 +1994,14 @@ let JWT_SIGN_OPTIIONS= {
 
 function __api_generateUserPrivilegedToken(user, admin=false){
     var key= undefined
-    if(Boolean(kart_settings.api && kart_settings.api.token_keys)){
+    if(Boolean(kart_settings.grf('api.token_keys'))){
         try{
             if(admin &&
-                Boolean(kart_settings.api.token_keys.adminSignkey)
+                Boolean(kart_settings.grf('api.token_keys.adminSignkey'))
             ){
                 key= __readkey_from_file('adminSignkey')
             }
-            else if(Boolean(kart_settings.api.token_keys.discorduserSignkey)){
+            else if(Boolean(kart_settings.grf('api.token_keys.discorduserSignkey'))){
                 key= __readkey_from_file('discorduserSignkey')
             }
             else{
@@ -2036,8 +2026,9 @@ function __api_generateUserPrivilegedToken(user, admin=false){
 }
 
 async function __send_clipInfo_req(clipID ,interaction, utils, newClip=false){
-    let api_clip_addr=`${kart_settings.api.host}${(Boolean(kart_settings.api.port)?`:${kart_settings.api.port}`:'')}`+
-                    `${kart_settings.api.root}/clip/${clipID}`
+    var p= undefined
+    let api_clip_addr=`${kart_settings.grf('api.host')}${(Boolean(p=kart_settings.grf('api.port'))?`:${p}`:'')}`+
+                    `${kart_settings.grf('api.root')}/clip/${clipID}`
 
     return axios.get(api_clip_addr).then(async response => {
         if(response.status===200){
@@ -2047,7 +2038,7 @@ async function __send_clipInfo_req(clipID ,interaction, utils, newClip=false){
             embed.title= newClip?
                             `New clip on the Strashthèque! (n°${clipID})`
                         :   `Strashthèque clip id: ${clipID}`
-            embed.url= `${kart_settings.web_page.base_url}/${kart_settings.web_page.clips_page}?clip=${clipID}`
+            embed.url= `${kart_settings.getAt(web_page).base_url}/${kart_settings.getAt(web_page).clips_page}?clip=${clipID}`
             embed.timestamp=clip.timestamp
             if(Boolean(clip.thumbnail)) embed.thumbnail= { url: clip.thumbnail }
             if(Boolean(clip.description)) embed.description= clip.description
@@ -2134,9 +2125,10 @@ async function _addNewKartClip(url, description, interaction, utils){
         return
     }
 
+    var p= undefined
     let api_clip_addr=
-        `${kart_settings.api.host}${(Boolean(kart_settings.api.port)?`:${kart_settings.api.port}`:'')}`+
-        `${kart_settings.api.root}/clip/new`
+        `${kart_settings.grf('api.host')}${(Boolean(p=kart_settings.grf('api.port'))?`:${p}`:'')}`+
+        `${kart_settings.grf('api.root')}/clip/new`
 
     let ephemeralURL= __isURLDiscordEphermeralAttachment(url)
     return (
@@ -2237,8 +2229,9 @@ async function _addNewKartClip(url, description, interaction, utils){
 }
 
 async function _clipsState(){
-    if(Boolean(kart_settings.api) && Boolean(kart_settings.api.host)){
-        let api_info_addr=`${kart_settings.api.host}${(Boolean(kart_settings.api.port)?`:${kart_settings.api.port}`:'')}${kart_settings.api.root}/clips?perPage=1`
+    if(Boolean(kart_settings.grf('api.host'))){
+        var p= undefined
+        let api_info_addr=`${kart_settings.grf('api.host')}${(Boolean(p=kart_settings.api.port)?`:${p}`:'')}${kart_settings.grf('api.root')}/clips?perPage=1`
 
         // hereLog(`[clipsCount] Asking API ${api_info_addr}…`);
         return (await axios.get(api_info_addr).then(response => {
@@ -2270,7 +2263,7 @@ async function _send_clipsState(interaction, utils){
         embed.fields= []
         embed.title= `Strashthèque`
         embed.description= "Collection de clips de Strashbot Karting!"
-        embed.url= `${kart_settings.web_page.base_url}/${kart_settings.web_page.clips_page}`
+        embed.url= `${kart_settings.getAt('web_page').base_url}/${kart_settings.getAt('web_page').clips_page}`
         embed.fields.push({
             name: "Number of clips",
             value: `${info.clipsNumber}`,
@@ -2278,7 +2271,7 @@ async function _send_clipsState(interaction, utils){
         })
         embed.fields.push({
             name: "Last clip",
-            value: `${kart_settings.web_page.base_url}/${kart_settings.web_page.clips_page}?clip=${info.last_clip._id}`,
+            value: `${kart_settings.getAt('web_page').base_url}/${kart_settings.getAt('web_page').clips_page}?clip=${info.last_clip._id}`,
             inline: true
         })
         embed.thumbnail= { url: "https://strashbot.fr/img/clips_thumb.png" }
@@ -2329,9 +2322,10 @@ async function S_S_CMD_kartClips_Info(interaction, utils){
 }
 
 async function __remove_clip_req(clip_id, interaction, utils){
+    var p= undefined
     let api_clip_addr=
-        `${kart_settings.api.host}${(Boolean(kart_settings.api.port)?`:${kart_settings.api.port}`:'')}`+
-        `${kart_settings.api.root}/clip/${clip_id}`
+        `${kart_settings.grf('api.host')}${(Boolean(p=kart_settings.api.port)?`:${p}`:'')}`+
+        `${kart_settings.grf('api.root')}/clip/${clip_id}`
 
     let token= __api_generateUserPrivilegedToken(
         interaction.user, utils.getMasterID()===interaction.user.id
@@ -2400,8 +2394,9 @@ async function S_S_CMD_kartClips_Remove(interaction, utils){
 async function __edit_clip_description(description, clip_id, interaction, utils){
     let desc= description ?? ""
     
-    let api_clip_addr=`${kart_settings.api.host}${(Boolean(kart_settings.api.port)?`:${kart_settings.api.port}`:'')}`+
-                    `${kart_settings.api.root}/clip/${clip_id}`
+    var p= undefined
+    let api_clip_addr=`${kart_settings.grf('api.host')}${(Boolean(p=kart_settings.grf('api.port'))?`:${p}`:'')}`+
+                    `${kart_settings.grf('api.root')}/clip/${clip_id}`
 
     let token= __api_generateUserPrivilegedToken(
         interaction.user, utils.getMasterID()===interaction.user.id

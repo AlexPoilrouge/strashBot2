@@ -9,3 +9,6 @@
   ansible.builtin.template:
     src: "./templates/{{ template_info.filename }}.j2"
     dest: "{{ template_info.dest_dir }}/{{ template_info.filename }}"
+    mode: 0755
+    owner: "{{ strashbot.username }}"
+    group: "{{ strashbot.username }}"

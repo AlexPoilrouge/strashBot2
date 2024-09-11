@@ -4,12 +4,18 @@
   register: file_stat
 
 - name: Check if {{ file_info.path }} is empty
-  shell: 'test -s {{ file_info.path }} || echo "empty"'
+  ansible.builtin.shell: 'test -s {{ file_info.path }} || echo "empty"'
   register: file_empty
   when: file_stat.stat.exists
 
 - name: Create or overwrite {{ file_info.path }} with '{}' if it doesn't exist or is empty
-  copy:
+  ansible.builtin.copy:
     dest: "{{ file_info.path }}"
     content: "{{ file_info.fallback_content }}"
   when: not file_stat.stat.exists or file_empty.stdout == "empty"
+
+- name: "Chown of {{ file_info.path }} to {{ strashbot.username }}"
+  ansible.builtin.file:
+    path: "{{ file_info.path }}"
+    owner: "{{ strashbot.username }}"
+    group: "{{ strashbot.username }}"
