@@ -1,8 +1,8 @@
 #!/bin/bash
 
 
-export STRASHBOT_VER=""
-export STRASHBOT_BUILD=""
+export STRASHBOT_VER="$( cat version.txt )"
+export STRASHBOT_BUILD="{{ git.branch }}"
 export STRASHBOT_SRC="{{ git.url }}"
 
 export STRASHBOT_CLIENTID="{{ discord_bot.client_id }}"

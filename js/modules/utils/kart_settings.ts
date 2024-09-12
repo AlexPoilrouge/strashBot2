@@ -4,11 +4,13 @@ const my_utils= require('../../utils');
 const path= require('path')
 
 
+const RACERS_LIST_FIELDNAME: string = "racers"
+const DEFAULT_RACER_FIELDNAME: string = "default_racer"
 
 export const KART_JSON= path.resolve(__dirname, "../data/kart.json")
 
 type KSErrorName=   'KART_SETTINGS_ERROR'
-                |   'KART_SETTINGS_NO_DEFAUT'
+                |   'KART_SETTINGS_NO_DEFAULT'
                 |   'KART_SETTINGS_BAD_RACER'
                 |   'KART_SETTINGS_BAD_FIELDPATH'
 
@@ -64,7 +66,7 @@ export class KartSettings{
         var tmp: any= undefined
         var b: boolean= false
 
-        if(!Boolean(data['default_racer'])) errList+= `Missing or empty 'default_racer'; `
+        if(!Boolean(data[DEFAULT_RACER_FIELDNAME])) errList+= `Missing or empty 'default_racer'; `
         if(b=((!Boolean(tmp=data['racers'])) || tmp.length<=0)) errList+= `Missing or empty 'racers' list; `
 
         if(b){
@@ -83,10 +85,10 @@ export class KartSettings{
     }
 
     private _getRacerName(racer?: string) : string {
-        var racer_name: string= racer ?? this.data['default_racer']
+        var racer_name: string= racer ?? this.data[DEFAULT_RACER_FIELDNAME]
 
         if(!Boolean(racer_name))
-            throw new KSError( { name: 'KART_SETTINGS_NO_DEFAUT', message: "Missing data ('default_racer')…"})
+            throw new KSError( { name: 'KART_SETTINGS_NO_DEFAULT', message: "Missing data ('default_racer')…"})
 
         return racer_name
     }
@@ -116,12 +118,7 @@ export class KartSettings{
     getRacerField(fieldpath: string | string[], racer?: string) : any {
         var racer_name: string= this._getRacerName(racer)
 
-        var value: any= undefined
-        if(!Boolean(value=this.data[racer_name])){
-            throw new KSError( {name: 'KART_SETTINGS_BAD_RACER', message: `No data found for racer '${racer_name}'`})
-        }
-
-        var f_path : string[]= [racer_name].concat(
+        var f_path : string[]= [RACERS_LIST_FIELDNAME,racer_name].concat(
             (Array.isArray(fieldpath))?
                 fieldpath.filter(e => e.length>0)
             :   fieldpath.split(this.path_separator).filter(e => e.length>0)

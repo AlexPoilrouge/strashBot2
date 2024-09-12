@@ -8,7 +8,7 @@ interface CApi_options {
     api_root?: string
 }
 
-interface Endoint_pointer {
+interface Endpoint_pointer {
     alias?: string,
     route?: string
 }
@@ -83,24 +83,35 @@ export class CallApi {
         this.AliasEnpoint[alias]= route
     }
 
-    unregisterEndPoint(endpoint: Endoint_pointer | Endoint_pointer[]) : boolean {
+    fetchEndpoint(endpoint: Endpoint_pointer) : Endpoint_pointer[] {
+        var tmp: any= undefined
+        if(endpoint.alias && endpoint.route
+            && this.AliasEnpoint[endpoint.alias]===endpoint.route
+        ){
+            return [Object.assign({},endpoint)];
+        }
+        else if(endpoint.alias && (tmp=this.AliasEnpoint[endpoint.alias])){
+            return [{alias: endpoint.alias, route: tmp}]
+        }
+        else if(endpoint.route){
+            return Object.keys(this.AliasEnpoint)
+                    .filter(k => this.AliasEnpoint[k]===endpoint.route) //all aliases
+                    .map(a => ({alias: a, route: endpoint.route}))      //into Endpoint_pointer list
+        }
+
+        return []
+    }
+
+    unregisterEndPoint(endpoint: Endpoint_pointer | Endpoint_pointer[]) : boolean {
         if(!endpoint) return false
 
-        var t_ep: Endoint_pointer[]= (Array.isArray(endpoint))? endpoint : [ endpoint ]
+        var t_ep: Endpoint_pointer[]= (Array.isArray(endpoint))? endpoint : [ endpoint ]
         var count= this.AliasEnpoint.length
         for(var ep of t_ep){
-            if(ep.alias && ep.route){
-                if(this.AliasEnpoint[ep.alias]===ep.route) delete this.AliasEnpoint[ep.alias]
-            }
-            else if(ep.alias){
-                delete this.AliasEnpoint[ep.alias]
-            }
-            else if(ep.route){
-                let removable_aliases: string[]= Object.keys(this.AliasEnpoint)
-                        .filter(k => this.AliasEnpoint[k]===ep.route)
-                for(var a of removable_aliases){
-                    delete this.AliasEnpoint[a]
-                }
+            var fetched_removableEndpoints= this.fetchEndpoint(ep)
+
+            for(var f_ep of fetched_removableEndpoints){
+                if(f_ep.alias) delete this.AliasEnpoint[f_ep.alias];
             }
         }
 
@@ -110,10 +121,12 @@ export class CallApi {
     Call<T = any, R = AxiosResponse<T>>(alias_or_route: string, config?: EndPointConfig): Promise<R>{
         var url: string= this._endPointURL(
             this.AliasEnpoint[alias_or_route] ?? alias_or_route,
-            config? config.values: undefined
+            config
         )
 
         let method: Method= config.method ?? 'get'
+
+        //hereLog(`[Call]{${alias_or_route}, ${JSON.stringify(config)}} -> ${url}`)
 
         return axios[method](url, config.axiosRequestConfig)
     }

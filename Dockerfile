@@ -12,6 +12,7 @@ RUN pacman -Syyu --noconfirm \
                 npm \
                 python-setuptools \
                 make \
+                ansible \
                 openssh \
                 sudo \
                 nano \
@@ -23,20 +24,22 @@ RUN pacman -Syyu --noconfirm \
                 inkscape \
                 zip \
                 unzip \
-                wget
+                wget \
+                yq
 
-RUN mkdir -p /var/app/strashBot
+RUN mkdir -p /var/strashbot_source
 
-COPY config /var/app/strashBot/config
-COPY js /var/app/strashBot/js
-COPY extras /var/app/strashBot/extras
-COPY package.json install.sh kart.js /var/app/strashBot/
+COPY config /var/strashbot_source/config
+COPY js /var/strashbot_source/js
+COPY extras /var/strashbot_source/extras
+COPY package.json install.sh bot_main.js tsconfig.json version.txt README.md \
+    /var/strashbot_source/
 
-WORKDIR /var/app/strashBot
+WORKDIR /var/strashbot_source
 
 RUN echo "Add copy script as 'docker_test/copies.sh' if needed - " && \
-    ( [ -f /var/app/strashBot/config/ansible/docker_test/copies.sh ] && \
-        bash /var/app/strashBot/config/ansible/docker_test/copies.sh || \
+    ( [ -f /var/strashbot_source/config/ansible/docker_test/data/copies.sh ] && \
+        bash /var/strashbot_source/config/ansible/docker_test/data/copies.sh || \
         echo 'none given' )
 
 RUN ssh-keyscan $( [ -f /tmp/ssh_host ] && head -n1 /tmp/ssh_host || echo "127.0.0.1" ) >> /root/.ssh/known_hosts || echo "no keys…"
@@ -45,6 +48,8 @@ ARG Register_Slash=""
 ENV STRASHBOT_SLASH_REGISTER "${Register_Slash}"
 
 RUN chmod u+x install.sh
-RUN ./install.sh -d
+RUN ./install.sh -d -v /var/strashbot_source/config/ansible/docker_test/variables.yaml
 
-CMD "./launch.sh"
+WORKDIR /var/app/strashBot
+
+CMD [ "./launch.sh", "${STRASHBOT_SLASH_REGISTER}"]

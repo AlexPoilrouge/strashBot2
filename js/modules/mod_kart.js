@@ -87,20 +87,23 @@ function _serverRunningStatus_API(karter="ringracers"){
             reject("Bad info - couldn't access kart_settings…")
         }
         
-        apiCaller.Call("info",
+        apiCaller.Call("service",
             {   method: "get",
                 values: { karter }  }
         ).then(response => {
                 if( response.status===200 &&
                     Boolean(response.data) && Boolean(response.data.status)
                 ){
-                    hereLog(`[server status] from ${kart_settings.grf('api.root')}/service: ${response.data.status.toUpperCase()}`)
+                    hereLog(`[server status] from ${JSON.stringify(apiCaller.fetchEndpoint({alias: "service"}))}: ${response.data.status.toUpperCase()}`)
                     resolve(response.data.status.toUpperCase());
+                }
+                else{
+                    hereLog(`[bad server service result] from ${JSON.stringify(apiCaller.fetchEndpoint({alias: "service"}))} (${response.status})…`)
                 }
 
                 resolve('UNAVAILABLE');
         }).catch(err => {
-            hereLog(`[server status] API ${api_addr} error - ${err}`)
+            hereLog(`[server status] API call to 'service' endpoint error - ${err}`)
 
             resolve('UNAVAILABLE');
         });
@@ -472,7 +475,7 @@ function kart_init(utils){
                             {   port: kart_settings.grf('api.port'),
                                 api_root: kart_settings.grf('api.root') 
                             })
-    apiCaller.registerEndPoint("info", "info/:karter")
+    apiCaller.registerEndPoint("service", "service/:karter")
     _initAddonsConfig();
 
     if(!Boolean(stop_job)){

@@ -4,34 +4,34 @@
     "racers": {
         {% for racer in racers %}"{{ racer.name }}" : {
             "server_commands":{
-                "start":"{{ racer.server.commands.start }}",
-                "stop":"{{ racer.server.commands.stop }}",
-                "restart":"{{ racer.server.commands.restart }}",
-                "is_active":"{{ racer.server.commands.is_active }}",
+                "start": "{{ racer.server.commands.start }}",
+                "stop": "{{ racer.server.commands.stop }}",
+                "restart": "{{ racer.server.commands.restart }}",
+                "is_active": "{{ racer.server.commands.is_active }}",
 
-                "through_ssh":{{ racer.server.through_ssh }}",
-                "server_ip":"{{ racer.server.ip }}",
-                "server_addr":"{{ racer.server.address }}",
-                "server_port":"{{ racer.server.port }}",
-                "distant_user":"{{ racer.server.distant_user }}"
+                "through_ssh": {% if (racer.server.through_ssh is defined and racer.server.through_ssh)%}true{% else %}false{% endif %},
+                "server_ip": "{{ racer.server.ip }}",
+                "server_addr": "{{ racer.server.address }}",
+                "server_port": "{{ racer.server.port }}",
+                "distant_user": "{{ racer.server.distant_user }}"
             },
 
             "api":{
-                "host":"{{ racer.api.host }}",
-                "port":"{{ racer.api.port }}",
-                "root":"{{ racer.api.root }}",
-                "token_keys"{
-                    "adminSignkey":"{{ racer.api.token_keys_paths.admin_signing_key }}",
-                    "discorduserSignkey":"{{ racer.api.token_keys_paths.discord_user_signing_key }}"
+                "host": "{{ racer.api.host }}",
+                "port": "{{ racer.api.port }}",
+                "root": "{{ racer.api.root }}",
+                "token_keys": {
+                    "adminSignkey": "{{ racer.api.token_keys_paths.admin_signing_key }}",
+                    "discorduserSignkey": "{{ racer.api.token_keys_paths.discord_user_signing_key }}"
                 }
             },
 
             "dirs":{
-                "main_folder":"{{ racer.directories.main }}",
-                "addons_dl":"{{ racer.directories.addons_dl }}"
+                "main_folder": "{{ racer.directories.main }}",
+                "addons_dl": "{{ racer.directories.addons_dl }}"
             },
 
-            "http_url":"{{ racer.http_url }}",
+            "http_url": "{{ racer.http_url }}",
             
             "config_commands": {
                 "init":"false",
@@ -68,10 +68,10 @@
                 "skins_info":"false"
             },
 
-            "source_url":"{{ git.url }}"
+            "source_url": "{{ git.url }}"
         }{% if not loop.last %},{% endif %}{% endfor %}
 
-    }
+    },
 
     "web_page": {
         "base_url": "{{ web_pages.base_url }}",

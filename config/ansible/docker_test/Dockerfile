@@ -21,7 +21,8 @@ RUN	 pacman -Syyu --noconfirm \
                 inkscape \
                 zip \
                 unzip \
-                wget
+                wget \
+                yq
 
 RUN  /usr/bin/ssh-keygen -A
 
