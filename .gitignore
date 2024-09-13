@@ -1,3 +1,4 @@
 launch.sh
 node_modules
 config/ansible/docker_test/variables.yaml
+config/ansible/my_config/

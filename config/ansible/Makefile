@@ -17,7 +17,7 @@ SSH_ARG_PORT:= $(shell yq '.my_hosts.hosts.ssh_test.ansible_port' $(ANSIBLE_DOCK
 SSH_ARG_ANSIBLE_USER:= $(shell yq '.my_hosts.hosts.ssh_test.ansible_user' $(ANSIBLE_DOCKER_TEST_INVENTORY) | tr -d '"')
 SSH_ARG_ANSIBLE_PASSWORD:= $(shell yq '.my_hosts.hosts.ssh_test.ansible_ssh_pass' $(ANSIBLE_DOCKER_TEST_INVENTORY) | tr -d '"')
 
-SOURCE_GIT_BRANCH?= $(shell git rev-parse --abbrev-ref HEAD || echo "dev-unknown")
+SOURCE_GIT_BRANCH?= $(shell git rev-parse --abbrev-ref HEAD || echo "master")
 LOCAL_SOURCE_DIR:=
 
 README_FILE=../../README.md

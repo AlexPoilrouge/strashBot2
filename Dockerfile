@@ -44,12 +44,9 @@ RUN echo "Add copy script as 'docker_test/copies.sh' if needed - " && \
 
 RUN ssh-keyscan $( [ -f /tmp/ssh_host ] && head -n1 /tmp/ssh_host || echo "127.0.0.1" ) >> /root/.ssh/known_hosts || echo "no keys…"
 
-ARG Register_Slash=""
-ENV STRASHBOT_SLASH_REGISTER "${Register_Slash}"
-
 RUN chmod u+x install.sh
 RUN ./install.sh -d -v /var/strashbot_source/config/ansible/docker_test/variables.yaml
 
 WORKDIR /var/app/strashBot
 
-CMD [ "./launch.sh", "${STRASHBOT_SLASH_REGISTER}"]
+CMD [ "./launch.sh" ]

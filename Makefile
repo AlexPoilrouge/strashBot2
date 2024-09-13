@@ -1,6 +1,4 @@
 
-slash_registration = 
-
 
 CONTAINER_NAME:= strashbot_test:0.0.0
 
@@ -8,7 +6,7 @@ CONTAINER_NAME:= strashbot_test:0.0.0
 	systemctl is-active docker.service || systemctl start docker.service
 
 test_build: .docker_start
-	docker build --build-arg Register_Slash="$(slash_registration)" -f Dockerfile -t $(CONTAINER_NAME) .
+	docker build -f Dockerfile -t $(CONTAINER_NAME) .
 
 test_run: 
 	docker run --rm --name strashbot_tester -it $(CONTAINER_NAME)
@@ -19,4 +17,4 @@ test_run_bash:
 test_init: test_build test_run
 
 test_exec_bash:
-	docker exec -it strashbot_tester bash
+	docker exec -it $(CONTAINER_NAME) bash
