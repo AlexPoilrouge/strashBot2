@@ -1946,7 +1946,7 @@ function _generateAuthPayload(userId= undefined, utils){
     if(!Boolean(userId)){
         return {
             role: 'ADMIN',
-            id: utils.getMasterID()
+            id: utils.getBotClient().user.id
         }
     } else {
         return {

@@ -212,7 +212,7 @@ export class KartApi{
     {
         var _karter= karter ?? this.settings.DefaultRacer
 
-        let token= this.tokens.generateToken(auth.role, auth)
+        let token= this.tokens.generateToken(auth.role, {auth})
 
         return this.apiCaller.Call(`${EP_SERVICE_OP_BASE}${op}`,
             {   method: "get",

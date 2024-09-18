@@ -3,6 +3,8 @@ const path= require('path')
 
 import jwt = require('jsonwebtoken')
 
+let hereLog= (...args) => {console.log("[token_maker]", ...args);};
+
 
 type TokenErrorName=    "UNKNOWN_SOURCE_PARAM" |
                         "UNREISTERED_TOKEN"
@@ -95,7 +97,7 @@ class TokenMaker{
         var source: TokenKey= (tokenKey instanceof TokenKey)?
                 tokenKey
             :   TokenKey.create(tokenKey)
-
+        
         return jwt.sign(payload, source.Key, options)
     } 
 }
