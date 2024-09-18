@@ -89,7 +89,6 @@ function _serverServiceStatus_API(karter="ringracers"){
             if( response.status===200 &&
                 Boolean(response.data) && Boolean(response.data.status)
             ){
-                hereLog(`[server status] from "service" endpoint`)
                 resolve(response.data.status.toUpperCase());
             }
             else{
