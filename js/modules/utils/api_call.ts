@@ -47,6 +47,7 @@ export class CallApi {
 
     private _formatRoute(route: string, values?: Object) : string {
         var split_route : string[] = route.split('/');
+        hereLog(`\t[formatRoute] route '${route}' => split route [${split_route}]`)
         var final_route : string = ''
         for(var elem of split_route){
             final_route+= '/'
@@ -126,7 +127,7 @@ export class CallApi {
 
         let method: Method= config.method ?? 'get'
 
-        //hereLog(`[Call]{${alias_or_route}, ${JSON.stringify(config)}} -> ${url}`)
+        hereLog(`[Call]{${alias_or_route}, ${JSON.stringify(config)}} -> ${url}`)
 
         return axios[method](url, config.axiosRequestConfig)
     }
