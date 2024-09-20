@@ -837,7 +837,7 @@ async function __S_S_CMD_KartServer_Op(op="restart", interaction, utils){
 
     let karter="ringracers"
     let res= await _kartServiceOp(
-        _generateAuthPayload(undefined, utils),
+        _generateAuthPayload(interaction.user.id, utils),
         op, karter
     ).catch(e => {
         hereLog(`[Kart_Service]{${op}} Error api call - ${e}`)

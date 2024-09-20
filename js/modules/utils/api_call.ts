@@ -126,7 +126,7 @@ export class CallApi {
 
         let method: Method= config.method ?? 'get'
 
-        // hereLog(`[Call]{${alias_or_route}, ${JSON.stringify(config)}} -> ${url}`)
+        hereLog(`[Call]{${alias_or_route}, ${JSON.stringify(config)}} -> ${url}`)
 
         return axios[method](url, config.axiosRequestConfig)
     }
