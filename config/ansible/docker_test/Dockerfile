@@ -15,7 +15,6 @@ RUN	 pacman -Syyu --noconfirm \
                 nano \
                 git \
                 imagemagick \
-                openssh \
                 libssh2 \
                 boost-libs \
                 inkscape \

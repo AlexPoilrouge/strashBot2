@@ -1,4 +1,4 @@
-#### INFO
+### INFO
 
 Bot made for a local Discord server.
 Can (non-exhaustively):
@@ -8,19 +8,26 @@ Bot written in node.js.
 
 
 
-#### Dependencies
+### Dependencies
+
+#### install
+
+* ansible
+* python-setuptools
+* make
+* yq
+
+#### Run
 
 * npm
 * Node.js
 * discord.js
-* node-config
-* node-cron
+* plus all the node packages listed in `package.json`
 
 
+### Install and use
 
-#### Install and use
-
-##### Create and invite Bot
+#### Create and invite Bot
 
 Check out Discord's documentation for how to [create a bot account](https://discordpy.readthedocs.io/en/rewrite/discord.html) for your server.
 Once it's done, invite the bot to the server (only possible by user with "manager server" permission) by using a link formatted as follow:
@@ -30,66 +37,88 @@ Where `YOUR_CLIENT_ID` can be found on the [discord application page](https://di
 **Be sure to note your bot's `TOKEN` from the bot section.**
 
 
-##### Configure bot
-###### (deprecated, see next section)
+#### ansible stuff
 
-Configure the bot by filling appropriately the `config/default.json` file.
-The `token` field is your bot's previously obtained token.
-All the IDs can be found from your Discord App, by switching to developer mode.
+Bot deployment (distant machin) or installation (locally) now use ansible in any case.
 
-Alternatively, you can configure the bot using the `NODE_CONFIG` env variable:
+Configuration is done by providing the [playbook](config/ansible/playbook.yaml) with
+apporpriate *variable* files.
+See [variables.yaml](config/ansible/variables.yaml) as an example.
 
-`export NODE_CONFIG='{"StrashBot":{"version":"0.1.0","build" … }}'`
+##### deployment
 
-Also, you can configure individually every variable by setting each variable listed in the `config/custom-environment-variables.json` file as env variables.
-For example (linux):
+You can use make as a quick deployment, but an `inventory.yaml` for distant machines,
+and a `variables.yaml` for config still have to be provided.
+
+```bash
+cd config/ansbile
+make remote_install ANSIBLE_INVENTORY="/path/to/variables.yaml" ANSIBLE_VARIABLES="/path/to/inventory.yaml"
 ```
-export STRASHBOT_VER="0.1.5b"
-export STRASHBOT_BUILD="custom-build"
-…
+
+Here's an example for the `inventory.yaml`:
+
+```yaml
+all:
+  hosts:
+    my_serv:
+      ansible_host: any_address.ok
+      ansible_user: ansible
+      ansible_ssh_private_key_file: ~/.ssh/strashbot_ansible
+```
+
+##### local install
+
+You can use the install script `install.sh` to install locally (still using ansible),
+but a `variables.yaml` files is still need for configuration.
+
+```bash
+./install.sh -v /path/to/variables.yaml
+```
+
+##### slash commands
+
+Given that in the config provided by `variables.yaml`, the discord bot info are correctly set,
+if the `discord_bot.register_slash` is set to `true`, the bot's slash commands will be
+registered on install (as global, or only for the 'dev guild' if `discord_bot.debug` is
+set to `true`).
+
+Deleting slash commands can be done on install (before commands registration), by providing
+a [slash_delete.json](extras/slash_delete.json) file filed correctly.
+Here's an example:
+
+```json
+{
+    "global": "all",
+    "1234567891234567891": [ "7412589633698521477", "9874563211236547899" ]
+}
+```
+With this (and`discord_bot.register_slash` set to `true`), all the global commands
+for the bot will be deleted, and the commands ID'd `7412589633698521477` & `9874563211236547899`
+on the guild that has `1234567891234567891` for ID will also be deleted.
+
+### Run
+
+The bot can be configured and installed to work with systemd, in which case:
+```bash
+systemctl start strashbot.service
+```
+
+Otherwise, just run the launch script:
+```bash
+./launch.sh
 ```
 
 
-##### Install script
+### Misc.
 
-First, copy the file `extras/values.txt` at the root of the repository,
-
-`cp ./extras/values.txt .`
-
-then fill in the blank values using any text editor.
-
-To install the bot you'll need admin privileges.
-
-You then need to call the install script (from the root of the repository):
-
-`sudo ./install.sh`
-
-
-
-
-##### Launch bot
-
-###### (deprecated)
-
-`node bot.js`
-
-###### systemd
-
-The bot is now managed  as a systemd service. Using you admin privileges:
-
-`sudo systemctl start strashbot.service`
-
-
-#### Misc.
-
-##### Persistent Data
+#### Persistent Data
 
 To work properly, this bot saves configuration data on the disk as **persistent data**.
 This data is stored under `JSON` format, in the following manner:
 * global configuration data will be saved in: `data/guildConfigs.json`
 * data generated and accessed by specific bot-modules are stored per module per guild under `data/commands/{name}_{guild_id}.json`.
 
-##### Bot-modules
+#### Bot-modules
 
 Bot-modules are code that is loaded dynamicaly during the bot's launch.
 These modules are located is the `js/commands` folder the following name format: `cmd_{name}.js`.
@@ -98,7 +127,7 @@ minimalistic example.
 
 
 
-#### Release and use
+### Release and use
 
 This bot was made for personal needs and use. The code is release on the
 off chance it might be of use to someone but without the intention of providing

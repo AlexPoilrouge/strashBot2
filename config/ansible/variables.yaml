@@ -1,62 +1,88 @@
+
+# {{ root_dir }}/{{ install_dir }} will be the location
+# where the strashbot will install
 root_dir: /
 install_dir: /var/app/strashBot
 
+# is the install inside a docker (used to know if we bother
+#  with the systemd stuff )
 docker_test: "{{ docker_test_flag | default(false) }}"
 
+# install as a systemd service?
 systemd:
   install: true
 
+# unused I think lol
 nginx:
   install: true
 
+# info about the repo, used to install when source are
+#  fetched from git (tells what repo and branch to use)
 git:
   url: https://github.com/AlexPoilrouge/strashBot2.git
   branch: "{{ git_branch_var | default('master') }}"
   cloned_repo_dir: /var/sources/strashBot2
-  remove_on_finish: true
+  remove_on_finish: true #
 
+# if source_fetch variable is defined and it's value is a dirpath,
+#  this path become the source from which to install strashbot
+#  (path is assumed to be on target machine)
+# source_fetch: "git"
+
+# strashbot's system user
 strashbot:
   username: strashbot
   home: "/home/strashbot"
 
+# bot configuration
 discord_bot:
   client_id:
   token:
-  master_user_id:
+  master_user_id: # user discord id of the bot's owner
   debug: true
-  dev_guild_id:
-  register_slash: false
+  dev_guild_id: # discord id of the guild used for test/dev
+  register_slash: false # when true, the bot's commands are registered
 
+# values for various links given by the strashbot
 web_pages:
   base_url: https://strashbot.fr
   gallery_route: "galery.html"
 
+# which 'kart' racer is the default?
 default_racer: ringracers
+# list the various 'kater' racers with their config
 racers:
   - name: ringracers
     server:
+      # deprecated
       commands:
         start: "/home/strashbot/.ringracers/addon_script.sh START_SERV"
         stop: "/home/strashbot/.ringracers/addon_script.sh STOP_SERV"
         restart: "/home/strashbot/.ringracers/addon_script.sh RESTART_SERV"
         is_active: "/home/strashbot/.ringracers/addon_script.sh IS_ACTIVE_SERV"
-      through_ssh: true
-      ip: 193.70.41.86
-      address: strashbot.fr
-      port:
-      distant_user: strashbot
+      through_ssh: true # are command run locally or through ssh?
+      ip: 193.70.41.86 # the kart server's ip
+      address: strashbot.fr # the kart server named address if it exists
+      port: # kart server's port
+      distant_user: strashbot # the user on the machine running the kart racer
+    # the stash kart api infos
     api:
       host: https://strashbot.fr
       port:
       root: /kart
+      # the path of the keys used to sign the jwt for
+      #  auth protected api endpoints
       token_keys_paths:
         admin_signing_key:
         discord_user_signing_key:
+    # deprecated?
     directories:
       main: /home/strashbot/.ringracers
       addons_dl: /home/strashbot/.ringracers/addons/installed
+    # the kart source url (for addons)
     http_url: https://strashbot.fr/.ringracers
 
+# the minecraft server stuff
 craft:
   directory: /home/strashbot/mc_bedrock
   service: minecraft-bedrock-server
@@ -65,5 +91,6 @@ craft:
     address: localhost
     update_key: "test_key-oJDnUTV2cZzs2wI13r8i1k5"
 
+# the startgg config to use its api
 startgg:
   token:

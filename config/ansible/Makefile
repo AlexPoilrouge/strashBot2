@@ -22,11 +22,6 @@ LOCAL_SOURCE_DIR:=
 
 README_FILE=../../README.md
 
-about:
-	# Check the `README.md` file at the root of this project 
-	#
-	sed -n $(shell grep -n "^### remote install" "${README_FILE}"  | cut -d: -f1),$(shell expr $(shell grep -n "^## Tests" "${README_FILE}"  | cut -d: -f1) - 1)p "${README_FILE}"		
-
 install:
 	echo "Use \`make remote_install\` or \`local_install\` => check 'README.md'"
 
