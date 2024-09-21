@@ -32,7 +32,7 @@ RUN mkdir -p /var/strashbot_source
 COPY config /var/strashbot_source/config
 COPY js /var/strashbot_source/js
 COPY extras /var/strashbot_source/extras
-COPY package.json install.sh bot_main.js tsconfig.json version.txt README.md \
+COPY package.json install.sh bot_main.js tsconfig.json README.md \
     /var/strashbot_source/
 
 WORKDIR /var/strashbot_source

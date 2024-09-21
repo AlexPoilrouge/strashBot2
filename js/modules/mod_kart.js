@@ -14,7 +14,6 @@ const KS= require('./kart/kart_stuff')
 
 
 const my_utils= require('../utils.js');
-const { util } = require("config");
 
 
 let hereLog= (...args) => {console.log("[Kart_Module]", ...args);};
@@ -821,6 +820,16 @@ function getServerPopulation(karter="ringracers"){
 
 async function __S_S_CMD_KartServer_Op(op="restart", interaction, utils){
     let force= (interaction.options.getBoolean('force') ?? false)
+    let karter= (interaction.options.getString('karter') ?? "ringracers")
+
+    if(!kart_stuff.Settings.RacerNames.includes(karter)){
+        await interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
+            `Unknown racer "*${karter}*"…`
+        );
+
+        return
+    }
 
     let population= await getServerPopulation()
 
@@ -835,7 +844,6 @@ async function __S_S_CMD_KartServer_Op(op="restart", interaction, utils){
         return
     }
 
-    let karter="ringracers"
     let res= await _kartServiceOp(
         _generateAuthPayload(interaction.user.id, utils),
         op, karter
@@ -1247,10 +1255,7 @@ async function S_CMD__kartServer(interaction, utils){
 
     let subcommand= interaction.options.getSubcommand()
 
-    if(subcommand==='start'){
-        await S_S_CMD_KartServer_Start(interaction, utils)
-    }
-    else if(subcommand==='stop'){
+    if(subcommand==='stop'){
         await S_S_CMD_KartServer_Stop(interaction, utils)
     }
     else if(subcommand==="restart"){
@@ -2542,40 +2547,59 @@ let slashKartPassword= {
     }
 }
 
+let slashKartData_getKarterChoices= () => {
+    let kSettings= new KS.KartSettings()
+    kSettings.loadFromJSON()
+
+    return kSettings.RacerNames.map(r_name => {
+        return { name: r_name, value: r_name }
+    })
+}
+
 let slashKartStartStop= {
     data: new SlashCommandBuilder()
             .setName('kart_server')
-            .setDescription("Start the Strashbot SRB2Kart's server")
+            .setDescription("Start the Strashbot kart's server")
             .setDefaultMemberPermissions(0)
             .addSubcommand(subcommand =>
                 subcommand
-                .setName('start')
-                .setDescription('Start the Strashbot SRB2Kart server')
-            )
-            .addSubcommand(subcommand =>
-                subcommand
                 .setName('stop')
-                .setDescription('Stop the Strashbot SRB2Kart server')
+                .setDescription('Stop the Strashbot kart server')
                 .addBooleanOption(option =>
                     option
                     .setName('force')
                     .setDescription('Force, even if there are player currently playing on the server')
+                )
+                .addStringOption(option =>
+                    option
+                    .setName('karter')
+                    .setDescription('Which kart game?')
+                    .addChoices(...slashKartData_getKarterChoices())
                 )
             )
             .addSubcommand(subcommand =>
                 subcommand
                 .setName('restart')
-                .setDescription('Restart the Strashbot SRB2Kart server')
+                .setDescription('Restart the Strashbot kart server')
                 .addBooleanOption(option =>
                     option
                     .setName('force')
                     .setDescription('Force, even if there are player currently playing on the server')
                 )
+                .addStringOption(option =>
+                    option
+                    .setName('karter')
+                    .setDescription('Which kart game?')
+                    .addChoices(
+                        { name: 'Ring Racers', value: 'ringracers' },
+                        { name: 'SRB2Kart', value: 'srb2kart' }
+                    )
+                )
             )
             .addSubcommand(subcommand =>
                 subcommand
                 .setName('logs')
-                .setDescription('Fetch the Strashbot SRB2Kart server\'s logfile')
+                .setDescription('Fetch the Strashbot kart server\'s logfile')
             )
             .addSubcommand(subcommand =>
                 subcommand

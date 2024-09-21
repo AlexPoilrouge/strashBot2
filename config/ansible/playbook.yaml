@@ -36,7 +36,6 @@
         - "js/"
         - "bot_main.js"
         - "tsconfig.json"
-        - "version.txt"
         - "README.md"
         - "package.json"
         - "config/default.json"
@@ -90,6 +89,17 @@
         - { path: "{{ root_dir }}/{{ install_dir }}/data/guildConfigs.json", fallback_content: "{}" }
       loop_control:
         loop_var: file_info
+
+    - name: Check slash_delete.json existence
+      ansible.builtin.stat:
+        path: "{{ server_source_dir }}/extras/slash_delete.json"
+      register: slash_delete_file
+      when: discord_bot.register_slash is defined and discord_bot.register_slash
+    - name: Copy slash deletion file if it exists
+      ansible.builtin.copy:
+        src: "{{ server_source_dir }}/extras/slash_delete.json"
+        dest: "{{ root_dir }}/{{ install_dir }}/slash_delete.json"
+      when: discord_bot.register_slash is defined and discord_bot.register_slash and slash_delete_file.stat.exists
 
     - name: Install packages based on package.json.
       community.general.npm:

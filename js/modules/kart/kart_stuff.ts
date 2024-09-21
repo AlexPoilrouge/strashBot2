@@ -98,7 +98,13 @@ export class KartSettings{
 
         return racer_name
     }
-    get DefaultRacer() : string { return this._getRacerName(undefined); } 
+    get DefaultRacer() : string { return this._getRacerName(undefined); }
+    get RacerNames() : string[] {
+        let racers= this.data[RACERS_LIST_FIELDNAME]
+        if (!Boolean(racers)) return []
+
+        return Object.keys(racers)
+    }
 
     getRacerData(racer?: string) : Object {
         var racer_name: string= this._getRacerName(racer)

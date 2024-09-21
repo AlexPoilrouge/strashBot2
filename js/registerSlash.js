@@ -1,6 +1,7 @@
 const { REST, Routes, Client } = require('discord.js');
-// const { clientId, guildId, token } = require('./config.json');
+
 const config= require('config');
+
 const fs = require('node:fs');
 const path= require( 'path' );
 
@@ -70,7 +71,6 @@ let deploySlash= (async (g_id=undefined) => {
 		else{
 			data = await rest.put(
 				Routes.applicationCommands(clientId),
-				{ body: commands },
 			);
 
 			hereLog(`Successfully reloaded ${data.length} application (/) commands for all guilds.`);
@@ -81,14 +81,116 @@ let deploySlash= (async (g_id=undefined) => {
 	}
 });
 
-if(commands.length>0){
-	if(Boolean(debug)){
-		deploySlash(devGuildId)
+
+const DISCORD_ID_REGEX=/^\d{17,19}$/
+
+let deleteSlash= async (cmd_pointer, g_id= undefined) => {
+	var cmd_list= undefined
+	if((typeof cmd_pointer)==='string'){
+		if(cmd_pointer.toLowerCase()==='all'){
+			cmd_list= []
+		}
+		else if(DISCORD_ID_REGEX.test(cmd_pointer)){
+			cmd_list= [ cmd_pointer ]
+		}
+	}
+	else if(Array.isArray(cmd_pointer)){
+		cmd_list= cmd_pointer
+	}
+
+	if(!Boolean(cmd_list)){
+		hereLog(`Unrecognized pointer "${cmd_pointer}"…`)
+		return
+	}
+
+	if(cmd_list.length>0){
+		for(var cmd_id of cmd_list){
+			try{
+				hereLog(`Removing ${g_id ?? 'global'} command ${cmd_id}…`)
+				if(Boolean(g_id)){
+					await rest.delete(Routes.applicationGuildCommand(clientId, guildId, cmd_id))
+				}
+				else{
+					await rest.delete(Routes.applicationCommand(clientId, cmd_id))
+				}
+				hereLog(`Successfully deleted application (/) ${g_id ?? 'global'} command '${cmd_id}'.`);
+			} catch(err){
+				hereLog(`Error deleting ${cmd_id} ${g_id ?? 'global'} command - ${err}`)
+			}
+		}
 	}
 	else{
-		deploySlash()
+		try{
+			hereLog(`Removing all ${g_id ?? 'global'} commands…`)
+			if(Boolean(g_id)){
+				await rest.put(
+					Routes.applicationGuildCommands(clientId, g_id),
+					{ body: [] }
+				);
+			}
+			else{
+				await rest.put(Routes.applicationCommands(clientId),
+					{ body: []}
+				);
+			}
+			hereLog(`Successfully deleted all application (/) ${g_id ?? 'global'} commands.`);
+		} catch(err){
+			hereLog(`Error deleting all ${g_id ?? 'global'} commands - ${err}`)
+		}
 	}
 }
-else{
-	hereLog(`No modules found to add…`)
+
+async function delete_allSlashes_fromFile(filepath) {
+	try {
+		// Read the JSON file synchronously
+		const data = fs.readFileSync(filepath, 'utf8');
+		
+		// Parse the JSON data
+		const jsonData = JSON.parse(data);
+		
+		// Iterate over each first-level key in the JSON file
+		for (const key in jsonData) {
+			try{
+				if (jsonData.hasOwnProperty(key)) {
+					// Call treatment function with the object
+					if(key.toLocaleLowerCase()==="global"){
+						hereLog(`Removing global commands…`)
+						await deleteSlash(jsonData[key])
+					}
+					else if(DISCORD_ID_REGEX.test(key)){
+						hereLog(`Removing guild commands for guild ${key} …`)
+						await deleteSlash(jsonData[key], key)
+					}
+					else{
+						hereLog(`'${key}' not a guild id, and not accepted`)
+					}
+				}
+			} catch(err){
+				hereLog(`Error for ${key} command deletion… - ${err}`)
+			}
+		}
+	} catch (err) {
+		console.error('Error reading or parsing file:', err);
+	}
 }
+
+const SLASH_DELETE_FILE="../slash_delete.json"
+
+let main= async () => {
+	await delete_allSlashes_fromFile(path.join(__dirname, SLASH_DELETE_FILE))
+
+	if(commands.length>0){
+		if(Boolean(debug)){
+			await deploySlash(devGuildId)
+		}
+		else{
+			await deploySlash()
+		}
+	}
+	else{
+		hereLog(`No modules found to add…`)
+	}
+}
+
+
+main()

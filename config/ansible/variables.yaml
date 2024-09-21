@@ -23,7 +23,7 @@ discord_bot:
   client_id:
   token:
   master_user_id:
-  debug: false
+  debug: true
   dev_guild_id:
   register_slash: false
 
