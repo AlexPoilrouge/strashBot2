@@ -97,7 +97,7 @@
       when: discord_bot.register_slash is defined and discord_bot.register_slash
     - name: Copy slash deletion file if it exists
       ansible.builtin.copy:
-        src: "{{ server_source_dir }}/extras/slash_delete.json"
+        src: "../../extras/slash_delete.json"
         dest: "{{ root_dir }}/{{ install_dir }}/slash_delete.json"
       when: discord_bot.register_slash is defined and discord_bot.register_slash and slash_delete_file.stat.exists
 

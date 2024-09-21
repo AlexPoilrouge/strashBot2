@@ -95,6 +95,12 @@ let deleteSlash= async (cmd_pointer, g_id= undefined) => {
 		}
 	}
 	else if(Array.isArray(cmd_pointer)){
+		if(cmd_pointer.length<=0){
+			hereLog(`nothing to remove…	`)
+
+			return
+		}
+
 		cmd_list= cmd_pointer
 	}
 
