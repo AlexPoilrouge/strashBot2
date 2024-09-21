@@ -63,7 +63,7 @@ let deploySlash= (async (g_id=undefined) => {
 		if(Boolean(g_id)){
 			data = await rest.put(
 				Routes.applicationGuildCommands(clientId, g_id),
-				{ body: commands },
+				{ body: commands }
 			);
 
 			hereLog(`Successfully reloaded ${data.length} application (/) commands for guild ${g_id}.`);
@@ -71,6 +71,7 @@ let deploySlash= (async (g_id=undefined) => {
 		else{
 			data = await rest.put(
 				Routes.applicationCommands(clientId),
+				{ body: commands }
 			);
 
 			hereLog(`Successfully reloaded ${data.length} application (/) commands for all guilds.`);
