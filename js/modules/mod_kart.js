@@ -206,18 +206,40 @@ function _autoStartServer(utils){
     })
 }
 
+const ADDRESS_PORT_MATCH=/^(\S*):([1-9][0-9]*)$/
 
-function _askServInfos(karter="ringracers", address=undefined, port=undefined){
-    var a= address, p= Number(port);
-    var m= undefined;
-    if(Boolean(a) && Boolean(m=a.match(/(.*)\:([0-9]+)$/))){
-        a= m[1];
-        p= m[2];
+function __processConnectionString(coStr){
+    if(!Boolean(coStr)){
+        let karter= kart_stuff.Settings.DefaultRacer
+        return {
+            karter,
+            address: karter
+        }
     }
-    var p= (!isNaN(p))? p : undefined
+
+    if(kart_stuff.Settings.RacerNames.includes(coStr)){
+        return {
+            karter: coStr,
+            address: coStr
+        }
+    }
+    
+    let match= coStr.match(ADDRESS_PORT_MATCH)
+    if(Boolean(match)){
+        return { address: match[1], port: Number(match[2])}
+    }
+
+    return { address: coStr }
+}
+
+function _askServInfos(connectionString=undefined){
+    var connection= __processConnectionString(connectionString)
+
+    let a= connection.address, p= connection.port;
+    let karter= connection.karter
 
     return new Promise( (resolve, reject) => {
-        if( !(Boolean(a) || Boolean(p)) ){
+        if( Boolean(karter) ){
             _serverServiceStatus_API(karter)
                 .then(service_status => resolve(service_status))
                 .catch(e => {
@@ -228,7 +250,7 @@ function _askServInfos(karter="ringracers", address=undefined, port=undefined){
         else resolve(undefined)
     }).then( service_status => {
         if(service_status==="DOWN"){
-            return { service_status }
+            return { service_status, connectionInfo: connection }
         }
         else{
             return kart_stuff.Api.info(a, p).then( response => {
@@ -239,6 +261,7 @@ function _askServInfos(karter="ringracers", address=undefined, port=undefined){
                 else{
                     let kart_infos= response.data
                     kart_infos.service_status= service_status
+                    kart_infos.connectionInfo= connection
 
                     return kart_infos
                 }
@@ -531,13 +554,20 @@ function kart_init_per_guild(guild, utils){
 
 async function S_CMD__kartInfo(interaction, utils){
     await interaction.deferReply();
+
+    let connectionStr= interaction.options.getString('server')
     
     var embed= {}
-    embed.title= "Strashbot server";
+    embed.title= `Kart Server${Boolean(connectionStr)? ` @ \`${connectionStr}\``:''}`;
     embed.color= 0xff0000 //that's red (i hope? this rgba, right?)
 
-    return await _askServInfos().then(async serverInfos => {
+    return await _askServInfos(connectionStr).then(async serverInfos => {
         embed.fields=[];
+
+        let karter= serverInfos.connectionInfo.karter
+        if(Boolean(karter)){
+            embed.title= `Strashbot *${karter}* server`
+        }
 
         if(Boolean(serverInfos.service_status) && serverInfos.service_status==="DOWN"){
             embed.color= 0x808080
@@ -558,6 +588,13 @@ async function S_CMD__kartInfo(interaction, utils){
             ){
                 embed.title= `${ss.servername}`
             }
+
+            let _app= (ss.application)? ss.application.toLowerCase() : undefined
+            embed.color= (_app==='ringracers')?
+                            0xff0000 //red for DRRR
+                        :   (_app==='srb2kart')?
+                                0xa020f0 //purple for srb2k
+                            :   0xff8844 //orange otherwise
 
             let AppNum= ___AppNum_fromServDataObj(ss)
 
@@ -2510,7 +2547,12 @@ async function S_CMD_postStatusChannel(interaction, utils){
 let slashKartInfo= {
     data: new SlashCommandBuilder()
             .setName('kart_info')
-            .setDescription("Get current status of the Strashbot srb2kart server."),
+            .setDescription("Get current status of the Strashbot srb2kart server.")
+            .addStringOption(option =>
+                option
+                .setName('server')
+                .setDescription('srb2kart, ringracers, [alias], [address], or [address:port]')
+            ),
     async execute(interaction, utils){
         try{
             await S_CMD__kartInfo(interaction, utils)
