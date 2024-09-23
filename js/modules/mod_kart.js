@@ -9,7 +9,6 @@ const jwt= require("jsonwebtoken");
 const fetch = require('node-fetch');
 const {ActivityType}= require('discord.js');
 
-const {CallApi,Method}= require('./utils/api_call')
 const KS= require('./kart/kart_stuff')
 
 
@@ -21,12 +20,6 @@ let hereLog= (...args) => {console.log("[Kart_Module]", ...args);};
 var kart_stuff= undefined
 
 var l_guilds= [];
-
-
-const KART_JSON="data/kart.json"
-
-
-let _loadKartJSON= () => my_utils.loadJSONFile(path.resolve(__dirname, KART_JSON))
 
 
 function __kartCmd(command){
@@ -77,14 +70,14 @@ function __clearScores(user=undefined){
     }
 }
 
-function _serverServiceStatus_API(karter="ringracers"){
+function _serverServiceStatus_API(karter=undefined){
     return new Promise( (resolve, reject) => {
         if ((!Boolean(kart_stuff)) || !Boolean(kart_stuff.Api)){
             hereLog(`[server status] bad config…`);
             reject("Bad info - couldn't access kart_settings…")
         }
         
-       kart_stuff.Api.service().then(response => {
+       kart_stuff.Api.service(karter).then(response => {
             if( response.status===200 &&
                 Boolean(response.data) && Boolean(response.data.status)
             ){
@@ -159,8 +152,8 @@ function _autoStopServer(utils){
     })
 }
 
-async function _isServerRunning(){
-    return await _serverServiceStatus_API().then( r => {
+async function _isServerRunning(karter=undefined){
+    return await _serverServiceStatus_API(karter).then( r => {
         if(r==='UP'){
             return true
         }
@@ -273,45 +266,59 @@ function _askServInfos(connectionString=undefined){
     });
 }
 
-var _oldServInfos= undefined;
+var _oldServInfos= {};
 
 let AppThresholds= {
     srb2kart: [
         {   number: 4,
             message: "Looks like some guys wana race on some good'ol SRB2Kart! 🏁",
-            coolDownTime: 30*1000 //4 min
+            coolDownTime: 30*1000, //4 min
+            color: 0x88ccff
         },{ number: 8,
             message: "More people just joined the SRB2Kart party!!! 🏎💨",
-            coolDownTime: 30*1000 //4 min
+            coolDownTime: 30*1000, //4 min
+            color: 0xa020f0
         }, { number: 0,
             message: "Fun's over… SRB2Kart is going back to sleep 🛌",
-            comingFromTop: true
+            comingFromTop: true,
+            color: 0x666666
         }
     ],
     ringracers: [
         {   number: 4,
             message: "Looks like some guys are hungy for some rings! 🏁",
-            coolDownTime: 30*1000 //4 min
+            coolDownTime: 30*1000, //4 min
+            color: 0xffa500
         },{ number: 8,
             message: "More people are racing *at the next level*! 🏎💨",
-            coolDownTime: 30*1000 //4 min
+            coolDownTime: 30*1000, //4 min
+            color: 0xff0000
         }, { number: 0,
             message: "Fun's over… No more rings for robotnik… 🛌",
-            comingFromTop: true
+            comingFromTop: true,
+            color: 0x666666
         }
     ]
 }
 let CheckTimeCycleInterval= 60*60*1000; //1 hour
 
-var PlayerNumStepCheckInfos= {
-    iterator: 0,
-    lastNumOfPlayers: 0,
-    lastCheckStartTimeStamp: 0,
-    lastCheckStepTimeStamp: 0,
+var PlayerNumStepCheckInfos={
+    srb2kart: {
+        iterator: 0,
+        lastNumOfPlayers: 0,
+        lastCheckStartTimeStamp: 0,
+        lastCheckStepTimeStamp: 0,
+    },
+    ringracers: {
+        iterator: 0,
+        lastNumOfPlayers: 0,
+        lastCheckStartTimeStamp: 0,
+        lastCheckStepTimeStamp: 0,
+    },
 }
-function __checkPlayerNumStep(numberOfPlayers, appnum=1){
+function __checkPlayerNumStep(karter, numberOfPlayers){
     if(numberOfPlayers<0){
-        PlayerNumStepCheckInfos= {
+        PlayerNumStepCheckInfos[karter]= {
             iterator: 0,
             lastNumOfPlayers: 0,
             lastCheckStartTimeStamp: 0,
@@ -321,67 +328,85 @@ function __checkPlayerNumStep(numberOfPlayers, appnum=1){
         return undefined;
     }
 
-    let timeElapsed= Date.now()-PlayerNumStepCheckInfos.lastCheckStartTimeStamp;
+    let _karter_pnsci= PlayerNumStepCheckInfos[karter]
+    if(!Boolean(_karter_pnsci)) return undefined
+
+    let timeElapsed= Date.now()-_karter_pnsci.lastCheckStartTimeStamp;
     if(timeElapsed<CheckTimeCycleInterval) return undefined;
 
-    if(PlayerNumStepCheckInfos.iterator===0 &&
-        PlayerNumStepCheckInfos.lastCheckStepTimeStamp<=0
+    if(_karter_pnsci.iterator===0 &&
+        _karter_pnsci.lastCheckStepTimeStamp<=0
     ){  //allow for first step's coolDownTime to take effect
-        PlayerNumStepCheckInfos.lastCheckStepTimeStamp= Date.now()
+        PlayerNumStepCheckInfos[karter].lastCheckStepTimeStamp= Date.now()
         return undefined;
     }
 
-    let PlayerNumSteps= (appnum>1)? AppThresholds.ringracers : AppThresholds.srb2kart
+    let karter_playerNumSteps= AppThresholds[karter]
+    if(!Boolean(karter_playerNumSteps)) return undefined
 
     var res= undefined;
-    let timeStepElapsed= Date.now()-PlayerNumStepCheckInfos.lastCheckStepTimeStamp
-    for(var i=PlayerNumStepCheckInfos.iterator; i<PlayerNumSteps.length; ++i){
+    let timeStepElapsed= Date.now()-_karter_pnsci.lastCheckStepTimeStamp
+    for(var i=_karter_pnsci.iterator; i<karter_playerNumSteps.length; ++i){
 
-        let testThreshold= PlayerNumSteps[i];
-        if( ((  testThreshold.number>=PlayerNumStepCheckInfos.lastNumOfPlayers
+        let testThreshold= karter_playerNumSteps[i];
+        if( ((  testThreshold.number>=_karter_pnsci.lastNumOfPlayers
                 &&  (!Boolean(testThreshold.comingFromTop))
                 &&  numberOfPlayers>=testThreshold.number
             ) || (
                 testThreshold.comingFromTop
-                &&  PlayerNumStepCheckInfos.iterator>0 //need to at least have crossed first threshold…
-                &&  testThreshold.number<PlayerNumStepCheckInfos.lastNumOfPlayers
+                &&  _karter_pnsci.iterator>0 //need to at least have crossed first threshold…
+                &&  testThreshold.number<_karter_pnsci.lastNumOfPlayers
                 && numberOfPlayers<=testThreshold.number
             )) && ( (!Boolean(testThreshold.coolDownTime)) || (testThreshold.coolDownTime<=timeStepElapsed) )
         ){
-            PlayerNumStepCheckInfos.iterator= i+1;
-            PlayerNumStepCheckInfos.lastCheckStepTimeStamp= Date.now()
+            _karter_pnsci.iterator= i+1;
+            _karter_pnsci.lastCheckStepTimeStamp= Date.now()
 
-            res= {number: testThreshold.number, message: testThreshold.message}
+            res= {
+                number: testThreshold.number,
+                message: testThreshold.message,
+                color: testThreshold.color
+            }
         }
     }
-    PlayerNumStepCheckInfos.lastNumOfPlayers= numberOfPlayers;
-    if(PlayerNumStepCheckInfos.iterator>=PlayerNumSteps.length){
-        PlayerNumStepCheckInfos.iterator= 0;
-        PlayerNumStepCheckInfos.lastCheckStepTimeStamp= 0
-        PlayerNumStepCheckInfos.lastCheckStartTimeStamp= Date.now();
+    _karter_pnsci.lastNumOfPlayers= numberOfPlayers;
+    if(_karter_pnsci.iterator>=karter_playerNumSteps.length){
+        _karter_pnsci.iterator= 0;
+        _karter_pnsci.lastCheckStepTimeStamp= 0
+        _karter_pnsci.lastCheckStartTimeStamp= Date.now();
     }
+    PlayerNumStepCheckInfos[karter]= _karter_pnsci
 
     return res
 }
 
 let lastMessagesPerGuild= {}
 
-function ___AppNum_fromServDataObj(servData){
-    return ( (servData && servData.application) ?
-                    (servData.application.toLowerCase()==='ringracers')? 2 : 1
-                :   0 );
+const APP_ID= {
+    UNKNOWN: 0,
+    SRB2K: 1,
+    DRRR: 2
 }
 
-function _checkServerStatus(utils){
+function ___AppNum_fromServDataObj(servData){
+    return ( (servData && servData.application) ?
+                    (servData.application.toLowerCase()==='ringracers')? APP_ID.DRRR : APP_ID.SRB2K
+                :   APP_ID.UNKNOWN );
+}
+
+function _checkServerStatus(karter, utils){
+    hereLog(`[checkStature]{${karter}} checking status…`)
     var bot= utils.getBotClient();
 
-    _askServInfos().then(servInfo =>{
+    _askServInfos(karter).then(servInfo =>{
         if((!Boolean(servInfo.service_status)) || (servInfo.service_status!=='UP')){
             // hereLog(`SRB2Kart server service status is '${servInfo.service_status}'`);
             bot.user.setActivity('');
-            __checkPlayerNumStep(-1)
+            __checkPlayerNumStep(karter, -1)
         
-            _oldServInfos= undefined;
+            if(Boolean(_oldServInfos[karter])){
+                delete _oldServInfos[karter]
+            }
         }
         else{
             if(!(Boolean(servInfo) && Boolean(servInfo.server) && servInfo.server.numberofplayer!==undefined)){
@@ -391,7 +416,7 @@ function _checkServerStatus(utils){
             let numPlayer= servInfo.server.numberofplayer
             let AppNum= ___AppNum_fromServDataObj(servInfo.server)
 
-            let infoStep= __checkPlayerNumStep(numPlayer, AppNum);
+            let infoStep= __checkPlayerNumStep(karter, numPlayer);
             if(Boolean(infoStep)){
                 bot.guilds.fetch().then(guilds => {
                     guilds.forEach(guild => {
@@ -400,18 +425,14 @@ function _checkServerStatus(utils){
                         if(Boolean(post_status_channel_id)){
                             guild.fetch().then(g => {
                                 g.channels.fetch(post_status_channel_id).then(post_channel => {
-                                    let color= (infoStep.number>4) ?
-                                                    0xff0000
-                                                :   (infoStep.number>0) ?
-                                                        0xffa500
-                                                    :   0x666666
+                                    let color= infoStep.color ?? 0xffffff
                                     var msg=lastMessagesPerGuild[guild.id]
                                     var msgContent= {
                                         embeds: [{
                                             color,
                                             title: `${numPlayer} playing`,
                                             fields: [{
-                                                name: `StrashBot Kart${AppNum===2?'R':''}ing`,
+                                                name: `StrashBot Kart${AppNum===APP_ID.DRRR?'R':''}ing`,
                                                 value: infoStep.message,
                                                 inline: false
                                             }],
@@ -449,25 +470,28 @@ function _checkServerStatus(utils){
                 })
             }
 
-            if( ( !Boolean(_oldServInfos) || !Boolean(_oldServInfos.server)) ||
-                ( servInfo.server.numberofplayer !== _oldServInfos.server.numberofplayer )
+            let old_karterInfos= _oldServInfos[karter]
+            if( ( !Boolean(old_karterInfos) || !Boolean(old_karterInfos.server)) ||
+                ( servInfo.server.numberofplayer !== old_karterInfos.server.numberofplayer )
             ){
                 if(numPlayer>0){
                     hereLog(`Changes in srb2kart server status detected… (player count: ${numPlayer})`);
-                    bot.user.setActivity(`Hosting ${(AppNum>1)?"Dr Robotnik's Ring Races":"SRB2Kart Races"}`, { type: ActivityType.Playing });
+                    bot.user.setActivity(`Hosting ${(AppNum>=APP_ID.DRRR)?"Dr Robotnik's Ring Races":"SRB2Kart Races"}`, { type: ActivityType.Playing });
                 }
                 else{
                     hereLog(`Changes in srb2kart server status detected… (not enough player though)`);
                     bot.user.setActivity('');
                 }
 
-                _oldServInfos= servInfo;
+                _oldServInfos[karter]= servInfo;
             }
         }
     }).catch(err =>{
         bot.user.setActivity('');
 
-        _oldServInfos= undefined;
+        if(Boolean(_oldServInfos[karter])){
+            delete _oldServInfos[karter];
+        }
         hereLog(`Error while checking status of SRB2Kart server… - ${err}`);
     })
 }
@@ -475,29 +499,51 @@ function _checkServerStatus(utils){
 var stop_job= undefined;
 var start_job= undefined;
 var status_job= undefined;
+var status_racer_check_queue= undefined
 
 function kart_init(utils){
     kart_stuff= new KS.KartStuff()
 
     _initAddonsConfig();
 
+    status_racer_check_queue= kart_stuff.Settings.RacerNames
+
     if(!Boolean(stop_job)){
         stop_job= cron.schedule('0 4 * * *', async () =>{
             hereLog("[schedule] 4 am: looking to stop srb2kart serv…");
-            await _autoStopServer(utils);
+            try{
+                await _autoStopServer(utils);
+            } catch(err){
+                hereLog(`[cron-job]{stop} failure stopping server - ${err}`)
+            }
         });
     }
 
     if(!Boolean(start_job)){
         start_job= cron.schedule('0 8 * * *', () =>{
             hereLog("[schedule] 8 am: looking to start srb2kart serv…");
-            _autoStartServer(utils)
+            try{
+                _autoStartServer(utils)
+            } catch(err){
+                hereLog(`[cron-job]{start} failure starting server - ${err}`)
+            }
         });
     }
 
     if(!Boolean(status_job)){
+        hereLog(`Init this maybe?`)
         status_job= cron.schedule('*/2 * * * *', () =>{
-            _checkServerStatus(utils)
+            hereLog("whyyyyyyyyyyyyyyyyyy?!!!!!!")
+            try{
+                let karter= status_racer_check_queue[0]
+                _checkServerStatus(karter, utils)
+                status_racer_check_queue=
+                    [ status_racer_check_queue.pop() ].concat(
+                        status_racer_check_queue
+                    )
+            } catch(err) {
+                hereLog(`[cron-job]{status} failure checking status - ${err}`)
+            }
         });
     }
 
@@ -511,41 +557,46 @@ function kart_init_per_guild(guild, utils){
 
     if( !Boolean(clean_jobs.find(gj => gj.id===guild.id)) ){
         let clean_job= cron.schedule('0 6 * * *', async () => {
-            // Read the channel and message snowflakes from the file
-            if(!fs.existsSync(path.join(__dirname, `numPlayerStatus_sendMessages_${guild.id}.txt`))){
-                hereLog(`file ${path.join(__dirname, `numPlayerStatus_sendMessages_${guild.id}.txt`)} not here…`)
-                return;
-            }
-
-            const messageSnowflakes = fs.readFileSync(path.join(__dirname, `numPlayerStatus_sendMessages_${guild.id}.txt`), 'utf-8').split('\n');
-            
-            // Iterate over each line in the file and delete the corresponding message
-            for (const line of messageSnowflakes) {
-              if (line.trim() !== '') {
-                const [channelSnowflake, messageSnowflake] = line.split(',');
-                
-                try {
-                    const channel = await guild.channels.fetch(channelSnowflake);
-                    if(Boolean(channel) && channel.guild.id===guild.id){
-                        let message= await channel.messages.fetch(messageSnowflake);
-                        message.delete();
-                        hereLog(`(clean_job){${guild}} Deleted message ${messageSnowflake} in channel ${channelSnowflake}`);
-                    }
-                } catch (error) {
-                    hereLog(`(clean_job){${guild}} failed delete of ${messageSnowflake} in channel ${channelSnowflake}`,
-                            error
-                    );
+            try{
+                hereLog(`[schedule](${guild}) 6 am: cleaning status post channel…`);
+                // Read the channel and message snowflakes from the file
+                if(!fs.existsSync(path.join(__dirname, `numPlayerStatus_sendMessages_${guild.id}.txt`))){
+                    hereLog(`file ${path.join(__dirname, `numPlayerStatus_sendMessages_${guild.id}.txt`)} not here…`)
+                    return;
                 }
-              }
+
+                const messageSnowflakes = fs.readFileSync(path.join(__dirname, `numPlayerStatus_sendMessages_${guild.id}.txt`), 'utf-8').split('\n');
+                
+                // Iterate over each line in the file and delete the corresponding message
+                for (const line of messageSnowflakes) {
+                if (line.trim() !== '') {
+                    const [channelSnowflake, messageSnowflake] = line.split(',');
+                    
+                    try {
+                        const channel = await guild.channels.fetch(channelSnowflake);
+                        if(Boolean(channel) && channel.guild.id===guild.id){
+                            let message= await channel.messages.fetch(messageSnowflake);
+                            message.delete();
+                            hereLog(`(clean_job){${guild}} Deleted message ${messageSnowflake} in channel ${channelSnowflake}`);
+                        }
+                    } catch (error) {
+                        hereLog(`(clean_job){${guild}} failed delete of ${messageSnowflake} in channel ${channelSnowflake}`,
+                                error
+                        );
+                    }
+                }
+                }
+                
+                // Clear the file
+                fs.writeFile(path.join(__dirname, `numPlayerStatus_sendMessages_${guild.id}.txt`), '', (err) => {
+                    if (err)
+                        hereLog(`(clean_job){${guild}} couldn't clear file 'numPlayerStatus_sendMessages_${guild.id}.txt' `,
+                            err
+                        );
+                });
+            } catch(err){
+                hereLog(`[cron-job]{clean} failure cleaning post channel - ${err}`)
             }
-            
-            // Clear the file
-            fs.writeFile(path.join(__dirname, `numPlayerStatus_sendMessages_${guild.id}.txt`), '', (err) => {
-                if (err)
-                    hereLog(`(clean_job){${guild}} couldn't clear file 'numPlayerStatus_sendMessages_${guild.id}.txt' `,
-                        err
-                    );
-            });
         });
 
         clean_jobs.push({id: guild.id, job: clean_job})
@@ -589,16 +640,15 @@ async function S_CMD__kartInfo(interaction, utils){
                 embed.title= `${ss.servername}`
             }
 
-            let _app= (ss.application)? ss.application.toLowerCase() : undefined
-            embed.color= (_app==='ringracers')?
+            let AppNum= ___AppNum_fromServDataObj(ss)
+
+            embed.color= (AppNum===APP_ID.DRRR)?
                             0xff0000 //red for DRRR
-                        :   (_app==='srb2kart')?
+                        :   (AppNum===APP_ID.SRB2K)?
                                 0xa020f0 //purple for srb2k
                             :   0xff8844 //orange otherwise
 
-            let AppNum= ___AppNum_fromServDataObj(ss)
-
-            if(AppNum>0){
+            if(AppNum>APP_ID.UNKNOWN){
                 embed.footer= {
                     text:
                         `---\n${ss.application}` +
@@ -627,7 +677,7 @@ async function S_CMD__kartInfo(interaction, utils){
                 name: 'Map',
                 value:
                     `${Boolean(ss)?
-                        `${(AppNum===1)?`${ss.mapname} - `:''}*${ss.maptitle}*`
+                        `${(AppNum===APP_ID.SRB2K)?`${ss.mapname} - `:''}*${ss.maptitle}*`
                     :   'erreur'
                     }`,
                 inline: true
@@ -642,7 +692,7 @@ async function S_CMD__kartInfo(interaction, utils){
                 inline: true
             })
 
-            if(AppNum>1 && ss.gametypename){
+            if(AppNum>=APP_ID.DRRR && ss.gametypename){
                 embed.fields.push({
                     name: 'Gametype',
                     value: `${ss.gametypename}`,
@@ -659,7 +709,7 @@ async function S_CMD__kartInfo(interaction, utils){
                 })
             }
 
-            if(AppNum>1 && Boolean(ss.kartvars)){
+            if(AppNum>=APP_ID.DRRR && Boolean(ss.kartvars)){
                 embed.fields.push({
                     name: "Server type",
                     value: (ss.kartvars.isdedicated)? "Dedicated" : "Listen",
@@ -674,7 +724,7 @@ async function S_CMD__kartInfo(interaction, utils){
                 })
             }
 
-            if(AppNum>1 && ss.avgpwrlvl!==undefined){
+            if(AppNum>APP_ID.DRRR && ss.avgpwrlvl!==undefined){
                 embed.fields.push({
                     name: "Average Powerlevel",
                     value: `${ss.avgpwrlvl}`
@@ -815,33 +865,6 @@ function _startServer(){
         b= false;
     }
     return b;
-}
-
-async function S_S_CMD_KartServer_Start(interaction, utils){
-    let notUp= async () => {
-        var success= _startServer();
-
-        if(!success){
-            _stopServer(
-                "ringracers",
-                _generateAuthPayload(undefined, utils)
-            );
-            await interaction.editReply(`[kart command] unable to start SRB2Kart server…`);
-        }
-        else{
-            await interaction.editReply(`Strashbot's SRB2Kart server is starting!`)
-        }
-    }
-
-    _serverServiceStatus_API().then(async r => {
-        if(r==="UP"){
-            str="Server SRB2Kart is already running…";
-            await interaction.editReply(str);
-        }
-        else await notUp()
-    }).catch(async err => {
-        await notUp()
-    })
 }
 
 function getServerPopulation(karter="ringracers"){
@@ -2551,7 +2574,7 @@ let slashKartInfo= {
             .addStringOption(option =>
                 option
                 .setName('server')
-                .setDescription('srb2kart, ringracers, [alias], [address], or [address:port]')
+                .setDescription('srb2kart, ringracers, [alias], [address], or [address]:[port]')
             ),
     async execute(interaction, utils){
         try{
