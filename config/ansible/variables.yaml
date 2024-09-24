@@ -50,7 +50,7 @@ web_pages:
 
 # which 'kart' racer is the default?
 default_racer: ringracers
-# list the various 'kater' racers with their config
+# list the various 'karter' racers with their config
 racers:
   - name: ringracers
     server:
@@ -81,6 +81,8 @@ racers:
       addons_dl: /home/strashbot/.ringracers/addons/installed
     # the kart source url (for addons)
     http_url: https://strashbot.fr/.ringracers
+    # same as kart's server's 'http_source', to retrieve/dl addons
+    addons_http_source: http://193.70.41.86/.ringracers
 
 # the minecraft server stuff
 craft:

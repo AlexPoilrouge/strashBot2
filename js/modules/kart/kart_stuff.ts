@@ -6,6 +6,7 @@ const path= require('path')
 import { AxiosResponse } from 'axios';
 import {CallApi} from '../utils/api_call'
 import { TokenKey, TokensHandler } from '../utils/token_maker';
+import { Cacher } from '../utils/cacher';
 
 let hereLog= (...args) => {console.log("[kart_stuff]", ...args);};
 
@@ -253,17 +254,91 @@ export class KartApi{
     }
 }
 
+const ENTRY_ADDONS_NAMES_BASE_NAME  =   "_installed_addons"
+
+const KARTAPICACHE_DEFAULT_TTL_MS   =   60000
+
+class KartApiCache{
+    private kart_settings : KartSettings
+    private cache : Cacher
+
+    constructor(kart_settings: KartSettings, kart_api: KartApi){
+        this.kart_settings= kart_settings
+        this.cache= new Cacher()
+
+        for(var karter of this.kart_settings.RacerNames){
+            let _kater= karter //else, in following promise we'd always work with last value of karter in loop
+            this.cache.registerEntryAccess(`${_kater}${ENTRY_ADDONS_NAMES_BASE_NAME}`,
+                async () : Promise<string[]> => {
+                    hereLog(`[KartApiCache] registering '${_kater}${ENTRY_ADDONS_NAMES_BASE_NAME}'`)
+                    var addons= []
+                    try{
+                        addons= await kart_api.get_addons(undefined, _kater).then( response => {
+                            if(response.status===404) return []
+                            else if( response.status!==200 || (!Boolean(response.data))){
+                                throw new Error(`Bad result from /addons/${_kater} (1)…`)
+                            }
+
+                            let response_data= response.data
+
+                            if(response_data.status==="not_found") return []
+                            if( Boolean(response_data.result) && Boolean(response_data.result.infos) ){
+                                if(response_data.status==="fetched"){
+                                    return response_data.result.infos.map(
+                                        (a : {name: string, [key:string]: any}) => a.name.toLowerCase()
+                                    )
+                                } else if(response_data.status==="found"){
+                                    return [ response_data.result.infos.name.toLowerCase() ]
+                                }
+                                else{
+                                    return []
+                                }
+                            }
+                            else{
+                                return []
+                            }
+                        })
+                    } catch(err) {
+                        hereLog(`[KartApiCache] addons names access… - ${err}`)
+                        addons= []
+                    }
+
+                    return addons
+                },
+                []
+            )
+        }
+    }
+
+    async getInstalledAddonsNames(karter?: string, awaitRefresh: boolean= false) : Promise<string[]> {
+        var _karter= karter ?? this.kart_settings.DefaultRacer
+        let entryName= `${_karter}${ENTRY_ADDONS_NAMES_BASE_NAME}`
+
+        return (await this.cache.getEntry<string[]>(entryName,
+            { awaitRefresh, ttl: KARTAPICACHE_DEFAULT_TTL_MS }
+        ).catch(err => {
+            hereLog(`[kartApiCache]{${_karter}} can't get cached installed addons names - ${err}`)
+            return []
+        }))
+    }
+}
+
 export class KartStuff{
     private settings : KartSettings
     private api : KartApi
+    private cache : KartApiCache
 
     constructor(json_filepath?: string){
         this.settings= new KartSettings()
         this.settings.loadFromJSON(json_filepath)
 
         this.api= new KartApi(this.settings)
+        
+        this.cache= new KartApiCache(this.settings, this.api)
     }
 
     get Settings() : KartSettings { return this.settings }
     get Api() : KartApi { return this.api }
+    get ApiCache() : KartApiCache { return this.cache }
+
 }

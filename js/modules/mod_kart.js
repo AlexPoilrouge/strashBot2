@@ -395,7 +395,7 @@ function ___AppNum_fromServDataObj(servData){
 }
 
 function _checkServerStatus(karter, utils){
-    hereLog(`[checkStature]{${karter}} checking status…`)
+    hereLog(`[checkStatus]{${karter}} checking status…`)
     var bot= utils.getBotClient();
 
     _askServInfos(karter).then(servInfo =>{
@@ -533,7 +533,6 @@ function kart_init(utils){
     if(!Boolean(status_job)){
         hereLog(`Init this maybe?`)
         status_job= cron.schedule('*/2 * * * *', () =>{
-            hereLog("whyyyyyyyyyyyyyyyyyy?!!!!!!")
             try{
                 let karter= status_racer_check_queue[0]
                 _checkServerStatus(karter, utils)
@@ -1836,9 +1835,9 @@ async function _processAddonsInfoList(interaction, list, karter, lookup=undefine
 
     var base_url=  undefined
     try{
-        base_url= kart_stuff.Settings.grf('http_url', karter)
+        base_url= kart_stuff.Settings.grf('addons_http_source', karter)
     } catch(err){
-        hereLog(`[cmd_kartAddons]{${karter}} http_url fetch fail - ${err}`)
+        hereLog(`[cmd_kartAddons]{${karter}} 'addons_http_source' fetch fail - ${err}`)
     }
 
     let total_length= res_list.length + uninstalledButActiveAddons.length
@@ -2741,6 +2740,33 @@ async function S_CMD_postStatusChannel(interaction, utils){
     }
 }
 
+async function AC___addonsLookup(interaction){
+    if(!Boolean(kart_stuff)) return
+
+    const focusedOption = interaction.options.getFocused(true);
+    if(!focusedOption.name==='lookup') return
+
+    let txt= focusedOption.value.toLowerCase()
+    if(txt.length<3) return
+
+    let karter= interaction.options.getString('karter')
+    if(!Boolean(karter)) return
+
+    let choices= []
+    try{
+        let addonsNames= await kart_stuff.ApiCache.getInstalledAddonsNames(karter)
+        choices= addonsNames.filter(name => name.includes(txt.toLowerCase()) )
+                    .map(name => ({ name, value: name })).slice(0,5)
+    } catch(err){
+        hereLog(`[addons_lookup] fail fetching names - ${err}`)
+        return
+    }
+
+    await interaction.respond(
+        choices
+    ); 
+}
+
 
 let slashKartInfo= {
     data: new SlashCommandBuilder()
@@ -2949,6 +2975,8 @@ let slashKartAddons= {
         option
         .setName('lookup')
         .setDescription('lookup for a specific addon…')
+        .setMaxLength(64)
+        .setAutocomplete(true)
     ),
     async execute(interaction, utils){
         try{
@@ -2961,6 +2989,14 @@ let slashKartAddons= {
                 await interaction.editReply(msg)
             else
                 await interaction.reply(msg)
+        }
+    },
+    async autoComplete(interaction){
+        try{
+            await AC___addonsLookup(interaction)
+        }
+        catch(err){
+            hereLog(`[addonsLookup_autoComplete] Error! -\n\t${err}`)
         }
     }
 }
