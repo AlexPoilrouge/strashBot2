@@ -1834,7 +1834,12 @@ async function _processAddonsInfoList(interaction, list, karter, lookup=undefine
     var msg= `## Strashbot *${karter}* server installed addons\n` +
     ((withLookup)? `[matching \`${lookup}\` …]` : '') + "\n\n"
 
-    let base_url= kart_stuff.Settings.grf('http_url', karter)
+    var base_url=  undefined
+    try{
+        base_url= kart_stuff.Settings.grf('http_url', karter)
+    } catch(err){
+        hereLog(`[cmd_kartAddons]{${karter}} http_url fetch fail - ${err}`)
+    }
 
     let total_length= res_list.length + uninstalledButActiveAddons.length
     if(total_length<=0){
@@ -1852,7 +1857,16 @@ async function _processAddonsInfoList(interaction, list, karter, lookup=undefine
                         `### [${addonInfo.name}](${base_url}/${addonInfo.name})\n`
                     :   `### ${addonInfo.name}\n` ) +
                     `> Size: ${my_utils.formatBytes(addonInfo.size)}\n`+
-                    `> ${(addonInfo.enabled?"☑️ en":"▶️ dis")}abled\n\n`
+                    `> ${(addonInfo.enabled?"☑️ en":"▶️ dis")}abled\n`
+
+                if(servAddons_infos.available){
+                    msg+= ((servAddons_infos.addons.includes(addonInfo.name))?
+                            `> 💡 active\n`
+                        :   `> 💤 inactive (wait server reboot?)\n`
+                    )
+                }
+
+                msg+= '\n'
             }
             for(var ghostAddon of uninstalledButActiveAddons){
                 msg+= `### ~~${ghostAddon.name}~~\n`+
