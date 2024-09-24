@@ -1790,7 +1790,7 @@ function __lookupNameInList(lookup, list){
         }
     }
     else{
-        return list.filter(e => e.name.toLowerCase().includes(lookup))
+        return list.filter(e => e.name.toLowerCase().includes(lookup.toLowerCase()))
     }
 }
 
