@@ -880,7 +880,7 @@ function getServerPopulation(karter="ringracers"){
 
 async function __S_S_CMD_KartServer_Op(op="restart", interaction, utils){
     let force= (interaction.options.getBoolean('force') ?? false)
-    let karter= (interaction.options.getString('karter') ?? "ringracers")
+    let karter= (interaction.options.getString('karter') ?? kart_stuff.Settings.DefaultRacer)
 
     if(!kart_stuff.Settings.RacerNames.includes(karter)){
         await interaction.editReply(
@@ -1741,24 +1741,185 @@ async function S_S_CMD_kartAddons_Zip(interaction, utils){
     }
 }
 
+function _addonsInfo(karter){
+    return kart_stuff.Api.get_addons(undefined, karter).then(response => {
+        if(response.status===404) return []
+        else if( response.status!==200 || (!Boolean(response.data))){
+            throw({ status: "result_error" })
+        }
+
+        let response_data= response.data
+
+        if(response_data.status==="not_found") return []
+        if( Boolean(response_data.result) && Boolean(response_data.result.infos) ){
+            if(response_data.status==="fetched"){
+                return response_data.result.infos
+            } else if(response_data.status==="found"){
+                return [ response_data.result.infos ]
+            }
+            else{
+                return []
+            }
+        }
+        else{
+            return []
+        }
+    })
+    .catch(err => {
+        if(Boolean(err.response) && err.response.status===404){
+            return []
+        }
+        else if(err.status){
+            throw err;
+        }
+        else{
+            hereLog(`[addonInfos_get] error on api call? - ${err}`)
+            throw({status: "bad_response", error: err})
+        }
+    })
+}
+
+function __lookupNameInList(lookup, list){
+    if(lookup.length>2 &&
+        lookup.startsWith('/') && lookup.endsWith('/')   
+    ){
+        try{
+            let rgx= new RegExp(lookup.slice(1,-1))
+            return list.filter(e => rgx.test(e.name.toLowerCase()) || rgx.test(e.name))
+        } catch(err){            
+            throw new Error('bad_regex')
+        }
+    }
+    else{
+        return list.filter(e => e.name.toLowerCase().includes(lookup))
+    }
+}
+
+async function _processAddonsInfoList(interaction, list, karter, lookup=undefined){
+    let servAddons_infos=
+        await _askServInfos(karter).then( kart_infos => {
+            return {
+                available: ((Boolean(kart_infos) && kart_infos.status==='UP')),
+                addons: ((Boolean(kart_infos) && Boolean(kart_infos.addons))?
+                        kart_infos.addons : [])
+            }
+        }).catch(err => {
+            hereLog(`[cmd_kartAddons] askInfo(${karter}) fail - ${err}`)
+            return { available: false, addons: [] }
+        })
+
+    var res_list= list
+    var uninstalledButActiveAddons=
+        (servAddons_infos.available)?
+            servAddons_infos.addons.filter(e => (!list.includes(e)))
+        : []
+
+    let withLookup= Boolean(lookup)
+    if(withLookup){
+        try{
+            res_list= __lookupNameInList(lookup, list)
+
+            uninstalledButActiveAddons= __lookupNameInList(lookup, uninstalledButActiveAddons)
+        } catch(err){
+            if (err && err.message==='bad_regex'){
+                await interaction.editReply(
+                        `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                        `\`${lookup}\` processed as RegExp, but invalid expression…`
+                    )
+            } else throw(err)
+        }
+    }
+
+
+    var msg= `## Strashbot *${karter}* server installed addons\n` +
+    ((withLookup)? `[matching \`${lookup}\` …]` : '') + "\n\n"
+
+    let base_url= kart_stuff.Settings.grf('http_url', karter)
+
+    let total_length= res_list.length + uninstalledButActiveAddons.length
+    if(total_length<=0){
+        msg+= "### no result, sorry… 😕"
+
+        await interaction.editReply( msg ).catch(err =>
+            hereLog(`[cmd_kartAddons]{${karter}} reply error (0) - ${err}`)
+        )
+    }
+    else{
+        if(total_length<=5){
+            for(var addonInfo of res_list){
+                msg+=
+                    ((Boolean(base_url))?
+                        `### [${addonInfo.name}](${base_url}/${addonInfo.name})\n`
+                    :   `### ${addonInfo.name}\n` ) +
+                    `> Size: ${my_utils.formatBytes(addonInfo.size)}\n`+
+                    `> ${(addonInfo.enabled?"☑️ en":"▶️ dis")}abled\n\n`
+            }
+            for(var ghostAddon of uninstalledButActiveAddons){
+                msg+= `### ~~${ghostAddon.name}~~\n`+
+                    "> 👻 Loaded but unavailable…\n\n"
+            }
+
+            await interaction.editReply( msg ).catch(err =>
+                hereLog(`[cmd_kartAddons]{${karter}} reply error (1) - ${err}`)
+            )
+        }
+        else{
+            let reduce= (obj => ({
+                name: obj.name,
+                size: obj.size,
+                racer: obj.racer,
+                active: ((servAddons_infos.available)? (servAddons_infos.addons.includes(obj.name)) : undefined),
+                url: ((Boolean(base_url))?`${base_url}/${obj.name}`:undefined)
+            }))
+            var resObj= {
+                installed_addons: {
+                    enabled: res_list.filter(e => e.enabled).map(reduce),
+                    disabled: res_list.filter(e => !e.enabled).map(reduce),
+                    ghosts: uninstalledButActiveAddons.map(e => ({ name: e.name }) )
+                }
+            }
+
+            await interaction.editReply( {
+                content: msg,
+                files: [{
+                    attachment: Buffer.from(JSON.stringify(resObj, null, 4)),
+                    name: `strashbot_${karter}_addons.json`
+                }]
+            } ).catch(err => 
+                hereLog(`[cmd_kartAddons]{${karter}} reply error (3) - ${err}`)
+            )
+        }
+    }
+}
+
 async function S_CMD__kartAddons(interaction, utils){
     await interaction.deferReply()
 
-    let subcommand= interaction.options.getSubcommand()
+    let karter= (interaction.options.getString('karter') ?? kart_stuff.Settings.DefaultRacer)
+    let lookup= interaction.options.getString('lookup')
 
-    if(subcommand==='list'){
-        await S_S_CMD_kartAddons_List(interaction, utils)
-    }
-    else if(subcommand==='zip'){
-        await S_S_CMD_kartAddons_Zip(interaction, utils)
-    }
-    else{
-        await interaction.editReply(
-            `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-            `Missing subcommand amongst: `+
-            `\`list\`, or \`zip\``
+    await _addonsInfo(karter).then(addonsInfoList =>
+        _processAddonsInfoList(interaction, addonsInfoList, karter, lookup)
+    )
+    .catch(err => {
+        if(Boolean(err.status)){
+            if(err.status==="result_error"){
+                hereLog(`[cmd_kartAddons]{${karter}} result fetch problem`)
+            }
+            else{
+                hereLog(`[cmd_kartAddons]{${karter}} recieved status '${err.status}'`)
+            }
+        }
+        else{
+            hereLog(`[cmd_kartAddons]{${karter}} fail acquire addon infos - ${err}`)
+        }
+        interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+            "Data access error"
+        ).catch(err => 
+            hereLog(`[cmd_kartAddons]{${karter}} reply error - ${err}`)
         )
-    }
+    })
 }
 
 function __cmd_fetchJsonInfo(kcmd){
@@ -2655,10 +2816,7 @@ let slashKartStartStop= {
                     option
                     .setName('karter')
                     .setDescription('Which kart game?')
-                    .addChoices(
-                        { name: 'Ring Racers', value: 'ringracers' },
-                        { name: 'SRB2Kart', value: 'srb2kart' }
-                    )
+                    .addChoices(...slashKartData_getKarterChoices())
                 )
             )
             .addSubcommand(subcommand =>
@@ -2764,23 +2922,19 @@ let slashKartAddonManage= {
 }
 
 let slashKartAddons= {
-    data:  new SlashCommandBuilder()
+    data: new SlashCommandBuilder()
     .setName('kart_addons')
-    .setDescription("About the addons currenty installed on the Strashbot's SRB2Kart server")
-    .addSubcommand(subcommand =>
-        subcommand
-        .setName("list")
-        .setDescription("List some of the installed addons")
-        .addStringOption(option => 
-            option
-            .setName('search')
-            .setDescription("search for an addons matching the given pattern")
-        )
+    .setDescription("About addons currently installed on the Strashbort's karting server")
+    .addStringOption(option =>
+        option
+        .setName('karter')
+        .setDescription('Which kart game?')
+        .addChoices(...slashKartData_getKarterChoices())
     )
-    .addSubcommand(subcommand =>
-        subcommand
-        .setName("zip")
-        .setDescription("Download a zip archive containing all of the  Strashbot's SRB2Kart server addons")
+    .addStringOption(option =>
+        option
+        .setName('lookup')
+        .setDescription('lookup for a specific addon…')
     ),
     async execute(interaction, utils){
         try{

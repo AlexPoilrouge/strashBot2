@@ -595,6 +595,16 @@ function getFromFieldPath(obj, fieldpath, separator='.'){
     return value
 }
 
+function formatBytes(bytes) {
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    if (bytes === 0) return '0 Bytes';
+    
+    const i = Math.floor(Math.log(bytes) / Math.log(1024)); // Determine size index
+    const formattedSize = (bytes / Math.pow(1024, i)).toFixed(1); // Divide by appropriate factor
+    
+    return `${formattedSize} ${sizes[i]}`;
+}
+
 module.exports.JSONCheck= JSONCheck;
 module.exports.loadJSONFile= loadJSONFile;
 module.exports.writeJSON= writeJSON;
@@ -619,3 +629,4 @@ module.exports.fighterStuff= {
     loadFighters: _loadFightersObj
 }
 module.exports.getFromFieldPath= getFromFieldPath;
+module.exports.formatBytes= formatBytes;

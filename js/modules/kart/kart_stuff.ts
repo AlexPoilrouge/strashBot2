@@ -155,6 +155,7 @@ const EP_INFO_NAME              =   "info"
 const EP_SERVICE_OP_BASE        =   "service_"
 const EP_SERVICE_RESTART_NAME   =   `${EP_SERVICE_OP_BASE}restart`
 const EP_SERVICE_STOP_NAME      =   `${EP_SERVICE_OP_BASE}stop`
+const EP_ADDONS_NAME            =   "addons"
 
 export class KartApi{
     private apiCaller: CallApi
@@ -172,6 +173,7 @@ export class KartApi{
         this.apiCaller.registerEndPoint(EP_SERVICE_RESTART_NAME, "service/restart/:karter")
         this.apiCaller.registerEndPoint(EP_SERVICE_STOP_NAME, "service/stop/:karter")
         this.apiCaller.registerEndPoint(EP_INFO_NAME, "info")
+        this.apiCaller.registerEndPoint(EP_ADDONS_NAME, "addons/:karter/info")
 
         this.tokens= new TokensHandler()
 
@@ -235,6 +237,20 @@ export class KartApi{
     service_stop= (auth: KartTokenAuth, karter?: string) => this.service_op(
         "stop", auth, karter
     )
+
+    get_addons(addon?: string, karter?: string){
+        var _karter= karter ?? this.settings.DefaultRacer
+
+        var queries= {}
+        if(Boolean(addon)) queries= { addon }
+
+        return this.apiCaller.Call(EP_ADDONS_NAME,
+            {   method: "get",
+                values: { karter: _karter },
+                queries
+            }
+        )
+    }
 }
 
 export class KartStuff{
