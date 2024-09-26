@@ -605,6 +605,15 @@ function formatBytes(bytes) {
     return `${formattedSize} ${sizes[i]}`;
 }
 
+function checkUrl(str){
+    try{
+        return new URL(str)
+    }
+    catch(err){
+        return undefined
+    }
+}
+
 module.exports.JSONCheck= JSONCheck;
 module.exports.loadJSONFile= loadJSONFile;
 module.exports.writeJSON= writeJSON;
@@ -630,3 +639,4 @@ module.exports.fighterStuff= {
 }
 module.exports.getFromFieldPath= getFromFieldPath;
 module.exports.formatBytes= formatBytes;
+module.exports.checkUrl= checkUrl

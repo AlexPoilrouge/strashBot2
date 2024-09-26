@@ -157,6 +157,7 @@ const EP_SERVICE_OP_BASE        =   "service_"
 const EP_SERVICE_RESTART_NAME   =   `${EP_SERVICE_OP_BASE}restart`
 const EP_SERVICE_STOP_NAME      =   `${EP_SERVICE_OP_BASE}stop`
 const EP_ADDONS_NAME            =   "addons"
+const EP_ADDONS_LOAD_ORDER_NAME =   "load_order"
 
 export class KartApi{
     private apiCaller: CallApi
@@ -175,6 +176,7 @@ export class KartApi{
         this.apiCaller.registerEndPoint(EP_SERVICE_STOP_NAME, "service/stop/:karter")
         this.apiCaller.registerEndPoint(EP_INFO_NAME, "info")
         this.apiCaller.registerEndPoint(EP_ADDONS_NAME, "addons/:karter/info")
+        this.apiCaller.registerEndPoint(EP_ADDONS_LOAD_ORDER_NAME, "addons/:karter/load_order")
 
         this.tokens= new TokensHandler()
 
@@ -252,11 +254,40 @@ export class KartApi{
             }
         )
     }
+
+    get_addon_load_order_config(karter?: string){
+        var _karter= karter ?? this.settings.DefaultRacer
+
+        return this.apiCaller.Call(EP_ADDONS_LOAD_ORDER_NAME,
+            {   method: "get",
+                values: { karter: _karter }
+            }
+        )
+    }
+
+    set_addon_load_order_config(config_url:string, auth: KartTokenAuth, karter?: string){
+        var _karter= karter ?? this.settings.DefaultRacer
+
+        let token= this.tokens.generateToken(auth.role, {auth})
+        
+        return this.apiCaller.Call(EP_ADDONS_LOAD_ORDER_NAME,
+            {   method: "put",
+                values: { karter: _karter },
+                axiosRequestConfig: {
+                    data: { url: config_url },
+                    headers: {'x-access-token': token}
+                }
+            }
+        )
+    }
 }
 
-const ENTRY_ADDONS_NAMES_BASE_NAME  =   "_installed_addons"
+const ENTRY_ADDONS_NAMES_BASE_NAME      =   "_installed_addons"
+const ENTRY_GET_POPULATION_BASE_NAME    =   "_population"
 
 const KARTAPICACHE_DEFAULT_TTL_MS   =   60000
+
+
 
 class KartApiCache{
     private kart_settings : KartSettings
@@ -267,16 +298,16 @@ class KartApiCache{
         this.cache= new Cacher()
 
         for(var karter of this.kart_settings.RacerNames){
-            let _kater= karter //else, in following promise we'd always work with last value of karter in loop
-            this.cache.registerEntryAccess(`${_kater}${ENTRY_ADDONS_NAMES_BASE_NAME}`,
+            let _karter= karter //else, in following promise we'd always work with last value of karter in loop
+            hereLog(`[KartApiCache] registering '${_karter}${ENTRY_ADDONS_NAMES_BASE_NAME}'`)
+            this.cache.registerEntryAccess(`${_karter}${ENTRY_ADDONS_NAMES_BASE_NAME}`,
                 async () : Promise<string[]> => {
-                    hereLog(`[KartApiCache] registering '${_kater}${ENTRY_ADDONS_NAMES_BASE_NAME}'`)
                     var addons= []
                     try{
-                        addons= await kart_api.get_addons(undefined, _kater).then( response => {
+                        addons= await kart_api.get_addons(undefined, _karter).then( response => {
                             if(response.status===404) return []
                             else if( response.status!==200 || (!Boolean(response.data))){
-                                throw new Error(`Bad result from /addons/${_kater} (1)…`)
+                                throw new Error(`Bad result from /addons/${_karter} (1)…`)
                             }
 
                             let response_data= response.data
@@ -307,7 +338,47 @@ class KartApiCache{
                 },
                 []
             )
+
+            hereLog(`[KartApiCache] registering '${_karter}${ENTRY_GET_POPULATION_BASE_NAME}'`)
+            this.cache.registerEntryAccess(`${_karter}${ENTRY_GET_POPULATION_BASE_NAME}`,
+                async () : Promise<number|undefined> => (await this._getServPop(_karter, kart_api)),
+                undefined
+            )
         }
+    }
+
+    private _getServPop(karter: string, kart_api: KartApi) : Promise<number|undefined>{
+        return new Promise<number|undefined>( (resolve, reject) => {
+            kart_api.service(karter).then(response => {
+                if( response.status===200 &&
+                    Boolean(response.data) && response.data.status==='UP'
+                ){
+                    kart_api.info(karter).then(response => {
+                        if( response.status===200 ){
+                            let kart_infos= response.data
+                            
+                            if(Boolean(kart_infos) && Boolean(kart_infos.server)){
+                                resolve(kart_infos.server.numberofplayer)
+                            }                    
+                        }
+                        else {
+                            // hereLog(`[KartApiCache] bad 'kart/info' response, rc= ${response.status}`)
+                            resolve(undefined)
+                        }
+                    }).catch(err => {
+                        hereLog(`[KartApiCache] error on 'kart/info' fetch - ${err}`)
+                        resolve(undefined)
+                    })
+                }
+                else{
+                    // hereLog(`[KartApiCache] bad 'service' response, rc= ${response.status}`)
+                    resolve(undefined)
+                }
+            }).catch(err => {
+                hereLog(`[KartApiCache] error on service fetch - ${err}`)
+                resolve(undefined)
+            })
+        })
     }
 
     async getInstalledAddonsNames(karter?: string, awaitRefresh: boolean= false) : Promise<string[]> {
@@ -319,6 +390,18 @@ class KartApiCache{
         ).catch(err => {
             hereLog(`[kartApiCache]{${_karter}} can't get cached installed addons names - ${err}`)
             return []
+        }))
+    }
+
+    async getPopulation(karter?: string, awaitRefresh: boolean= false) : Promise<number|undefined>{
+        var _karter= karter ?? this.kart_settings.DefaultRacer
+        let entryName= `${_karter}${ENTRY_GET_POPULATION_BASE_NAME}`
+
+        return (await this.cache.getEntry<number|undefined>(entryName,
+            { awaitRefresh, ttl: KARTAPICACHE_DEFAULT_TTL_MS }
+        ).catch(err => {
+            hereLog(`[kartApiCache]{${_karter}} can't get cached installed addons names - ${err}`)
+            return undefined
         }))
     }
 }

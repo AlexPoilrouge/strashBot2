@@ -13,6 +13,7 @@ const KS= require('./kart/kart_stuff')
 
 
 const my_utils= require('../utils.js');
+const { util } = require("config");
 
 
 let hereLog= (...args) => {console.log("[Kart_Module]", ...args);};
@@ -267,6 +268,7 @@ function _askServInfos(connectionString=undefined){
 }
 
 var _oldServInfos= {};
+var _oldServerPop= {};
 
 let AppThresholds= {
     srb2kart: [
@@ -388,111 +390,123 @@ const APP_ID= {
     DRRR: 2
 }
 
-function ___AppNum_fromServDataObj(servData){
-    return ( (servData && servData.application) ?
-                    (servData.application.toLowerCase()==='ringracers')? APP_ID.DRRR : APP_ID.SRB2K
-                :   APP_ID.UNKNOWN );
+function ___AppNum_fromServDataObj(data){
+    var str= kart_stuff.Settings.DefaultRacer
+    if((typeof data)==='string'){
+        str= data
+    }
+    else{
+        str= Boolean(data)? data.application : ""
+    }
+
+    str= str.toLowerCase()
+    return (str==='ringracers')? APP_ID.DRRR : ((str==='srb2kart')? APP_ID.SRB2K : APP_ID.UNKNOWN)
 }
 
 function _checkServerStatus(karter, utils){
     hereLog(`[checkStatus]{${karter}} checking status…`)
     var bot= utils.getBotClient();
 
-    _askServInfos(karter).then(servInfo =>{
-        if((!Boolean(servInfo.service_status)) || (servInfo.service_status!=='UP')){
-            // hereLog(`SRB2Kart server service status is '${servInfo.service_status}'`);
-            bot.user.setActivity('');
-            __checkPlayerNumStep(karter, -1)
+    let _activityStatus= {
+        'ringracers': "Hosting Dr Robotnik's Ring Races!",
+        'srb2kart': "Hosting SRB2Kart Races!"
+    }
+    let _postCancelStatus= () => {
+        for(var r in _oldServerPop){
+            let p= _oldServerPop[r]
+            if(p!==undefined && p>0){
+                return _activityStatus[r] ?? ''
+            }
+        }
+        return ''
+    }
+
+    let _kill= (k) => {
+        __checkPlayerNumStep(k, -1)
+    
+        _oldServerPop[k]= undefined
+        bot.user.setActivity(_postCancelStatus());
+
+        return
+    }
+
+    kart_stuff.ApiCache.getPopulation(karter, true).then(pop => {
+        if(pop===undefined){
+            _kill(karter)
+        }
+
+        let AppNum= ___AppNum_fromServDataObj(karter)
         
-            if(Boolean(_oldServInfos[karter])){
-                delete _oldServInfos[karter]
-            }
-        }
-        else{
-            if(!(Boolean(servInfo) && Boolean(servInfo.server) && servInfo.server.numberofplayer!==undefined)){
-                throw "Fetched bad servinfo";
-            }
+        let infoStep= __checkPlayerNumStep(karter, pop);
+        if(Boolean(infoStep)){
+            bot.guilds.fetch().then(guilds => {
+                guilds.forEach(guild => {
+                    post_status_channel_id= utils.settings.get(guild,"post_status_channel");
 
-            let numPlayer= servInfo.server.numberofplayer
-            let AppNum= ___AppNum_fromServDataObj(servInfo.server)
+                    if(Boolean(post_status_channel_id)){
+                        guild.fetch().then(g => {
+                            g.channels.fetch(post_status_channel_id).then(post_channel => {
+                                let color= infoStep.color ?? 0xffffff
+                                var msg=lastMessagesPerGuild[guild.id]
+                                var msgContent= {
+                                    embeds: [{
+                                        color,
+                                        title: `${pop} playing`,
+                                        fields: [{
+                                            name: `StrashBot Kart${AppNum===APP_ID.DRRR?'R':''}ing`,
+                                            value: infoStep.message,
+                                            inline: false
+                                        }],
+                                        footer: { text: 'strashbot.fr' }
+                                    }]
+                                };
+                                
 
-            let infoStep= __checkPlayerNumStep(karter, numPlayer);
-            if(Boolean(infoStep)){
-                bot.guilds.fetch().then(guilds => {
-                    guilds.forEach(guild => {
-                        post_status_channel_id= utils.settings.get(guild,"post_status_channel");
+                                ( (Boolean(msg)) ?
+                                        msg.fetch().then(m => {return m.reply(msgContent);})
+                                            .catch(err => {return post_channel.send(msgContent);})                                            
+                                    :   post_channel.send(msgContent)
+                                ).then(message => {
+                                    const channelSnowflake = message.channel.id;
+                                    const messageSnowflake = message.id;
 
-                        if(Boolean(post_status_channel_id)){
-                            guild.fetch().then(g => {
-                                g.channels.fetch(post_status_channel_id).then(post_channel => {
-                                    let color= infoStep.color ?? 0xffffff
-                                    var msg=lastMessagesPerGuild[guild.id]
-                                    var msgContent= {
-                                        embeds: [{
-                                            color,
-                                            title: `${numPlayer} playing`,
-                                            fields: [{
-                                                name: `StrashBot Kart${AppNum===APP_ID.DRRR?'R':''}ing`,
-                                                value: infoStep.message,
-                                                inline: false
-                                            }],
-                                            footer: { text: 'strashbot.fr' }
-                                        }]
-                                    };
+                                    lastMessagesPerGuild[guild.id]= (pop>0)? message : undefined
                                     
-
-                                    ( (Boolean(msg)) ?
-                                            msg.fetch().then(m => {return m.reply(msgContent);})
-                                                .catch(err => {return post_channel.send(msgContent);})                                            
-                                        :   post_channel.send(msgContent)
-                                    ).then(message => {
-                                        const channelSnowflake = message.channel.id;
-                                        const messageSnowflake = message.id;
-
-                                        lastMessagesPerGuild[guild.id]= (numPlayer>0)? message : undefined
-                                        
-                                        fs.appendFile(path.join(__dirname, `numPlayerStatus_sendMessages_${message.guildId}.txt`), 
-                                            `${channelSnowflake},${messageSnowflake}\n`,
-                                            (err) => {
-                                                if (err) hereLog(`Coundln't write ch;msg IDs to 'numPlayerStatus_sendMessages_${message.guildId}.txt''`);
-                                            });
-                                    });
-                                }).catch(err => {
-                                    hereLog(`Counldn't find post channel ${post_status_channel_id} in ${g} - ${err}`)
-                                })
+                                    fs.appendFile(path.join(__dirname, `numPlayerStatus_sendMessages_${message.guildId}.txt`), 
+                                        `${channelSnowflake},${messageSnowflake}\n`,
+                                        (err) => {
+                                            if (err) hereLog(`Coundln't write ch;msg IDs to 'numPlayerStatus_sendMessages_${message.guildId}.txt''`);
+                                        });
+                                });
                             }).catch(err => {
-                                hereLog(`Couldn't fetch guild ${guild} data - ${err}`)
+                                hereLog(`Counldn't find post channel ${post_status_channel_id} in ${g} - ${err}`)
                             })
-                        }
-                    })
-                } ).catch(err => {
-                    hereLog(`No guilds to this bot? - ${err}`)
+                        }).catch(err => {
+                            hereLog(`Couldn't fetch guild ${guild} data - ${err}`)
+                        })
+                    }
                 })
+            } ).catch(err => {
+                hereLog(`No guilds to this bot? - ${err}`)
+            })
+        }
+
+        let old_pop= _oldServerPop[karter]
+        if( (old_pop===undefined) || (pop !== old_pop) ){
+            _oldServerPop[karter]= pop;
+            
+            if(pop>0){
+                hereLog(`Changes in srb2kart server status detected… (player count: ${pop})`);
+                bot.user.setActivity(`Hosting ${(AppNum>=APP_ID.DRRR)?"Dr Robotnik's Ring Races":"SRB2Kart Races"}`, { type: ActivityType.Playing });
             }
-
-            let old_karterInfos= _oldServInfos[karter]
-            if( ( !Boolean(old_karterInfos) || !Boolean(old_karterInfos.server)) ||
-                ( servInfo.server.numberofplayer !== old_karterInfos.server.numberofplayer )
-            ){
-                if(numPlayer>0){
-                    hereLog(`Changes in srb2kart server status detected… (player count: ${numPlayer})`);
-                    bot.user.setActivity(`Hosting ${(AppNum>=APP_ID.DRRR)?"Dr Robotnik's Ring Races":"SRB2Kart Races"}`, { type: ActivityType.Playing });
-                }
-                else{
-                    hereLog(`Changes in srb2kart server status detected… (not enough player though)`);
-                    bot.user.setActivity('');
-                }
-
-                _oldServInfos[karter]= servInfo;
+            else{
+                hereLog(`Changes in srb2kart server status detected… (not enough player though)`);
+                bot.user.setActivity(_postCancelStatus());
             }
         }
-    }).catch(err =>{
-        bot.user.setActivity('');
-
-        if(Boolean(_oldServInfos[karter])){
-            delete _oldServInfos[karter];
-        }
-        hereLog(`Error while checking status of SRB2Kart server… - ${err}`);
+    }).catch(err => {
+        hereLog(`[checkStatus]{${karter}} error - ${err}`)
+        _kill(karter)
     })
 }
 
@@ -531,7 +545,6 @@ function kart_init(utils){
     }
 
     if(!Boolean(status_job)){
-        hereLog(`Init this maybe?`)
         status_job= cron.schedule('*/2 * * * *', () =>{
             try{
                 let karter= status_racer_check_queue[0]
@@ -866,17 +879,6 @@ function _startServer(){
     return b;
 }
 
-function getServerPopulation(karter="ringracers"){
-    return _askServInfos().then(async serverInfos => {
-        if(Boolean(serverInfos && serverInfos.server)){
-            return serverInfos.server.numberofplayer
-        }
-        return undefined
-    }).catch(err => {
-        return undefined
-    })
-}
-
 async function __S_S_CMD_KartServer_Op(op="restart", interaction, utils){
     let force= (interaction.options.getBoolean('force') ?? false)
     let karter= (interaction.options.getString('karter') ?? kart_stuff.Settings.DefaultRacer)
@@ -890,7 +892,7 @@ async function __S_S_CMD_KartServer_Op(op="restart", interaction, utils){
         return
     }
 
-    let population= await getServerPopulation()
+    let population= await kart_stuff.ApiCache.getPopulation(karter)
 
     if(Boolean(population) && !force){
         await interaction.editReply(
@@ -1335,152 +1337,199 @@ async function S_CMD__kartServer(interaction, utils){
     }
 }
 
-async function S_S_CMD_kartAddon_GetOrder(interaction, utils){
-    var str= undefined
-    try{
-        var cmd= __kartCmd(kart_stuff.Settings.grf('config_commands.get_addon_load_config'));
-        str= child_process.execSync(cmd, {timeout: 32000}).toString();
-    }
-    catch(err){
-        hereLog("Error while looking for addons order file: "+err);
-        str= undefined
-    }
-
-    if(Boolean(str)){
-        if(Boolean(kart_stuff.Settings.grf('server_commands.through_ssh'))){
-            if(Boolean(kart_stuff.Settings.grf('http_url'))){
+async function __Opt_S_S_CMD_kartAddon_loadOrder_Get(karter, interaction){
+    let status_parse= async (rc, interaction) => {
+        try{
+            if(rc===200){
+                return true
+            }
+            else if(rc===404){
                 await interaction.editReply(
-                    `Srb2kart server's addons load order config file: ${kart_stuff.Settings.grf('http_url')}/${str}`
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                    `No "*load order config*" found or set for \`${karter}\`…`
+                ).catch(err => 
+                    hereLog(`[getAddonsLoadOrder]{${karter}} reply error (1) - ${err}`)
                 );
             }
             else{
+                if(rc!==999){
+                    hereLog(`[getAddonsLoadOrder] unhandled status code: ${rc}…`)
+                }
+
                 await interaction.editReply(
                     `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                    "Can't access srb2kart server's addons load order config file…"
-                )
+                    `Error occured accession addons load order config from \`${karter}\`…`
+                ).catch(err => 
+                    hereLog(`[getAddonsLoadOrder]{${karter}} reply error (2) - ${err}`)
+                );
             }
-        }
-        else if(fs.existsSync(str)){
+
+            return false
+        } catch(err){
             await interaction.editReply(
-                {
-                    content: "Srb2kart server's addons load order config file:",
-                    files: [{
-                        attachment: `${str}`,
-                        name: `addon_load_order.txt`
-                    }]
-                }
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                `Error occured accession addons load order config from  \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[getAddonsLoadOrder]{${karter}} reply error (3) - ${err}`)
             );
+
+            return false
         }
-        else{
-            await interaction.editReply(
-                `${E_RetCode.ERROR_INTERNAL} `+
-                "Can't access server's addons load order config file…"
+    }
+
+    await kart_stuff.Api.get_addon_load_order_config(karter).then( async response => {
+        if(await status_parse(response.status)){
+            await interaction.editReply( {
+                content: `## Strashbot's ${karter} server addons load order config\n`,
+                files: [{
+                    attachment: Buffer.from(response.data),
+                    name: `addons_load_order.yaml`
+                }]
+            } ).catch(err => 
+                hereLog(`[getAddonsLoadOrder]{${karter}} reply error (4) - ${err}`)
             )
         }
-    }
-    else{
-        await interaction.editReply(
-            `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-            "Can't access srb2kart server's addons load order config file…"
-        )
-    }
-}
-
-async function S_S_CMD_kartAddon_SetOrder(interaction, utils){
-    let attachment= interaction.options.getAttachment('order_config_file')
-
-    if(Boolean(attachment)){
-        var url= attachment.url;
-        
-        if ( !Boolean(kart_stuff.Settings.grf('dirs.main_folder')) ){
-            hereLog("[upload] no dest directory for addon order config dl");
-            await interaction.editReply(
-                `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                `server internal error`
-            );
+    }).catch(async err => {
+        if(Boolean(err.response) && Boolean(err.response.status)){
+            await status_parse(err.response.status, interaction)
         }
         else{
-            var _b= false;
-            if(Boolean(kart_stuff.Settings.grf('server_commands.through_ssh'))){
-                _b= await __ssh_download_cmd(
-                    kart_stuff.Settings.grf('config_commands.add_addon_order_config_url'),
-                    url, utils
-                );
-            }
-            else{
-                _b= await __downloading(url,
-                    kart_stuff.Settings.grf('dirs.main_folder'), utils, "new_addon_load_order.txt"
-                );
-            }
-
-            if(!_b){
-                hereLog("[uploading load order config] command fail");
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                    `❌ internal error preventing addon order config upload…`
-                );
-                return
-            }
-
-            var str= undefined
-            try{
-                var cmd= __kartCmd(kart_stuff.Settings.grf('config_commands.change_addon_order_config'));
-                str= child_process.execSync(cmd+" new_addon_load_order.txt", {timeout: 16000}).toString();
-            }
-            catch(err){
-                hereLog("Error while changing addon order config: "+err);
-                str= undefined
-            }
-
-            if(Boolean(str)){
-                // hereLog(`[change cfg] ret: ${str}`)
-                let payload= (str==="updated" && !kart_stuff.Settings.grf('server_commands.through_ssh'))?
-                    {
-                        files: [{
-                            attachment: `${str}`,
-                            name: `addon_load_order.txt.diff`
-                        }]
-                    } : {}
-                
-                let runNot= () => {
-                    payload.content=
-                        ( (kart_stuff.Settings.grf('server_commands.through_ssh'))?
-                                `\nDiff: ${kart_stuff.Settings.grf('http_url')}/addon_load_order.txtdiff`
-                            :   "Diff generated file"
-                        )
-                }
-                await _serverServiceStatus_API().then( r => {
-                    if(r==='UP'){
-                        payload.content=
-                            `\`addon_load_order.txt\` a bien été mis à jour.\n`+
-                            `Cependant, cela n'aura aucun effet pour la session déjà en cours\n` +
-                            ( (kart_stuff.Settings.grf('server_commands.through_ssh'))?
-                                    `\nDiff: ${kart_stuff.Settings.grf('http_url')}/addon_load_order.txt.diff`
-                                :   "Diff generated file"
-                            )
-                    }
-                    else{
-                        runNot()
-                    }
-                }).catch(e => {
-                    runNot()
-                })
-
-                await interaction.editReply(payload)
-            }
-            else{
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                    `internal error while trying to update *addon_load_order.txt.cfg*…`
-                );
-            }
+            hereLog(`[getAddonsLoadOrder]{${karter}} error fetching addon load order config - ${err}`)
+            await status_parse(999, interaction)
         }
-    }
-    else{
+    })
+}
+
+async function __Opt_S_S_CMD_kartAddon_loadOrder_Set(url, karter, interaction, utils){
+    var _url= my_utils.checkUrl(url)
+
+    if(!Boolean(url)){
         await interaction.editReply(
             `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-            `Config file expected…`
+            `Invalid url \`${url}\`…`
+        ).catch(err => 
+            hereLog(`[setAddonsLoadOrder]{${karter}} reply error (0) - ${err}`)
         );
+        return
+    }
+
+    let status_parse= async (rc, interaction) => {
+        try{
+            if(rc===200){
+                return true
+            }
+            else if(rc===401 || rc===403){
+                hereLog(`[setAddonsLoadOrder]{${karter}} access failure: ${rc}`)
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
+                    `Access failure on "*load order config*" upload for \`${karter}\`…`
+                ).catch(err => 
+                    hereLog(`[setAddonsLoadOrder]{${karter}} reply error (1) - ${err}`)
+                );
+            }
+            else if(rc===404){
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                    `Can't upload "*load order config*" for \`${karter}\`…`
+                ).catch(err => 
+                    hereLog(`[setAddonsLoadOrder]{${karter}} reply error (2) - ${err}`)
+                );
+            }
+            else if(rc===440){
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                    `Upload file is too big!`
+                ).catch(err => 
+                    hereLog(`[setAddonsLoadOrder]{${karter}} reply error (3) - ${err}`)
+                );
+            }
+            else if(rc===441 || rc===442){
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                    `"*Load order config*" has bad type, or extension`
+                ).catch(err => 
+                    hereLog(`[setAddonsLoadOrder]{${karter}} reply error (4) - ${err}`)
+                );
+            }
+            else if(rc===513){
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                    `Upload error on server…`
+                ).catch(err => 
+                    hereLog(`[setAddonsLoadOrder]{${karter}} reply error (5) - ${err}`)
+                );
+            }
+            else{
+                if(rc!==999){
+                    hereLog(`[setAddonsLoadOrder] unhandled status code: ${rc}…`)
+                }
+
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                    `Error occured installing new *load order config* for \`${karter}\`…`
+                ).catch(err => 
+                    hereLog(`[setAddonsLoadOrder]{${karter}} reply error (5) - ${err}`)
+                );
+            }
+
+            return false
+        } catch(err){
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                `Error occured installing new *load order config* for \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[setAddonsLoadOrder]{${karter}} reply error (6) - ${err}`)
+            );
+
+            return false
+        }
+    }
+
+    await kart_stuff.Api.set_addon_load_order_config(
+        _url, _generateAuthPayload(interaction.user.id, utils), karter
+    ).then( async response => {
+        if(await status_parse(response.status)){
+            await interaction.editReply(
+                `## New *${karter}* addon load config upload\n\n`+
+                `✅ Success`
+            ).catch(err => 
+                hereLog(`[setAddonsLoadOrder]{${karter}} reply error (6) - ${err}`)
+            );
+        }
+    }).catch(async err => {
+        if(Boolean(err.response) && Boolean(err.response.status)){
+            await status_parse(err.response.status, interaction)
+        }
+        else{
+            hereLog(`[setAddonsLoadOrder]{${karter}} error setting addon load order config - ${err}`)
+            await status_parse(999, interaction)
+        }
+    })
+}
+
+async function S_S_CMD_kartAddon_loadOrder(interaction, utils){
+    var karter= interaction.options.getString('karter') ?? kart_stuff.Settings.DefaultRacer
+    if(!kart_stuff.Settings.RacerNames.includes(karter)){
+        await interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+            `Invalid karter "*${karter}*"…`
+        )
+
+        return
+    }
+
+    let attachment= interaction.options.getAttachment('file_yaml')
+    var url= interaction.options.getString('url')
+
+    if(Boolean(attachment)){
+        url= attachment.url
+    }
+    
+    if(Boolean(url)){ //set
+        await __Opt_S_S_CMD_kartAddon_loadOrder_Set(url, karter, interaction, utils)
+    }
+    else{ //get
+        await __Opt_S_S_CMD_kartAddon_loadOrder_Get(karter, interaction)
     }
 }
 
@@ -1674,11 +1723,8 @@ async function S_CMD__kartAddonManager(interaction, utils){
 
     let subcommand= interaction.options.getSubcommand()
 
-    if(subcommand==='get_order'){
-        await S_S_CMD_kartAddon_GetOrder(interaction, utils)
-    }
-    else if(subcommand==='set_order'){
-        await S_S_CMD_kartAddon_SetOrder(interaction, utils)
+    if(subcommand==='load_order'){
+        await S_S_CMD_kartAddon_loadOrder(interaction, utils)
     }
     else if(subcommand==='upload_new'){
         await S_S_CMD_kartAddon_UploadNew(interaction, utils)
@@ -1693,7 +1739,7 @@ async function S_CMD__kartAddonManager(interaction, utils){
         await interaction.editReply(
             `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
             `Missing subcommand amongst: `+
-            `\`get_order\`,\`set_order\`,\`upload_new\`,\`link_new\`, or \`remove\``
+            `\`load_order\`,\`upload_new\`,\`link_new\`, or \`remove\``
         )
     }
 }
@@ -2897,18 +2943,23 @@ let slashKartAddonManage= {
     .setDefaultMemberPermissions(0)
     .addSubcommand(subcommand =>
         subcommand
-        .setName('get_order')
-        .setDescription("Fetch the Strashbot's SRB2Kart server addon load order config")        
-    )
-    .addSubcommand(subcommand =>
-        subcommand
-        .setName('set_order')
-        .setDescription("Set the Strashbot's SRB2Kart server addon load order config")
+        .setName('load_order')
+        .setDescription("Get or Set the kart server's addons order load config")
+        .addStringOption(option =>
+            option
+            .setName('karter')
+            .setDescription('Which kart game?')
+            .addChoices(...slashKartData_getKarterChoices())
+        )
         .addAttachmentOption(option =>
             option
-            .setName('order_config_file')
-            .setDescription('Sumbit a new server config')
-            .setRequired(true)
+            .setName('file_yaml')
+            .setDescription('Sumbit addon load order config as a .yaml file.')
+        )
+        .addStringOption(option =>
+            option
+            .setName('url')
+            .setDescription('Download and set from url.')
         )
     )
     .addSubcommand(subcommand =>

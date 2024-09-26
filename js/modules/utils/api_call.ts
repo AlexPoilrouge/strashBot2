@@ -1,5 +1,5 @@
 const axios= require('axios');
-import { AxiosRequestConfig, AxiosResponse } from "axios";
+import { AxiosRequestConfig, AxiosResponse, Method } from "axios";
 
 let hereLog= (...args) => {console.log("[api_call]", ...args);};
 
@@ -13,13 +13,11 @@ interface Endpoint_pointer {
     route?: string
 }
 
-export type Method= 'get' | 'post' | 'put' | 'delete'
-
-interface EndPointConfig {
+interface EndPointConfig<D=any> {
     method?: Method,
     values?: Object,
     queries?: Object
-    axiosRequestConfig?: AxiosRequestConfig<any>
+    axiosRequestConfig?: AxiosRequestConfig<D>
 }
 
 export class CallApi {
@@ -118,17 +116,17 @@ export class CallApi {
         return count!==this.AliasEnpoint.length
     }
 
-    Call<T = any, R = AxiosResponse<T>>(alias_or_route: string, config?: EndPointConfig): Promise<R>{
+    Call<D= any, T = any, R = AxiosResponse<T>>(alias_or_route: string, config?: EndPointConfig<D>): Promise<R>{
         var url: string= this._endPointURL(
             this.AliasEnpoint[alias_or_route] ?? alias_or_route,
             config
         )
-
         let method: Method= config.method ?? 'get'
 
-        hereLog(`[Call]{${alias_or_route}, ${JSON.stringify(config)}} -> ${url}`)
+        // hereLog(`[Call]{${alias_or_route},<${method}> ${JSON.stringify(config)}} -> ${url}`)
+        let callConfig: AxiosRequestConfig<D>= Object.assign({}, config.axiosRequestConfig, {url, method: config.method} )
 
-        return axios[method](url, config.axiosRequestConfig)
+        return axios(callConfig)
     }
 
 }
