@@ -1800,7 +1800,7 @@ function _addonsInfo(karter){
             if(response_data.status==="fetched"){
                 return response_data.result.infos
             } else if(response_data.status==="found"){
-                return [ response_data.result.infos ]
+                return [ response_data.info ]
             }
             else{
                 return []
@@ -1911,6 +1911,10 @@ async function _processAddonsInfoList(interaction, list, karter, lookup=undefine
                     )
                 }
 
+                if(Boolean(addonInfo.pendingOp)){
+                    msg+= `> ⏳ pending \`${addonInfo.pendingOp}\` (next server restart)\n`
+                }
+
                 msg+= '\n'
             }
             for(var ghostAddon of uninstalledButActiveAddons){
@@ -1928,6 +1932,7 @@ async function _processAddonsInfoList(interaction, list, karter, lookup=undefine
                 size: obj.size,
                 racer: obj.racer,
                 active: ((servAddons_infos.available)? (servAddons_infos.addons.includes(obj.name)) : undefined),
+                pendingOp: obj.pendingOp,
                 url: ((Boolean(base_url))?`${base_url}/${obj.name}`:undefined)
             }))
             var resObj= {
