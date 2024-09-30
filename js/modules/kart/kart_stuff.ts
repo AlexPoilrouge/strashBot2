@@ -158,6 +158,10 @@ const EP_SERVICE_RESTART_NAME   =   `${EP_SERVICE_OP_BASE}restart`
 const EP_SERVICE_STOP_NAME      =   `${EP_SERVICE_OP_BASE}stop`
 const EP_ADDONS_NAME            =   "addons"
 const EP_ADDONS_LOAD_ORDER_NAME =   "load_order"
+const EP_ADDONS_INSTALL         =   "addon_install"
+const EP_ADDONS_ENABLE          =   "addon_enable"
+const EP_ADDONS_DISABLE         =   "addon_disable"
+const EP_ADDONS_REMOVE          =   "addon_remove"
 
 export class KartApi{
     private apiCaller: CallApi
@@ -177,6 +181,10 @@ export class KartApi{
         this.apiCaller.registerEndPoint(EP_INFO_NAME, "info")
         this.apiCaller.registerEndPoint(EP_ADDONS_NAME, "addons/:karter/info")
         this.apiCaller.registerEndPoint(EP_ADDONS_LOAD_ORDER_NAME, "addons/:karter/load_order")
+        this.apiCaller.registerEndPoint(EP_ADDONS_INSTALL, "addons/:karter/install")
+        this.apiCaller.registerEndPoint(EP_ADDONS_ENABLE, "addons/:karter/enable")
+        this.apiCaller.registerEndPoint(EP_ADDONS_DISABLE, "addons/:karter/disable")
+        this.apiCaller.registerEndPoint(EP_ADDONS_REMOVE, "addons/:karter/remove")
 
         this.tokens= new TokensHandler()
 
@@ -241,7 +249,9 @@ export class KartApi{
         "stop", auth, karter
     )
 
-    get_addons(addon?: string, karter?: string){
+    get_addons(addon?: string, karter?: string)
+        : Promise<AxiosResponse<any>>
+    {
         var _karter= karter ?? this.settings.DefaultRacer
 
         var queries= {}
@@ -255,7 +265,9 @@ export class KartApi{
         )
     }
 
-    get_addon_load_order_config(karter?: string){
+    get_addon_load_order_config(karter?: string)
+     : Promise<AxiosResponse<any>>
+    {
         var _karter= karter ?? this.settings.DefaultRacer
 
         return this.apiCaller.Call(EP_ADDONS_LOAD_ORDER_NAME,
@@ -265,7 +277,9 @@ export class KartApi{
         )
     }
 
-    set_addon_load_order_config(config_url:string, auth: KartTokenAuth, karter?: string){
+    set_addon_load_order_config(config_url:string, auth: KartTokenAuth, karter?: string)
+        : Promise<AxiosResponse<any>>
+    {
         var _karter= karter ?? this.settings.DefaultRacer
 
         let token= this.tokens.generateToken(auth.role, {auth})
@@ -280,14 +294,57 @@ export class KartApi{
             }
         )
     }
+
+    install_addon_from_url(addon_url: string, auth: KartTokenAuth, karter?: string)
+        : Promise<AxiosResponse<any>>
+    {
+        var _karter= karter ?? this.settings.DefaultRacer
+
+        let token= this.tokens.generateToken(auth.role, {auth})
+
+        return this.apiCaller.Call(EP_ADDONS_INSTALL,
+            {   method: "post",
+                values: { karter: _karter },
+                axiosRequestConfig: {
+                    data: { url: addon_url },
+                    headers: {'x-access-token': token}
+                }
+            }
+        )
+    }
+
+    private _api_addon_post_action(endpoint_id: string, addon_filename: string, auth: KartTokenAuth, karter?: string)
+        : Promise<AxiosResponse<any>>
+    {
+        var _karter= karter ?? this.settings.DefaultRacer
+
+        let token= this.tokens.generateToken(auth.role, {auth})
+
+        return this.apiCaller.Call(endpoint_id,
+            {   method: "post",
+                values: { karter: _karter },
+                axiosRequestConfig: {
+                    data: { addons: addon_filename },
+                    headers: {'x-access-token': token}
+                }
+            }
+        )
+    }
+
+    enable_addon = (addon_filename: string, auth: KartTokenAuth, karter?: string) =>
+        this._api_addon_post_action(EP_ADDONS_ENABLE, addon_filename, auth, karter)
+
+    disable_addon = (addon_filename: string, auth: KartTokenAuth, karter?: string) =>
+        this._api_addon_post_action(EP_ADDONS_DISABLE, addon_filename, auth, karter)
+
+    remove_addon = (addon_filename: string, auth: KartTokenAuth, karter?: string) =>
+        this._api_addon_post_action(EP_ADDONS_REMOVE, addon_filename, auth, karter)
 }
 
 const ENTRY_ADDONS_NAMES_BASE_NAME      =   "_installed_addons"
 const ENTRY_GET_POPULATION_BASE_NAME    =   "_population"
 
 const KARTAPICACHE_DEFAULT_TTL_MS   =   60000
-
-
 
 class KartApiCache{
     private kart_settings : KartSettings
@@ -316,10 +373,10 @@ class KartApiCache{
                             if( Boolean(response_data.result) && Boolean(response_data.result.infos) ){
                                 if(response_data.status==="fetched"){
                                     return response_data.result.infos.map(
-                                        (a : {name: string, [key:string]: any}) => a.name.toLowerCase()
+                                        (a : {name: string, [key:string]: any}) => a.name
                                     )
                                 } else if(response_data.status==="found"){
-                                    return [ response_data.result.infos.name.toLowerCase() ]
+                                    return [ response_data.result.infos.name ]
                                 }
                                 else{
                                     return []

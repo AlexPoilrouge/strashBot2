@@ -607,7 +607,7 @@ function formatBytes(bytes) {
 
 function checkUrl(str){
     try{
-        return new URL(str)
+        return `${new URL(str)}`
     }
     catch(err){
         return undefined

@@ -1403,10 +1403,10 @@ async function __Opt_S_S_CMD_kartAddon_loadOrder_Get(karter, interaction){
 async function __Opt_S_S_CMD_kartAddon_loadOrder_Set(url, karter, interaction, utils){
     var _url= my_utils.checkUrl(url)
 
-    if(!Boolean(url)){
+    if(!Boolean(_url)){
         await interaction.editReply(
             `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-            `Invalid url \`${url}\`…`
+            `Invalid url \`${_url}\`…`
         ).catch(err => 
             hereLog(`[setAddonsLoadOrder]{${karter}} reply error (0) - ${err}`)
         );
@@ -1507,16 +1507,31 @@ async function __Opt_S_S_CMD_kartAddon_loadOrder_Set(url, karter, interaction, u
     })
 }
 
-async function S_S_CMD_kartAddon_loadOrder(interaction, utils){
-    var karter= interaction.options.getString('karter') ?? kart_stuff.Settings.DefaultRacer
-    if(!kart_stuff.Settings.RacerNames.includes(karter)){
-        await interaction.editReply(
-            `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-            `Invalid karter "*${karter}*"…`
-        )
+async function Interaction_checkKarter_StringOpt(interaction, utils){
+    try{
+        var karter= interaction.options.getString('karter') ?? kart_stuff.Settings.DefaultRacer
+        if(!kart_stuff.Settings.RacerNames.includes(karter)){
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                `Invalid karter "*${karter}*"…`
+            )
 
-        return
+            return undefined
+        }
+        return karter
+    } catch(err){
+        hereLog(`[checkKarter] karter check failed - err`)
+        await interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+            `Error selection racer's server…`
+        )
+        return undefined
     }
+}
+
+async function S_S_CMD_kartAddon_loadOrder(interaction, utils){
+    var karter= await Interaction_checkKarter_StringOpt(interaction, utils)
+    if(!Boolean(karter)) return
 
     let attachment= interaction.options.getAttachment('file_yaml')
     var url= interaction.options.getString('url')
@@ -1618,6 +1633,189 @@ async function __addonUpload(url, interaction, utils){
     }
 }
 
+async function _addon_action(kartApiMethodName, addon_filename, auth, karter){
+    return kart_stuff.Api[kartApiMethodName](addon_filename, auth, karter).then(response => {
+        if(Boolean(response.status)){
+            return {success: (response.status===200), rc: response.status}
+        }
+        else{
+            return {success: false, rc: 999}
+        }
+    }).catch(err => {
+        if(Boolean(err.response) && Boolean(err.response.status)){
+            return {success: false, rc: err.response.status}
+        }
+        else{
+            throw err
+        }
+    })
+}
+
+let enable_addon = async (addon_filename, auth, karter) =>
+    ( await _addon_action( 'enable_addon', addon_filename, auth, karter) )
+
+let disable_addon = async (addon_filename, auth, karter) =>
+    ( await _addon_action( 'disable_addon', addon_filename, auth, karter) )
+
+let remove_addon = async (addon_filename, auth, karter) =>
+    ( await _addon_action( 'remove_addon', addon_filename, auth, karter) )
+
+async function S_S_CMD_kartAddon_Install(interaction, utils) {
+    var karter= await Interaction_checkKarter_StringOpt(interaction, utils)
+    if(!Boolean(karter)) return
+
+    let attachment= interaction.options.getAttachment('addon_file')
+    var url= interaction.options.getString('addon_direct_url')
+    let b_enable= interaction.options.getBoolean('enable_addon') ?? true
+
+    if(Boolean(attachment)){
+        url= attachment.url
+    }
+    
+    if(!Boolean(url)){
+        await interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+            `Need either a *file attachment* or an *url* of the addon to install`
+        ).catch(err => 
+            hereLog(`[addInstall]{${karter}} reply error (0) - ${err}`)
+        );
+    }
+    else{
+        var _url= my_utils.checkUrl(url)
+
+        if(!Boolean(_url)){
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                `Invalid url \`${_url}\`…`
+            ).catch(err => 
+                hereLog(`[addInstall]{${karter}} reply error (1) - ${err}`)
+            );
+            return
+        }
+
+        let status_parse= async (rc, interaction) => {
+            try{
+                if(rc===200){
+                    return true
+                }
+                else if(rc===401 || rc===403){
+                    hereLog(`[addInstall]{${karter}} access failure: ${rc}`)
+                    await interaction.editReply(
+                        `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
+                        `Access failure on "*addon_install*" for \`${karter}\`…`
+                    ).catch(err => 
+                        hereLog(`[addInstall]{${karter}} reply error (2) - ${err}`)
+                    );
+                }
+                else if(rc===404){
+                    await interaction.editReply(
+                        `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                        `Addon install for \`${karter}\` seems unavailable…`
+                    ).catch(err => 
+                        hereLog(`[addInstall]{${karter}} reply error (3) - ${err}`)
+                    );
+                }
+                else if(rc===440){
+                    await interaction.editReply(
+                        `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                        `Addon file is too big!`
+                    ).catch(err => 
+                        hereLog(`[addInstall]{${karter}} reply error (4) - ${err}`)
+                    );
+                }
+                else if(rc===441 || rc===442){
+                    await interaction.editReply(
+                        `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                        `"Addon file has bad type, or extension`
+                    ).catch(err => 
+                        hereLog(`[addInstall]{${karter}} reply error (5) - ${err}`)
+                    );
+                }
+                else if(rc===513){
+                    await interaction.editReply(
+                        `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                        `Upload error on server…`
+                    ).catch(err => 
+                        hereLog(`[addInstall]{${karter}} reply error (6) - ${err}`)
+                    );
+                }
+                else{
+                    if(rc!==999){
+                        hereLog(`[addInstall]{${karter}} unhandled status code: ${rc}…`)
+                    }
+    
+                    await interaction.editReply(
+                        `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                        `Error occured install addon for \`${karter}\`…`
+                    ).catch(err => 
+                        hereLog(`[addInstall]{${karter}} reply error (7) - ${err}`)
+                    );
+                }
+
+                return false
+            } catch(err){
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                    `Error occured installing addon for \`${karter}\`…`
+                ).catch(err => 
+                    hereLog(`[addInstall]{${karter}} reply error (8) - ${err}`)
+                );
+    
+                return false
+            }
+        }
+
+        let auth= _generateAuthPayload(interaction.user.id, utils)
+        await kart_stuff.Api.install_addon_from_url(_url, auth, karter).then(async response => {
+            if(await status_parse(response.status)){
+                var addon_filename= my_utils.getFromFieldPath(response,'data.result.addon')
+                var base_url=  undefined
+                try{
+                    base_url= kart_stuff.Settings.grf('addons_http_source', karter)
+                } catch(err){
+                    hereLog(`[addInstall]{${karter}} 'addons_http_source' fetch fail - ${err}`)
+                }
+
+                var msg= (`## Addons installed on *${karter}* server!\n\n` +
+                        ((Boolean(addon_filename))?
+                            ((Boolean(base_url))?
+                                `### [${addon_filename}](${base_url}/${addon_filename})\n`
+                            :   `### ${addon_filename}\n` )
+                        :   '') )
+
+                if(b_enable){
+                    var enable_res= {success: false}
+                    try{
+                        enable_res= await enable_addon(addon_filename, auth, karter)
+                    } catch(err){
+                        hereLog(`[addInstall]{${karter}} Error trying to enable addon after install - ${err}`)
+                    }
+
+                    if(enable_res.success){
+                        msg+= `> addon enabled (but only active next reboot)`
+                    }
+                    else{
+                        msg+= `> ⚠ error occured trying to enable addon…`
+                    }
+                }
+
+                await interaction.editReply(msg)
+                    .catch(err => 
+                        hereLog(`[addInstall]{${karter}} reply error (6) - ${err}`)
+                    );
+            }
+        }).catch(async err => {
+            if(Boolean(err.response) && Boolean(err.response.status)){
+                await status_parse(err.response.status, interaction)
+            }
+            else{
+                hereLog(`[addInstall]{${karter}} error installing addon from '${_url}'- ${err}`)
+                await status_parse(999, interaction)
+            }
+        })
+    }    
+}
+
 async function S_S_CMD_kartAddon_UploadNew(interaction, utils){
     let attachment= interaction.options.getAttachment('kart_addon_file')
 
@@ -1679,6 +1877,159 @@ function _updateAddonsConfig(){
     return b;
 }
 
+async function __Opt_S_S_CMD_kartAddon_Action_actionAddon(action, karter, addon_filename, interaction, utils) {
+    var action_res= {success: false}
+    let auth= _generateAuthPayload(interaction.user.id, utils)
+
+    //default: enable
+    var action_emoji= '✅'
+    var action_ing= "enabling"
+    var action_done= "enabled"
+    try{
+        if(action==='disable'){
+            try{
+                action_res= await disable_addon(addon_filename, auth, karter)
+            } catch(err){
+                hereLog(`[actionAddon]<${action}>{${karter}} Error trying to ${action} addon - ${err}`)
+            }
+            action_emoji= '⏹'
+            action_ing= "disabling"
+            action_done= "disabled"
+        }
+        else if(action==='remove'){
+            try{
+                action_res= await remove_addon(addon_filename, auth, karter)
+            } catch(err){
+                hereLog(`[actionAddon]<${action}>{${karter}} Error trying to ${action} addon - ${err}`)
+            }
+            action_emoji= '❎'
+            action_ing= "removing"
+            action_done= "removed"
+        }
+        else{
+            action_res= await enable_addon(addon_filename, auth, karter)
+        }
+    } catch(err){
+        hereLog(`[actionAddon]<${action}>{${karter}} Error trying to ${action} addon - ${err}`)
+    }
+
+    let status_parse= async (rc, interaction) => {
+        try{
+            if(rc===200){
+                return true
+            }
+            else if(rc===201){
+                hereLog(`[actionAddon]<${action}>{${karter}} unexpected: ${rc}`)
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_CRITICAL)} `+
+                    `"*addon_${action}*" \`${addon_filename}\` for \`${karter}\` responsed unexpectedly…`
+                ).catch(err => 
+                    hereLog(`[actionAddon]<${action}>{${karter}} reply error (5) - ${err}`)
+                );
+            }
+            else if(rc===400){
+                hereLog(`[actionAddon]<${action}>{${karter}} bad request: ${rc}`)
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                    `"*addon_${action}*" \`${addon_filename}\` for \`${karter}\` seems like bad request…`
+                ).catch(err => 
+                    hereLog(`[actionAddon]<${action}>{${karter}} reply error (1) - ${err}`)
+                );
+            }
+            else if(rc===401 || rc===403){
+                hereLog(`[actionAddon]<${action}>{${karter}} access failure: ${rc}`)
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
+                    `Access failure on "*addon_${action}*" for \`${karter}\`…`
+                ).catch(err => 
+                    hereLog(`[actionAddon]<${action}>{${karter}} reply error (2) - ${err}`)
+                );
+            }
+            else if(rc===404){
+                hereLog(`[actionAddon]<${action}>{${karter}} not found?: ${rc}`)
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                    `Addon ${action_ing} \`${addon_filename}\` on \`${karter}\` seems unavailable…`
+                ).catch(err => 
+                    hereLog(`[actionAddon]<${action}>{${karter}} reply error (3) - ${err}`)
+                );
+            }
+            else if(rc===513){
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                    `Addon ${action_ing} \`${addon_filename}\` on \`${karter}\` failure…`
+                ).catch(err => 
+                    hereLog(`[actionAddon]<${action}>{${karter}} reply error (4) - ${err}`)
+                );
+            }
+            else{
+                if(rc!==999){
+                    hereLog(`[actionAddon]<${action}>{${karter}} unhandled status code: ${rc}…`)
+                }
+
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                    `Error occured ${action_ing} addon \`${addon_filename}\` for \`${karter}\`…`
+                ).catch(err => 
+                    hereLog(`[actionAddon]<${action}>{${karter}} reply error (7) - ${err}`)
+                );
+            }
+
+            return false
+        } catch(err){
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                `Error occured ${action_ing} addon \`${addon_filename}\` for \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[actionAddon]<${action}>{${karter}} reply error (8) - ${err}`)
+            );
+
+            return false
+        }
+    }
+
+    var base_url=  undefined
+    try{
+        base_url= kart_stuff.Settings.grf('addons_http_source', karter)
+    } catch(err){
+        hereLog(`[actionAddon]<${action}>{${karter}} 'addons_http_source' fetch fail - ${err}`)
+    }
+
+    if(action_res.success && status_parse(action_res.rc)){
+        await interaction.editReply(
+            `## Addon ${action_done} on StrashBot's *${karter}* server\n\n`+
+            ( Boolean(base_url)? 
+                `${action_emoji} [${addon_filename}](${base_url}/${addon_filename})\n`
+            :   `${action_emoji} ${addon_filename}\n` ) +
+            `(takes effect on next server restart…)`
+        )
+    }
+    else{
+        hereLog(`[actionAddon]<${action}>{${karter}} error ${action_ing} addon - ${err}`)
+        await status_parse(999, interaction)
+    }
+}
+
+async function S_S_CMD_kartAddon_action(interaction, utils) {
+    var karter= await Interaction_checkKarter_StringOpt(interaction, utils)
+    if(!Boolean(karter)) return
+
+    let action= interaction.option.getString('action')
+    let addon_filename= interaction.option.getString('addon_filename')
+    
+    if(['enable', 'disable', 'remove'].includes(action)){
+        await __Opt_S_S_CMD_kartAddon_Action_actionAddon(action, karter, addon_filename, interaction, utils)
+    }
+    else{
+        await interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+            `Invalid or unknown action \`${action}\`…`
+        ).catch(err => 
+            hereLog(`[sCmd_actionAddon]<${action}>{${karter}} reply error (0) - ${err}`)
+        );
+    }
+}
+
 async function S_S_CMD_kartAddon_Remove(interaction, utils){
     let addon_name= interaction.options.getString('addon_name')
 
@@ -1726,11 +2077,11 @@ async function S_CMD__kartAddonManager(interaction, utils){
     if(subcommand==='load_order'){
         await S_S_CMD_kartAddon_loadOrder(interaction, utils)
     }
-    else if(subcommand==='upload_new'){
-        await S_S_CMD_kartAddon_UploadNew(interaction, utils)
+    else if(subcommand==='install'){
+        await S_S_CMD_kartAddon_Install(interaction, utils)
     }
-    else if(subcommand==='link_new'){
-        await S_S_CMD_kartAddon_LinkNew(interaction, utils)
+    else if(subcommand==='action'){
+        await S_S_CMD_kartAddon_action(interaction, utils)
     }
     else if(subcommand==='remove'){
         await S_S_CMD_kartAddon_Remove(interaction, utils)
@@ -1844,7 +2195,7 @@ async function _processAddonsInfoList(interaction, list, karter, lookup=undefine
     let servAddons_infos=
         await _askServInfos(karter).then( kart_infos => {
             return {
-                available: ((Boolean(kart_infos) && kart_infos.status==='UP')),
+                available: ((Boolean(kart_infos) && kart_infos.service_status==='UP')),
                 addons: ((Boolean(kart_infos) && Boolean(kart_infos.addons))?
                         kart_infos.addons : [])
             }
@@ -1852,7 +2203,6 @@ async function _processAddonsInfoList(interaction, list, karter, lookup=undefine
             hereLog(`[cmd_kartAddons] askInfo(${karter}) fail - ${err}`)
             return { available: false, addons: [] }
         })
-
     var res_list= list
     var uninstalledButActiveAddons=
         (servAddons_infos.available)?
@@ -1904,7 +2254,7 @@ async function _processAddonsInfoList(interaction, list, karter, lookup=undefine
                     `> Size: ${my_utils.formatBytes(addonInfo.size)}\n`+
                     `> ${(addonInfo.enabled?"☑️ en":"▶️ dis")}abled\n`
 
-                if(servAddons_infos.available){
+                if(addonInfo.enabled && servAddons_infos.available){
                     msg+= ((servAddons_infos.addons.includes(addonInfo.name))?
                             `> 💡 active\n`
                         :   `> 💤 inactive (wait server reboot?)\n`
@@ -2800,13 +3150,13 @@ async function AC___addonsLookup(interaction){
     let txt= focusedOption.value.toLowerCase()
     if(txt.length<3) return
 
-    let karter= interaction.options.getString('karter')
+    let karter= interaction.options.getString('karter') ?? kart_stuff.Settings.DefaultRacer
     if(!Boolean(karter)) return
 
     let choices= []
     try{
         let addonsNames= await kart_stuff.ApiCache.getInstalledAddonsNames(karter)
-        choices= addonsNames.filter(name => name.includes(txt.toLowerCase()) )
+        choices= addonsNames.filter(name => name.toLowerCase().includes(txt.toLowerCase()) )
                     .map(name => ({ name, value: name })).slice(0,5)
     } catch(err){
         hereLog(`[addons_lookup] fail fetching names - ${err}`)
@@ -2967,37 +3317,60 @@ let slashKartAddonManage= {
             .setDescription('Download and set from url.')
         )
     )
-    .addSubcommand(subcommand =>
+    .addSubcommand(subcommand => 
         subcommand
-        .setName('upload_new')
-        .setDescription("Add a new addon to the Strashbot's SRB2Kart server")
+        .setName('install')
+        .setDescription("Install a new addon on the racer's server")
+        .addStringOption(option =>
+            option
+            .setName('karter')
+            .setDescription('Which kart game?')
+            .addChoices(...slashKartData_getKarterChoices())
+        )
         .addAttachmentOption(option =>
             option
-            .setName('kart_addon_file')
-            .setDescription('Sumbit a new addon through file attachment')
-            .setRequired(true)
+            .setName('addon_file')
+            .setDescription('Submit file to install as addon.')
         )
-    )
-    .addSubcommand(subcommand =>
-        subcommand
-        .setName('link_new')
-        .setDescription("Add a new addon to the Strashbot's SRB2Kart server")
         .addStringOption(option =>
             option
-            .setName('addon_url')
-            .setDescription('Sumbit a new addon config through url')
-            .setRequired(true)
+            .setName('addon_direct_url')
+            .setDescription('Download and install from url.')
+        )
+        .addBooleanOption(option =>
+            option
+            .setName('enable_addon')
+            .setDescription('Enable the addon after install? (default: True)')
         )
     )
-    .addSubcommand(subcommand =>
+    .addSubcommand(subcommand => 
         subcommand
-        .setName('remove')
-        .setDescription("Remove an addon from the Strashbot's SRB2Kart server")
+        .setName('action')
+        .setDescription("Action to handle installed addons")
         .addStringOption(option =>
             option
-            .setName('addon_name')
-            .setDescription("Addon's complete filename")
+            .setName('karter')
+            .setDescription('Which kart game?')
+            .addChoices(...slashKartData_getKarterChoices())
+        )
+        .addStringOption(option =>
+            option
+            .setName('action')
+            .setDescription('What to do?')
             .setRequired(true)
+            .addChoices([
+                { name: "Enable", value: 'enable' },
+                { name: "Disable", value: 'disable' },
+                { name: "Remove", value: 'remove' },
+            ])
+        )
+        .addStringOption(option =>
+            option
+            .setName('addon_filename')
+            .setDescription('the basename (with extension) of the addon file to handle')
+            .setRequired(true)
+            .setMaxLength(128)
+            .setAutocomplete(true)
         )
     )
     .setDMPermission(false),
@@ -3013,8 +3386,15 @@ let slashKartAddonManage= {
             else
                 await interaction.reply(msg)
         }
-    }
-    
+    },
+    async autoComplete(interaction){
+        try{
+            await AC___addonsLookup(interaction)
+        }
+        catch(err){
+            hereLog(`[addonsLookup_autoComplete] Error! -\n\t${err}`)
+        }
+    }    
 }
 
 let slashKartAddons= {
@@ -3031,7 +3411,7 @@ let slashKartAddons= {
         option
         .setName('lookup')
         .setDescription('lookup for a specific addon…')
-        .setMaxLength(64)
+        .setMaxLength(128)
         .setAutocomplete(true)
     ),
     async execute(interaction, utils){
