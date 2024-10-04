@@ -2014,8 +2014,8 @@ async function S_S_CMD_kartAddon_action(interaction, utils) {
     var karter= await Interaction_checkKarter_StringOpt(interaction, utils)
     if(!Boolean(karter)) return
 
-    let action= interaction.option.getString('action')
-    let addon_filename= interaction.option.getString('addon_filename')
+    let action= interaction.options.getString('action')
+    let addon_filename= interaction.options.getString('addon_filename')
     
     if(['enable', 'disable', 'remove'].includes(action)){
         await __Opt_S_S_CMD_kartAddon_Action_actionAddon(action, karter, addon_filename, interaction, utils)
@@ -3294,7 +3294,7 @@ let slashKartStartStop= {
 let slashKartAddonManage= {
     data: new SlashCommandBuilder()
     .setName('kart_addons_manage')
-    .setDescription("About Strashbot SRB2Kart's server addons")
+    .setDescription("About Strashbot's racer servers addons")
     .setDefaultMemberPermissions(0)
     .addSubcommand(subcommand =>
         subcommand
@@ -3349,12 +3349,6 @@ let slashKartAddonManage= {
         .setDescription("Action to handle installed addons")
         .addStringOption(option =>
             option
-            .setName('karter')
-            .setDescription('Which kart game?')
-            .addChoices(...slashKartData_getKarterChoices())
-        )
-        .addStringOption(option =>
-            option
             .setName('action')
             .setDescription('What to do?')
             .setRequired(true)
@@ -3371,6 +3365,12 @@ let slashKartAddonManage= {
             .setRequired(true)
             .setMaxLength(128)
             .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+            option
+            .setName('karter')
+            .setDescription('Which kart game?')
+            .addChoices(...slashKartData_getKarterChoices())
         )
     )
     .setDMPermission(false),
