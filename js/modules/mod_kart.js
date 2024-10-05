@@ -915,8 +915,8 @@ async function __S_S_CMD_KartServer_Op(op="restart", interaction, utils){
         if(res.state==='cooldown'){
             await interaction.editReply(
                 `Cannot ${op} the ${karter} server at the moment… ⏳` +
-                (Boolean(res.remaining.remaining_seconds)?
-                        `\n(Please wait ${res.remaining.remaining_seconds} seconds to try again.)`
+                (Boolean(res.remaining_seconds)?
+                        `\n(Please wait ${res.remaining_seconds} seconds to try again.)`
                     :   ''
                 )
             );
@@ -1783,20 +1783,19 @@ async function S_S_CMD_kartAddon_Install(interaction, utils) {
                             :   `### ${addon_filename}\n` )
                         :   '') )
 
-                if(b_enable){
-                    var enable_res= {success: false}
-                    try{
-                        enable_res= await enable_addon(addon_filename, auth, karter)
-                    } catch(err){
-                        hereLog(`[addInstall]{${karter}} Error trying to enable addon after install - ${err}`)
-                    }
+                var xable_res= {success: false}
+                try{
+                    if(b_enable) xable_res= await enable_addon(addon_filename, auth, karter)
+                    else xable_res= await disable_addon(addon_filename, auth, karter)
+                } catch(err){
+                    hereLog(`[addInstall]{${karter}} Error trying to ${b_enable?'en':'dis'}able addon after install - ${err}`)
+                }
 
-                    if(enable_res.success){
-                        msg+= `> addon enabled (but only active next reboot)`
-                    }
-                    else{
-                        msg+= `> ⚠ error occured trying to enable addon…`
-                    }
+                if(xable_res.success){
+                    msg+= `> addon ${b_enable?'en':'dis'}abled (but only effective next reboot)`
+                }
+                else{
+                    msg+= `> ⚠ error occured trying to ${b_enable?'en':'dis'}able addon…`
                 }
 
                 await interaction.editReply(msg)
@@ -2204,9 +2203,11 @@ async function _processAddonsInfoList(interaction, list, karter, lookup=undefine
             return { available: false, addons: [] }
         })
     var res_list= list
+    hereLog(`okay: ${JSON.stringify(servAddons_infos)}`)
+    hereLog(`\tVS: ${JSON.stringify(list)}`)
     var uninstalledButActiveAddons=
         (servAddons_infos.available)?
-            servAddons_infos.addons.filter(e => (!list.includes(e)))
+            servAddons_infos.addons.filter(e => Boolean(list.find(info => info.name!==e.name)))
         : []
 
     let withLookup= Boolean(lookup)
@@ -2255,7 +2256,7 @@ async function _processAddonsInfoList(interaction, list, karter, lookup=undefine
                     `> ${(addonInfo.enabled?"☑️ en":"▶️ dis")}abled\n`
 
                 if(addonInfo.enabled && servAddons_infos.available){
-                    msg+= ((servAddons_infos.addons.includes(addonInfo.name))?
+                    msg+= ((Boolean(servAddons_infos.addons.find(info => info.name===addonInfo.name)))?
                             `> 💡 active\n`
                         :   `> 💤 inactive (wait server reboot?)\n`
                     )
