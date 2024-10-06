@@ -1413,7 +1413,10 @@ async function __Opt_S_S_CMD_kartAddon_loadOrder_Set(url, karter, interaction, u
         return
     }
 
-    let status_parse= async (rc, interaction) => {
+    let status_parse= async (response, interaction) => {
+        let rc= response.status
+        let data= response.data
+        hereLog(`dazddfezfze rc:${rc} - data: ${JSON.stringify(data)}`)
         try{
             if(rc===200){
                 return true
@@ -1433,6 +1436,21 @@ async function __Opt_S_S_CMD_kartAddon_loadOrder_Set(url, karter, interaction, u
                     `Can't upload "*load order config*" for \`${karter}\`…`
                 ).catch(err => 
                     hereLog(`[setAddonsLoadOrder]{${karter}} reply error (2) - ${err}`)
+                );
+            }
+            else if(rc===415){
+                hereLog("azeazeaze sup?")
+                await interaction.editReply({                    
+                    content: ( `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                                `Uploaded config for \`${karter}\` is invalid or badly constructed…` ),
+                    files: (data && data.details) ?
+                                [{
+                                    attachment: Buffer.from(data.details),
+                                    name: `load_order.yaml.errors.txt`
+                                }]
+                            : undefined
+                }).catch(err => 
+                    hereLog(`[setAddonsLoadOrder]{${karter}} reply error (7) - ${err}`)
                 );
             }
             else if(rc===440){
@@ -1488,7 +1506,7 @@ async function __Opt_S_S_CMD_kartAddon_loadOrder_Set(url, karter, interaction, u
     await kart_stuff.Api.set_addon_load_order_config(
         _url, _generateAuthPayload(interaction.user.id, utils), karter
     ).then( async response => {
-        if(await status_parse(response.status)){
+        if(await status_parse(response)){
             await interaction.editReply(
                 `## New *${karter}* addon load config upload\n\n`+
                 `✅ Success`
@@ -1498,7 +1516,7 @@ async function __Opt_S_S_CMD_kartAddon_loadOrder_Set(url, karter, interaction, u
         }
     }).catch(async err => {
         if(Boolean(err.response) && Boolean(err.response.status)){
-            await status_parse(err.response.status, interaction)
+            await status_parse(err.response, interaction)
         }
         else{
             hereLog(`[setAddonsLoadOrder]{${karter}} error setting addon load order config - ${err}`)

@@ -3,3 +3,4 @@ node_modules
 config/ansible/docker_test/variables.yaml
 config/ansible/my_config/
 extras/slash_delete.json
+config/ansible/docker_test/data/
