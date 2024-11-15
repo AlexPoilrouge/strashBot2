@@ -2221,8 +2221,6 @@ async function _processAddonsInfoList(interaction, list, karter, lookup=undefine
             return { available: false, addons: [] }
         })
     var res_list= list
-    hereLog(`okay: ${JSON.stringify(servAddons_infos)}`)
-    hereLog(`\tVS: ${JSON.stringify(list)}`)
     var uninstalledButActiveAddons=
         (servAddons_infos.available)?
             servAddons_infos.addons.filter(e => Boolean(list.find(info => info.name!==e.name)))
@@ -2353,6 +2351,202 @@ async function S_CMD__kartAddons(interaction, utils){
             hereLog(`[cmd_kartAddons]{${karter}} reply error - ${err}`)
         )
     })
+}
+
+function _customConfigInfo(karter){
+    return kart_stuff.Api.get_custom_configs(karter).then(response => {
+        if( response.status!==200 || (!Boolean(response.data))){
+            throw({ status: "result_error" })
+        }
+        else return response.data;
+    })
+    .catch(err => {
+        if(err.status){
+            throw err;
+        }
+        else{
+            hereLog(`[configInfos_get] error on api call? - ${err}`)
+            throw({status: "bad_response", error: err})
+        }
+    })
+}
+
+async function _processConfigInfosData(interaction, config_info, karter){
+    var msg= `## Strashbot *${karter}* server current custom config\n\n`
+
+    let available_configs= my_utils.getFromFieldPath(config_info,'custom_cfg.available_configs')
+    let enabled_custom_configs= config_info.enabled_custom_configs
+
+    if((!enabled_custom_configs) || enabled_custom_configs.length<=0){
+        msg+= "### None enabled\n"
+    }
+    else{
+        msg+= "### Enabled\n"
+
+        let id_available= available_configs.map(e => `${e.name}:${e.filename}`)
+        for(enabled_cfg of enabled_custom_configs){
+            msg+= `- *${enabled_cfg.name}* (*${enabled_cfg.file}*)`
+
+            let id= `${enabled_cfg.name}:${enabled_cfg.file}`
+            if(!id_available.includes(id)){
+                msg+= ` [👻]`
+            }
+            msg+= "\n"
+        }
+    }
+    msg+= "\n"
+
+    if(available_configs && available_configs.length>0){
+        msg+= "## Availabe configs\n"
+
+        for(available_cfg of available_configs){
+            msg+= `- *${available_cfg.name}* (*${available_cfg.filename}*)\n`
+        }
+
+        msg+= '\n'
+    }
+
+    let allowed_commands= my_utils.getFromFieldPath(config_info,'custom_cfg.allowed_commands')
+    let b_send_allowed_cmd= Boolean(allowed_commands && allowed_commands.length>0)
+
+    await interaction.editReply( {
+        content: msg,
+        files: ( 
+            b_send_allowed_cmd ?
+                    [{
+                        attachment: Buffer.from(JSON.stringify({allowed_commands}, null, 4)),
+                        name: `strashbot_${karter}_custom_config_allowed_commands.json`
+                    }]
+                :   []
+        )
+    }).catch(err => 
+        hereLog(`[cmd_customConfigInfo]{${karter}} reply error (3) - ${err}`)
+    )
+}
+
+async function S_S_CMD_kartCustomConfig_info(interaction, utils){
+    let karter= (interaction.options.getString('karter') ?? kart_stuff.Settings.DefaultRacer)
+
+    await _customConfigInfo(karter).then(config_info => {
+        _processConfigInfosData(interaction, config_info, karter)
+    })
+    .catch(err => {
+        if(Boolean(err.status)){
+            if(err.status==="result_error"){
+                hereLog(`[cmd_customConfigInfo]{${karter}} result fetch problem`)
+            }
+            else{
+                hereLog(`[cmd_customConfigInfo]{${karter}} recieved status '${err.status}'`)
+            }
+        }
+        else{
+            hereLog(`[cmd_customConfigInfo]{${karter}} fail acquire addon infos - ${err}`)
+        }
+        interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+            "Data access error"
+        ).catch(err => 
+            hereLog(`[cmd_kartAddons]{${karter}} reply error - ${err}`)
+        )
+    })
+}
+
+async function S_S_CMD_kartGetCustomConfig(interaction, utils) {
+    let karter= (interaction.options.getString('karter') ?? kart_stuff.Settings.DefaultRacer)
+    let config_name= interaction.options.getString('config')
+    if(!config_name){
+        await interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+            `No "*custom config*" provided \`${karter}\`…`
+        ).catch(err => 
+            hereLog(`[getCustomConfig]{${karter}} reply error (0) - ${err}`)
+        );
+    }
+
+    let status_parse= async (rc, interaction) => {
+        try{
+            if(rc===200){
+                return true
+            }
+            else if(rc===404){
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                    `No custom config "*${config_name}*" found or set for \`${karter}\`…`
+                ).catch(err => 
+                    hereLog(`[getCustomConfig]{${karter}} reply error (1) - ${err}`)
+                );
+            }
+            else{
+                if(rc!==999){
+                    hereLog(`[getCustomConfig] unhandled status code: ${rc}…`)
+                }
+
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                    `Error occured fetching custom config from \`${karter}\`…`
+                ).catch(err => 
+                    hereLog(`[getCustomConfig]{${karter}} reply error (2) - ${err}`)
+                );
+            }
+
+            return false
+        } catch(err){
+            hereLog(`[getCustomConfig]{${karter}} Error handle - ${err}`)
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                `Error occured accession custom config '${config_name}' from  \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[getCustomConfig]{${karter}} reply error (3) - ${err}`)
+            );
+
+            return false
+        }
+    }
+
+    await kart_stuff.Api.get_custom_yaml_config(config_name, karter).then( async response => {
+        if(await status_parse(response.status)){
+            let filename= (config_name.endsWith('.yaml') || config_name.endsWith('.yml'))?
+                                config_name
+                            :   `${config_name}.yaml`
+            await interaction.editReply( {
+                content: `## Strashbot's ${karter} server addons load order config\n`,
+                files: [{
+                    attachment: Buffer.from(response.data),
+                    name: `${filename}.yaml`
+                }]
+            } ).catch(err => 
+                hereLog(`[getCustomConfig]{${karter}} reply error (4) - ${err}`)
+            )
+        }
+    }).catch(async err => {
+        if(Boolean(err.response) && Boolean(err.response.status)){
+            await status_parse(err.response.status, interaction)
+        }
+        else{
+            hereLog(`[getCustomConfig]{${karter}} error getting config '${config_name}' - ${err}`)
+            await status_parse(999, interaction)
+        }
+    })
+}
+
+async function S_CMD_kartCustomConfig(interaction, utils){
+    await interaction.deferReply()
+
+    let subcommand= interaction.options.getSubcommand()
+
+    if(subcommand==='info'){
+        await S_S_CMD_kartCustomConfig_info(interaction, utils)
+    }
+    else if(subcommand==='get'){
+        await S_S_CMD_kartGetCustomConfig(interaction, utils)
+    }
+    else{
+        await interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+            `Missing subcommand amongst: `+
+            `\`info\``
+        )
+    }
 }
 
 function __cmd_fetchJsonInfo(kcmd){
@@ -3187,6 +3381,35 @@ async function AC___addonsLookup(interaction){
     ); 
 }
 
+async function AC___customConfigLookup(interaction) {
+    if(!Boolean(kart_stuff)) return
+
+    const focusedOption = interaction.options.getFocused(true);
+    if(focusedOption.name!=='config') return
+
+    let txt= focusedOption.value.toLowerCase()
+    if(txt.length<3) return
+
+    let karter= interaction.options.getString('karter') ?? kart_stuff.Settings.DefaultRacer
+    if(!Boolean(karter)) return
+
+    let choices= []
+    try{
+        let configNames= await kart_stuff.ApiCache.getInstalledCustomConfigNames(karter) ?? []
+        choices= configNames.filter(cfg_info => (
+                                            cfg_info.name.toLowerCase().includes(txt.toLowerCase())
+                                        ||  cfg_info.filename.includes(txt)
+                                    ) )
+                    .map(cfg_info => ({ name: cfg_info.name, value: cfg_info.name })).slice(0,5)
+    } catch(err){
+        hereLog(`[config_lookup] fail fetching config names - ${err}`)
+        return
+    }
+
+    await interaction.respond(
+        choices
+    );
+}
 
 let slashKartInfo= {
     data: new SlashCommandBuilder()
@@ -3452,6 +3675,65 @@ let slashKartAddons= {
         }
         catch(err){
             hereLog(`[addonsLookup_autoComplete] Error! -\n\t${err}`)
+        }
+    }
+}
+
+let slashKartCustomConfig= {
+    data: new SlashCommandBuilder()
+    .setName('kart_custom_config')
+    .setDescription("Info and handle of available custom configs for karter's server")
+    .setDefaultMemberPermissions(0)
+    .addSubcommand(subcommand =>
+        subcommand
+        .setName("info")
+        .setDescription("Infos about karter's custom configs")
+        .addStringOption(option =>
+            option
+            .setName('karter')
+            .setDescription('Which kart game?')
+            .addChoices(...slashKartData_getKarterChoices())
+        )
+    )
+    .addSubcommand(subcommand =>
+        subcommand
+        .setName("get")
+        .setDescription("About a specific custom config")
+        .addStringOption(option =>
+            option
+            .setName('config')
+            .setDescription('Which custom config to fetch?')
+            .setRequired(true)
+            .setMaxLength(128)
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+            option
+            .setName('karter')
+            .setDescription('Which kart game?')
+            .addChoices(...slashKartData_getKarterChoices())
+        )
+    )
+    .setDMPermission(false),
+    async execute(interaction, utils){
+        try{
+            await S_CMD_kartCustomConfig(interaction, utils)
+        }
+        catch(err){
+            hereLog(`[kart_custom_cfg] Error! -\n\t${err} - ${err.message}`)
+            let msg= `${my_utils.emoji_retCode(E_RetCode.ERROR_CRITICAL)} Sorry, an internal error occured…`
+            if (interaction.deferred)
+                await interaction.editReply(msg)
+            else
+                await interaction.reply(msg)
+        }  
+    },
+    async autoComplete(interaction){
+        try{
+            await AC___customConfigLookup(interaction)
+        }
+        catch(err){
+            hereLog(`[customConfigLookup_autoComplete] Error! -\n\t${err}`)
         }
     }
 }
@@ -3782,7 +4064,8 @@ module.exports= {
         slashKartStartStop,
         slashKartAddonManage,
         slashKartAddons,
-        slashKartIngames,
+        //slashKartIngames,
+        slashKartCustomConfig,
         slashKartClip,
         slaskKartDiscord
     ],

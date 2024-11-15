@@ -162,6 +162,8 @@ const EP_ADDONS_INSTALL         =   "addon_install"
 const EP_ADDONS_ENABLE          =   "addon_enable"
 const EP_ADDONS_DISABLE         =   "addon_disable"
 const EP_ADDONS_REMOVE          =   "addon_remove"
+const EP_CONFIGS_INFO           =   "config_info"
+const EP_CONFIG_FILE            =   "config_yaml"
 
 export class KartApi{
     private apiCaller: CallApi
@@ -185,6 +187,8 @@ export class KartApi{
         this.apiCaller.registerEndPoint(EP_ADDONS_ENABLE, "addons/:karter/enable")
         this.apiCaller.registerEndPoint(EP_ADDONS_DISABLE, "addons/:karter/disable")
         this.apiCaller.registerEndPoint(EP_ADDONS_REMOVE, "addons/:karter/remove")
+        this.apiCaller.registerEndPoint(EP_CONFIGS_INFO, "config/:karter/info")
+        this.apiCaller.registerEndPoint(EP_CONFIG_FILE, "config/:karter/:name")
 
         this.tokens= new TokensHandler()
 
@@ -339,12 +343,42 @@ export class KartApi{
 
     remove_addon = (addon_filename: string, auth: KartTokenAuth, karter?: string) =>
         this._api_addon_post_action(EP_ADDONS_REMOVE, addon_filename, auth, karter)
+
+    get_custom_configs(karter?: string)
+        : Promise<AxiosResponse<any>>
+    {
+        var _karter= karter ?? this.settings.DefaultRacer
+
+        return this.apiCaller.Call(EP_CONFIGS_INFO,
+            {   method: "get",
+                values: { karter: _karter }
+            }
+        )
+    }
+
+    get_custom_yaml_config(config_name: string, karter?: string)
+     : Promise<AxiosResponse<any>>
+    {
+        var _karter= karter ?? this.settings.DefaultRacer
+
+        return this.apiCaller.Call(EP_CONFIG_FILE,
+            {   method: "get",
+                values: { karter: _karter, name: config_name }
+            }
+        )
+    }
 }
 
-const ENTRY_ADDONS_NAMES_BASE_NAME      =   "_installed_addons"
-const ENTRY_GET_POPULATION_BASE_NAME    =   "_population"
+const ENTRY_ADDONS_NAMES_BASE_NAME          =   "_installed_addons"
+const ENTRY_GET_POPULATION_BASE_NAME        =   "_population"
+const ENTRY_CUSTOM_CFG_NAMES_BASE_NAME      =   "_installed_custom_configs"
 
 const KARTAPICACHE_DEFAULT_TTL_MS   =   60000
+
+interface CustomConfig_name {
+    name: string,
+    filename: string
+}
 
 class KartApiCache{
     private kart_settings : KartSettings
@@ -401,6 +435,12 @@ class KartApiCache{
                 async () : Promise<number|undefined> => (await this._getServPop(_karter, kart_api)),
                 undefined
             )
+
+            hereLog(`[KartApiCache] registering '${_karter}${ENTRY_CUSTOM_CFG_NAMES_BASE_NAME}'`)
+            this.cache.registerEntryAccess(`${_karter}${ENTRY_CUSTOM_CFG_NAMES_BASE_NAME}`,
+                async () : Promise<CustomConfig_name[]> => (await this._getConfigNames(_karter, kart_api)),
+                undefined
+            )
         }
     }
 
@@ -438,6 +478,26 @@ class KartApiCache{
         })
     }
 
+    private _getConfigNames(karter: string, kart_api: KartApi) : Promise<CustomConfig_name[]>{
+        return new Promise<CustomConfig_name[]>( (resolve, reject) => {
+            kart_api.get_custom_configs(karter).then( response => {
+                var available_configs: Object[] = [] 
+                if( response.status===200 &&
+                    Boolean(available_configs=my_utils.getFromFieldPath(response.data, 'custom_cfg.available_configs')) &&
+                    Array.isArray(available_configs)
+                ){
+                    resolve(available_configs.map(cfg => ({name: "cfg['name']", filename: "cfg['filename']"})))
+                }
+                else{
+                    resolve([])
+                }
+            }).catch(err => {
+                hereLog(`[KartApiCache.getConfigNames] error on custom cfg fetch - ${err}`)
+                resolve([])
+            })
+        } )
+    }
+
     async getInstalledAddonsNames(karter?: string, awaitRefresh: boolean= false) : Promise<string[]> {
         var _karter= karter ?? this.kart_settings.DefaultRacer
         let entryName= `${_karter}${ENTRY_ADDONS_NAMES_BASE_NAME}`
@@ -459,6 +519,18 @@ class KartApiCache{
         ).catch(err => {
             hereLog(`[kartApiCache]{${_karter}} can't get cached installed addons names - ${err}`)
             return undefined
+        }))
+    }
+
+    async getInstalledCustomConfigNames(karter?: string, awaitRefresh: boolean= false) : Promise<CustomConfig_name[]> {
+        var _karter= karter ?? this.kart_settings.DefaultRacer
+        let entryName= `${_karter}${ENTRY_CUSTOM_CFG_NAMES_BASE_NAME}`
+
+        return (await this.cache.getEntry<CustomConfig_name[]>(entryName,
+            { awaitRefresh, ttl: KARTAPICACHE_DEFAULT_TTL_MS }
+        ).catch(err => {
+            hereLog(`[kartApiCache]{${_karter}} can't get cached installed addons names - ${err}`)
+            return []
         }))
     }
 }
