@@ -164,6 +164,10 @@ const EP_ADDONS_DISABLE         =   "addon_disable"
 const EP_ADDONS_REMOVE          =   "addon_remove"
 const EP_CONFIGS_INFO           =   "config_info"
 const EP_CONFIG_FILE            =   "config_yaml"
+const EP_CONFIG_INSTALL         =   "config_install"
+const EP_CONFIG_REMOVE          =   "config_remove"
+const EP_CONFIG_DISABLE         =   "config_disable"
+const EP_CONFIG_ENABLE          =   "config_enable"
 
 export class KartApi{
     private apiCaller: CallApi
@@ -189,6 +193,10 @@ export class KartApi{
         this.apiCaller.registerEndPoint(EP_ADDONS_REMOVE, "addons/:karter/remove")
         this.apiCaller.registerEndPoint(EP_CONFIGS_INFO, "config/:karter/info")
         this.apiCaller.registerEndPoint(EP_CONFIG_FILE, "config/:karter/:name")
+        this.apiCaller.registerEndPoint(EP_CONFIG_INSTALL, "config/:karter/custom")
+        this.apiCaller.registerEndPoint(EP_CONFIG_REMOVE, "config/:karter/:name")
+        this.apiCaller.registerEndPoint(EP_CONFIG_DISABLE, "config/:karter/:name/disable")
+        this.apiCaller.registerEndPoint(EP_CONFIG_ENABLE, "config/:karter/:name/enable")
 
         this.tokens= new TokensHandler()
 
@@ -357,13 +365,83 @@ export class KartApi{
     }
 
     get_custom_yaml_config(config_name: string, karter?: string)
-     : Promise<AxiosResponse<any>>
+        : Promise<AxiosResponse<any>>
     {
         var _karter= karter ?? this.settings.DefaultRacer
 
         return this.apiCaller.Call(EP_CONFIG_FILE,
             {   method: "get",
                 values: { karter: _karter, name: config_name }
+            }
+        )
+    }
+
+    set_custom_yaml_config(config_url: string, auth: KartTokenAuth, karter?: string)
+        : Promise<AxiosResponse<any>>
+    {
+        var _karter= karter ?? this.settings.DefaultRacer
+
+        let token= this.tokens.generateToken(auth.role, {auth})
+
+        return this.apiCaller.Call(EP_CONFIG_INSTALL,
+            {   method: "put",
+                values: { karter: _karter },
+                axiosRequestConfig: {
+                    data: { url: config_url },
+                    headers: {'x-access-token': token}
+                }
+            }
+        )
+    }
+
+    remove_custom_yaml_config(config_name: string, auth: KartTokenAuth, karter?: string)
+        : Promise<AxiosResponse<any>>
+    {
+        var _karter= karter ?? this.settings.DefaultRacer
+
+        let token= this.tokens.generateToken(auth.role, {auth})
+
+        return this.apiCaller.Call(EP_CONFIG_REMOVE,
+            {   method: "delete",
+                values: { karter: _karter, name: config_name },
+                axiosRequestConfig: {
+                    headers: {'x-access-token': token}
+                }
+            }
+        )
+    }
+
+    disable_custom_yaml_config(config_name: string, auth: KartTokenAuth, karter?: string)
+        : Promise<AxiosResponse<any>>
+    {
+        var _karter= karter ?? this.settings.DefaultRacer
+
+        let token= this.tokens.generateToken(auth.role, {auth})
+
+        return this.apiCaller.Call(EP_CONFIG_DISABLE,
+            {   method: "post",
+                values: { karter: _karter, name: config_name },
+                axiosRequestConfig: {
+                    headers: {'x-access-token': token}
+                }
+            }
+        )
+    }
+
+    enable_custom_yaml_config(config_name: string, triggertime: string, auth: KartTokenAuth, karter?: string)
+        : Promise<AxiosResponse<any>>
+    {
+        var _karter= karter ?? this.settings.DefaultRacer
+
+        let token= this.tokens.generateToken(auth.role, {auth})
+
+        return this.apiCaller.Call(EP_CONFIG_ENABLE,
+            {   method: "post",
+                values: { karter: _karter, name: config_name },
+                axiosRequestConfig: {
+                    data: { triggertime },
+                    headers: {'x-access-token': token}
+                }
             }
         )
     }
@@ -486,7 +564,7 @@ class KartApiCache{
                     Boolean(available_configs=my_utils.getFromFieldPath(response.data, 'custom_cfg.available_configs')) &&
                     Array.isArray(available_configs)
                 ){
-                    resolve(available_configs.map(cfg => ({name: "cfg['name']", filename: "cfg['filename']"})))
+                    resolve(available_configs.map(cfg => ({name: cfg['name'], filename: cfg['filename']})))
                 }
                 else{
                     resolve([])

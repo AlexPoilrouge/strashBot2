@@ -1322,17 +1322,17 @@ async function S_CMD__kartServer(interaction, utils){
     else if(subcommand==="restart"){
         await S_S_CMD_KartServer_Restart(interaction, utils)
     }
-    else if(subcommand==='logs'){
-        await S_S_CMD_KartServer_Logs(interaction, utils)
-    }
-    else if(subcommand==='config'){
-        await S_S_CMD_KartServer_Config(interaction, utils)
-    }
+    // else if(subcommand==='logs'){
+    //     await S_S_CMD_KartServer_Logs(interaction, utils)
+    // }
+    // else if(subcommand==='config'){
+    //     await S_S_CMD_KartServer_Config(interaction, utils)
+    // }
     else{
         await interaction.editReply(
             `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
             `Missing subcommand amongst: `+
-            `\`start\`,\`stop\`,\`restart\`,\`logs\`, or \`config\``
+            `\`start\`,\`stop\`,\`restart\``
         )
     }
 }
@@ -1416,7 +1416,6 @@ async function __Opt_S_S_CMD_kartAddon_loadOrder_Set(url, karter, interaction, u
     let status_parse= async (response, interaction) => {
         let rc= response.status
         let data= response.data
-        hereLog(`dazddfezfze rc:${rc} - data: ${JSON.stringify(data)}`)
         try{
             if(rc===200){
                 return true
@@ -1439,7 +1438,6 @@ async function __Opt_S_S_CMD_kartAddon_loadOrder_Set(url, karter, interaction, u
                 );
             }
             else if(rc===415){
-                hereLog("azeazeaze sup?")
                 await interaction.editReply({                    
                     content: ( `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
                                 `Uploaded config for \`${karter}\` is invalid or badly constructed…` ),
@@ -2512,7 +2510,7 @@ async function S_S_CMD_kartGetCustomConfig(interaction, utils) {
                 content: `## Strashbot's ${karter} server addons load order config\n`,
                 files: [{
                     attachment: Buffer.from(response.data),
-                    name: `${filename}.yaml`
+                    name: `${filename}`
                 }]
             } ).catch(err => 
                 hereLog(`[getCustomConfig]{${karter}} reply error (4) - ${err}`)
@@ -2544,7 +2542,343 @@ async function S_CMD_kartCustomConfig(interaction, utils){
         await interaction.editReply(
             `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
             `Missing subcommand amongst: `+
-            `\`info\``
+            `\`info\`, \`get\``
+        )
+    }
+}
+
+async function __Opt_S_S_CMD_kartCustomConfig_Set(url, karter, interaction, utils){
+    var _url= my_utils.checkUrl(url)
+
+    if(!Boolean(_url)){
+        await interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+            `Invalid url \`${_url}\`…`
+        ).catch(err => 
+            hereLog(`[setCustomConfig]{${karter}} reply error (0) - ${err}`)
+        );
+        return
+    }
+
+    let status_parse= async (response, interaction) => {
+        let rc= response.status
+        let data= response.data
+        try{
+            if(rc===200){
+                return true
+            }
+            else if(rc===400){
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                    `Can't upload "*custom config*" for \`${karter}\`…`
+                ).catch(err => 
+                    hereLog(`[setCustomConfig]{${karter}} reply error (2) - ${err}`)
+                );
+            }            
+            else if(rc===401 || rc===403){
+                hereLog(`[setCustomConfig]{${karter}} access failure: ${rc}`)
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
+                    `Access failure on "*custom config*" upload for \`${karter}\`…`
+                ).catch(err => 
+                    hereLog(`[setCustomConfig]{${karter}} reply error (1) - ${err}`)
+                );
+            }
+            else if(rc===415){
+                await interaction.editReply({                    
+                    content: ( `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                                `Uploaded config for \`${karter}\` is invalid or badly constructed…` ),
+                    files: (data && data.details) ?
+                                [{
+                                    attachment: Buffer.from(data.details),
+                                    name: `custom_config.yaml.errors.txt`
+                                }]
+                            : undefined
+                }).catch(err => 
+                    hereLog(`[setCustomConfig]{${karter}} reply error (7) - ${err}`)
+                );
+            }
+            else if(rc===440){
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                    `Upload file is too big!`
+                ).catch(err => 
+                    hereLog(`[setCustomConfig]{${karter}} reply error (3) - ${err}`)
+                );
+            }
+            else if(rc===441 || rc===442){
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                    `"*Custom config*" has bad type, or extension`
+                ).catch(err => 
+                    hereLog(`[setCustomConfig]{${karter}} reply error (4) - ${err}`)
+                );
+            }
+            else if(rc===513){
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                    `Upload error on server…`
+                ).catch(err => 
+                    hereLog(`[setCustomConfig]{${karter}} reply error (5) - ${err}`)
+                );
+            }
+            else{
+                if(rc!==999){
+                    hereLog(`[setAddonsLoadOrder] unhandled status code: ${rc}…`)
+                }
+
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                    `Error occured installing new *custom config* for \`${karter}\`…`
+                ).catch(err => 
+                    hereLog(`[setCustomConfig]{${karter}} reply error (5) - ${err}`)
+                );
+            }
+
+            return false
+        } catch(err){
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                `Error occured installing new *load order config* for \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[setAddonsLoadOrder]{${karter}} reply error (6) - ${err}`)
+            );
+
+            return false
+        }
+    }
+
+    await kart_stuff.Api.set_custom_yaml_config(
+        _url, _generateAuthPayload(interaction.user.id, utils), karter
+    ).then( async response => {
+        if(await status_parse(response)){
+            await interaction.editReply(
+                `## New *${karter}* custom config upload\n\n`+
+                `✅ Success`
+            ).catch(err => 
+                hereLog(`[setCustomConfig]{${karter}} reply error (6) - ${err}`)
+            );
+        }
+    }).catch(async err => {
+        if(Boolean(err.response) && Boolean(err.response.status)){
+            await status_parse(err.response, interaction)
+        }
+        else{
+            hereLog(`[setCustomConfig]{${karter}} error setting custom config - ${err}`)
+            await status_parse(999, interaction)
+        }
+    })
+}
+
+async function S_S_CMD_kartCustomConfigAdmin_set(interaction, utils) {
+    var karter= await Interaction_checkKarter_StringOpt(interaction, utils)
+    if(!Boolean(karter)) return
+
+    let attachment= interaction.options.getAttachment('file_yaml')
+    var url= interaction.options.getString('url')
+
+    if(Boolean(attachment)){
+        url= attachment.url
+    }
+    
+    if(Boolean(url)){ //set
+        await __Opt_S_S_CMD_kartCustomConfig_Set(url, karter, interaction, utils)
+    }
+    else{
+        hereLog(`[kartCustomConfigAdmin_set] Nothing to install (no 'url'?)…`)
+        await interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+            `Couldn't access config input…`
+        )
+        return undefined
+    }    
+}
+
+async function __Opt_S_S_CMD_kartCustomConfig_action(action, karter, config_name, interaction, utils) {
+    var action_res= {success: false}
+    let auth= _generateAuthPayload(interaction.user.id, utils)
+
+    //default: enable
+    var action_emoji= '✅'
+    var action_ing= "enabling"
+    var action_done= "enabled"
+
+    try{
+        if(action==='disable'){
+            try{
+                var response= await kart_stuff.Api.disable_custom_yaml_config(config_name, auth, karter)
+                if(Boolean(response.status)){
+                    action_res= {success: (response.status===200), rc: response.status}
+                }
+                else{
+                    action_res= {success: false, rc: 999}
+                }
+            } catch(err){
+                hereLog(`[actionCustomConfig]<${action}>{${karter}}(1) Error trying to ${action} custom config - ${err}`)
+                if(Boolean(err.response) && Boolean(err.response.status)){
+                    action_res= {success: false, rc: err.response.status}
+                }
+                else{
+                    throw err
+                }
+            }
+            action_emoji= '⏹'
+            action_ing= "disabling"
+            action_done= "disabled"
+        }
+        else if(action==='remove'){
+            try{
+                var response= await kart_stuff.Api.remove_custom_yaml_config(config_name, auth, karter)
+                if(Boolean(response.status)){
+                    action_res= {success: (response.status===200), rc: response.status}
+                }
+                else{
+                    action_res= {success: false, rc: 999}
+                }
+            } catch(err){
+                hereLog(`[actionCustomConfig]<${action}>{${karter}}(2) Error trying to ${action} custom config - ${err}`)
+                if(Boolean(err.response) && Boolean(err.response.status)){
+                    action_res= {success: false, rc: err.response.status}
+                }
+                else{
+                    throw err
+                }
+            }
+            action_emoji= '❎'
+            action_ing= "removing"
+            action_done= "removed"
+        }
+        else{
+            var triggertime= interaction.options.getString('triggertime') ?? '* * * * *'
+            try{
+                var response= await kart_stuff.Api.enable_custom_yaml_config(config_name, triggertime, auth, karter)
+                if(Boolean(response.status)){
+                    action_res= {success: (response.status===200), rc: response.status}
+                }
+                else{
+                    action_res= {success: false, rc: 999}
+                }
+            } catch(err){
+                hereLog(`[actionCustomConfig]<${action}>{${karter}}(3) Error trying to ${action} custom config - ${err}`)
+                if(Boolean(err.response) && Boolean(err.response.status)){
+                    action_res= {success: false, rc: err.response.status}
+                }
+                else{
+                    throw err
+                }
+            }
+        }
+    } catch(err){
+        hereLog(`[actionCustomConfig]<${action}>{${karter}}(4) Error trying to ${action} custom config - ${err}`)
+    }
+
+    let status_parse= async (rc, interaction) => {
+        try{
+            if(rc===200){
+                return true
+            }
+            else if(rc===400){
+                hereLog(`[actionCustomConfig]<${action}>{${karter}} bad request: ${rc}`)
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                    `"*custom_config_${action}*" \`${config_name}\` for \`${karter}\` seems like bad request…`
+                ).catch(err => 
+                    hereLog(`[actionCustomConfig]<${action}>{${karter}} reply error (1) - ${err}`)
+                );
+            }
+            else if(rc===401 || rc===403){
+                hereLog(`[actionCustomConfig]<${action}>{${karter}} access failure: ${rc}`)
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
+                    `Access failure on "*custom_config_${action}*" for \`${karter}\`…`
+                ).catch(err => 
+                    hereLog(`[actionCustomConfig]<${action}>{${karter}} reply error (2) - ${err}`)
+                );
+            }
+            else if(rc===404){
+                hereLog(`[actionCustomConfig]<${action}>{${karter}} not found?: ${rc}`)
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                    `custom_config ${action_ing} \`${config_name}\` on \`${karter}\` seems unavailable…`
+                ).catch(err => 
+                    hereLog(`[actionCustomConfig]<${action}>{${karter}} reply error (3) - ${err}`)
+                );
+            }
+            else{
+                if(rc!==999){
+                    hereLog(`[actionCustomConfig]<${action}>{${karter}} unhandled status code: ${rc}…`)
+                }
+
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                    `Error occured ${action_ing} custom_config \`${config_name}\` for \`${karter}\`…`
+                ).catch(err => 
+                    hereLog(`[actionCustomConfig]<${action}>{${karter}} reply error (7) - ${err}`)
+                );
+            }
+
+            return false
+        } catch(err){
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                `Error occured ${action_ing} custom_config \`${config_name}\` for \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[actionCustomConfig]<${action}>{${karter}} reply error (8) - ${err}`)
+            );
+
+            return false
+        }
+    }
+    
+    if(action_res.success && status_parse(action_res.rc)){
+        await interaction.editReply(
+            `## Addon ${action_done} on StrashBot's *${karter}* server\n\n`+
+            `${action_emoji} ${config_name}\n`+
+            `(takes effect on next server restart…)`
+        )
+    }
+    else{
+        hereLog(`[actionCustomConfig]<${action}>{${karter}}(5) error ${action_ing} custom_config - ${err}`)
+        await status_parse(999, interaction)
+    }
+}
+
+async function S_S_CMD_kartCustomConfigAdmin_manage(interaction, utils){
+    var karter= await Interaction_checkKarter_StringOpt(interaction, utils)
+    if(!Boolean(karter)) return
+
+    let action= interaction.options.getString('action')
+    let config_name= interaction.options.getString('config')
+    
+    if(['enable', 'disable', 'remove'].includes(action)){
+        await __Opt_S_S_CMD_kartCustomConfig_action(action, karter, config_name, interaction, utils)
+    }
+    else{
+        await interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+            `Invalid or unknown action \`${action}\`…`
+        ).catch(err => 
+            hereLog(`[sCmd_actionCustomConfig]<${action}>{${karter}} reply error (0) - ${err}`)
+        );
+    }
+}
+
+async function S_CMD_kartCustomConfigAdmin(interaction, utils){
+    await interaction.deferReply()
+
+    let subcommand= interaction.options.getSubcommand()
+
+    if(subcommand==='set'){
+        await S_S_CMD_kartCustomConfigAdmin_set(interaction, utils)
+    }
+    else if(subcommand==='manage'){
+        await S_S_CMD_kartCustomConfigAdmin_manage(interaction, utils)
+    }
+    else{
+        await interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+            `Missing subcommand amongst: `+
+            `\`set\`, \`manage\``
         )
     }
 }
@@ -3301,7 +3635,7 @@ async function S_CMD__kartClips(interaction, utils){
         await interaction.editReply(
             `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
             `Missing subcommand amongst: `+
-            `\`new\`, \`ifno\`, \`remove\` or \`description\``
+            `\`new\`, \`info\`, \`remove\` or \`description\``
         )
     }
 }
@@ -3502,21 +3836,21 @@ let slashKartStartStop= {
                     .addChoices(...slashKartData_getKarterChoices())
                 )
             )
-            .addSubcommand(subcommand =>
-                subcommand
-                .setName('logs')
-                .setDescription('Fetch the Strashbot kart server\'s logfile')
-            )
-            .addSubcommand(subcommand =>
-                subcommand
-                .setName('config')
-                .setDescription('Something about the server\'s config')
-                .addAttachmentOption(option =>
-                    option
-                    .setName('set')
-                    .setDescription('Sumbit a new server config')
-                )
-            )
+            // .addSubcommand(subcommand =>
+            //     subcommand
+            //     .setName('logs')
+            //     .setDescription('Fetch the Strashbot kart server\'s logfile')
+            // )
+            // .addSubcommand(subcommand =>
+            //     subcommand
+            //     .setName('config')
+            //     .setDescription('Something about the server\'s config')
+            //     .addAttachmentOption(option =>
+            //         option
+            //         .setName('set')
+            //         .setDescription('Sumbit a new server config')
+            //     )
+            // )
             .setDMPermission(false),
     async execute(interaction, utils){
         try{
@@ -3734,6 +4068,92 @@ let slashKartCustomConfig= {
         }
         catch(err){
             hereLog(`[customConfigLookup_autoComplete] Error! -\n\t${err}`)
+        }
+    }
+}
+
+let slashKartCustomConfigManager= {
+    data: new SlashCommandBuilder()
+    .setName('kart_custom_config_admin')
+    .setDescription('Manage Racers custom configurations.')
+    .setDefaultMemberPermissions(0)
+    .addSubcommand(subcommand =>
+        subcommand
+        .setName("set")
+        .setDescription("add or change a custom command config on the racer's server")
+        .addStringOption(option =>
+            option
+            .setName('karter')
+            .setDescription('Which kart game?')
+            .addChoices(...slashKartData_getKarterChoices())
+        )
+        .addAttachmentOption(option =>
+            option
+            .setName('file_yaml')
+            .setDescription('Sumbit a new custom config as a .yaml file')
+        )
+        .addStringOption(option =>
+            option
+            .setName('url')
+            .setDescription('Download and set from url.')
+        )
+    )
+    .addSubcommand(subcommand =>
+        subcommand
+        .setName("manage")
+        .setDescription("Manage custom config file for a racer's server.")
+        .addStringOption(option =>
+            option
+            .setName('action')
+            .setDescription('What to do?')
+            .setRequired(true)
+            .addChoices([
+                { name: "Enable", value: 'enable' },
+                { name: "Disable", value: 'disable' },
+                { name: "Remove", value: 'remove' },
+            ])
+        )
+        .addStringOption(option =>
+            option
+            .setName('config')
+            .setDescription('the basename custom config to handle')
+            .setRequired(true)
+            .setMaxLength(128)
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+            option
+            .setName('karter')
+            .setDescription('Which kart game?')
+            .addChoices(...slashKartData_getKarterChoices())
+        )
+        .addStringOption(option =>
+            option
+            .setName('triggertime')
+            .setDescription("[ENABLE only] set config triggertime (default: '* * * * *'")
+            .setMaxLength(64)
+        )
+    )
+    .setDMPermission(false),
+    async execute(interaction, utils){
+        try{
+            await S_CMD_kartCustomConfigAdmin(interaction, utils)
+        }
+        catch(err){
+            hereLog(`[kart_custom_cfg_admin] Error! -\n\t${err} - ${err.message}`)
+            let msg= `${my_utils.emoji_retCode(E_RetCode.ERROR_CRITICAL)} Sorry, an internal error occured…`
+            if (interaction.deferred)
+                await interaction.editReply(msg)
+            else
+                await interaction.reply(msg)
+        }  
+    },
+    async autoComplete(interaction){
+        try{
+            await AC___customConfigLookup(interaction)
+        }
+        catch(err){
+            hereLog(`[customConfigLookup_autoComplete](admin) Error! -\n\t${err}`)
         }
     }
 }
@@ -4066,6 +4486,7 @@ module.exports= {
         slashKartAddons,
         //slashKartIngames,
         slashKartCustomConfig,
+        slashKartCustomConfigManager,
         slashKartClip,
         slaskKartDiscord
     ],
