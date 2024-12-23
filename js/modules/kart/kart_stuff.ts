@@ -156,6 +156,7 @@ const EP_INFO_NAME              =   "info"
 const EP_SERVICE_OP_BASE        =   "service_"
 const EP_SERVICE_RESTART_NAME   =   `${EP_SERVICE_OP_BASE}restart`
 const EP_SERVICE_STOP_NAME      =   `${EP_SERVICE_OP_BASE}stop`
+const EP_PASSWORD               =   "password"
 const EP_ADDONS_NAME            =   "addons"
 const EP_ADDONS_LOAD_ORDER_NAME =   "load_order"
 const EP_ADDONS_INSTALL         =   "addon_install"
@@ -184,6 +185,7 @@ export class KartApi{
         this.apiCaller.registerEndPoint(EP_SERVICE_NAME, "service/:karter")
         this.apiCaller.registerEndPoint(EP_SERVICE_RESTART_NAME, "service/restart/:karter")
         this.apiCaller.registerEndPoint(EP_SERVICE_STOP_NAME, "service/stop/:karter")
+        this.apiCaller.registerEndPoint(EP_PASSWORD, "password/:karter")
         this.apiCaller.registerEndPoint(EP_INFO_NAME, "info")
         this.apiCaller.registerEndPoint(EP_ADDONS_NAME, "addons/:karter/info")
         this.apiCaller.registerEndPoint(EP_ADDONS_LOAD_ORDER_NAME, "addons/:karter/load_order")
@@ -260,6 +262,23 @@ export class KartApi{
     service_stop= (auth: KartTokenAuth, karter?: string) => this.service_op(
         "stop", auth, karter
     )
+
+    get_password(auth: KartTokenAuth, karter?: string)
+        : Promise<AxiosResponse<any>>
+    {
+        var _karter= karter ?? this.settings.DefaultRacer
+
+        let token= this.tokens.generateToken(auth.role, {auth})
+        
+        return this.apiCaller.Call(EP_PASSWORD,
+            {   method: "get",
+                values: { karter: _karter },
+                axiosRequestConfig: {
+                    headers: {'x-access-token': token}
+                }
+            }
+        )
+    }
 
     get_addons(addon?: string, karter?: string)
         : Promise<AxiosResponse<any>>

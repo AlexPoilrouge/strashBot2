@@ -829,38 +829,83 @@ async function S_CMD__kartInfo(interaction, utils){
     })
 }
 
-function _getPassword(){
-    b= false;
-    stdout= undefined;
-    try{
-        var cmd= __kartCmd("eval 'cat ${HOME}/.ringracers/.TMP_PASS'");
-        stdout=child_process.execSync(cmd,{timeout: 16000}).toString().replace('\n','');
-        b= true;
-    }
-    catch(err){
-        hereLog("Accessing srb2k server password: "+err);
-        b= false;
-    }
-
-    if(!Boolean(stdout) || !b){
-        return "password not found";
-    }
-
-    return stdout;
-};
-
 async function S_CMD__kartPassword(interaction, utils){
+    let karter= interaction.options.getString('karter') ?? kart_stuff.Settings.DefaultRacer
+
+    let status_parse= async (rc) => {
+        try{
+            if(rc===200){
+                return true
+            }
+            else if(rc===401 || rc===403){
+                hereLog(`[getPassword]{${karter}} access failure: ${rc}`)
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
+                    `Authorization to fetch ${karter}'s password was denied…`
+                ).catch(err => 
+                    hereLog(`[getPassword]{${karter}} reply error (1) - ${err}`)
+                );
+            }
+            else if(rc===404){
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                    `No password for '${karter}' seems to be available…`
+                ).catch(err => 
+                    hereLog(`[getPassword]{${karter}} reply error (2) - ${err}`)
+                );
+            }
+            else{
+                if(rc!==999){
+                    hereLog(`[getPassword] unhandled status code: ${rc}…`)
+                }
+
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                    `Error occured trying to fetch password for \`${karter}\`…`
+                ).catch(err => 
+                    hereLog(`[getPassword]{${karter}} reply error (5) - ${err}`)
+                );
+            }
+
+            return false
+        } catch(err){
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                `Error occured trying to fetch password for \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[getPassword]{${karter}} reply error (6) - ${err}`)
+            );
+
+            return false
+        }
+    }
+
     await interaction.deferReply({ ephemeral: true })
-    _serverServiceStatus_API().then(async r => {
+    _serverServiceStatus_API(karter).then(async r => {
         if(r==="UP"){
-            pwd= _getPassword();
-            await interaction.editReply(`Server admin password: \`${pwd}\`\n\tUne fois connecté au serveur SRB2Kart, ingame utilise la commande \`login ${pwd}\` pour accéder à l'interface d'admin!`)
+            await kart_stuff.Api.get_password(
+                _generateAuthPayload(interaction.user.id, utils), karter
+            ).then( async response => {
+                if(await status_parse(response.status, interaction)){
+                    hereLog(`iiiiiiiiii ${JSON.stringify(response.data)}`)
+                    let pwd= response.data.password;
+
+                    await interaction.editReply(
+                        `Server admin password: \`${pwd}\`\n` +
+                        `\tUne fois connecté au serveur **${karter}**, ingame utilise la commande ` +
+                        `\`login ${pwd}\` pour accéder à l'interface d'admin!`
+                    ).catch(err => 
+                        hereLog(`[getPassword]{${karter}} reply error (7) - ${err}`)
+                    );
+                }
+            })
         }
         else{
-            await interaction.editReply(`Aucun SRB2Kart actif…`);
+            await interaction.editReply(`Aucun serveur '${karter}' actif…`);
         }
     }).catch(async err => {
-        await interaction.editReply(`Aucun SRB2Kart actif…`);
+        hereLog(`[getPassword]{${karter}} reply error (8) - ${err}`)
+        await interaction.editReply(`Aucun serveur '${karter}' actif…`);
     })
 }
 
@@ -1378,7 +1423,7 @@ async function __Opt_S_S_CMD_kartAddon_loadOrder_Get(karter, interaction){
     }
 
     await kart_stuff.Api.get_addon_load_order_config(karter).then( async response => {
-        if(await status_parse(response.status)){
+        if(await status_parse(response.status, interaction)){
             await interaction.editReply( {
                 content: `## Strashbot's ${karter} server addons load order config\n`,
                 files: [{
@@ -1504,7 +1549,7 @@ async function __Opt_S_S_CMD_kartAddon_loadOrder_Set(url, karter, interaction, u
     await kart_stuff.Api.set_addon_load_order_config(
         _url, _generateAuthPayload(interaction.user.id, utils), karter
     ).then( async response => {
-        if(await status_parse(response)){
+        if(await status_parse(response, interaction)){
             await interaction.editReply(
                 `## New *${karter}* addon load config upload\n\n`+
                 `✅ Success`
@@ -1783,7 +1828,7 @@ async function S_S_CMD_kartAddon_Install(interaction, utils) {
 
         let auth= _generateAuthPayload(interaction.user.id, utils)
         await kart_stuff.Api.install_addon_from_url(_url, auth, karter).then(async response => {
-            if(await status_parse(response.status)){
+            if(await status_parse(response.status, interaction)){
                 var addon_filename= my_utils.getFromFieldPath(response,'data.result.addon')
                 var base_url=  undefined
                 try{
@@ -3769,11 +3814,26 @@ let slashKartInfo= {
     }
 }
 
+let slashKartData_getKarterChoices= () => {
+    let kSettings= new KS.KartSettings()
+    kSettings.loadFromJSON()
+
+    return kSettings.RacerNames.map(r_name => {
+        return { name: r_name, value: r_name }
+    })
+}
+
 let slashKartPassword= {
     data: new SlashCommandBuilder()
             .setName('kart_password')
-            .setDescription("Get the Strashbot SRB2Kart's server's login")
+            .setDescription("Get the Strashbot karting server's login")
             .setDefaultMemberPermissions(0)
+            .addStringOption(option =>
+                option
+                .setName('karter')
+                .setDescription('Which kart game?')
+                .addChoices(...slashKartData_getKarterChoices())
+            )
             .setDMPermission(false),
     async execute(interaction, utils){
         try{
@@ -3788,15 +3848,6 @@ let slashKartPassword= {
                 interaction.reply(msg)
         }
     }
-}
-
-let slashKartData_getKarterChoices= () => {
-    let kSettings= new KS.KartSettings()
-    kSettings.loadFromJSON()
-
-    return kSettings.RacerNames.map(r_name => {
-        return { name: r_name, value: r_name }
-    })
 }
 
 let slashKartStartStop= {
@@ -4158,136 +4209,10 @@ let slashKartCustomConfigManager= {
     }
 }
 
-let slashKartIngames= {
-    data: new SlashCommandBuilder()
-    .setName('kart_ingames')
-    .setDescription("About maps/racers availabe in the current Strashbot SRB2Kart server")
-    .addSubcommand(subcommand =>
-        subcommand
-        .setName("maps")
-        .setDescription("About the maps")
-        .addStringOption(option => 
-            option
-            .setName('search')
-            .setDescription("search for maps matching the given pattern")
-        )
-        .addStringOption(option => 
-            option
-            .setName('type')
-            .setDescription('type of maps')
-            .addChoices(
-                { name: 'Battle maps', value: 'battle' },
-                { name: 'Hell maps', value: 'hell' },
-                { name: 'Banned maps', value: 'banned' }
-            )
-        )
-        .addStringOption(option => 
-            option
-            .setName('sections')
-            .setDescription('section maps?')
-            .addChoices(
-                { name: 'Show all maps (default)', value: 'all' },
-                { name: 'Only show section maps', value: 'section_only' },
-                { name: 'Don\'t show section maps', value: 'no_section' }
-            )
-        )
-    ).addSubcommand(subcommand =>
-        subcommand
-        .setName("map_count")
-        .setDescription("Count the maps")
-        .addStringOption(option => 
-            option
-            .setName('search')
-            .setDescription("search for maps matching the given pattern")
-        )
-        .addStringOption(option => 
-            option
-            .setName('type')
-            .setDescription('type of maps')
-            .addChoices(
-                { name: 'Battle maps', value: 'battle' },
-                { name: 'Hell maps', value: 'hell' },
-                { name: 'Banned maps', value: 'banned' }
-            )
-        )
-        .addStringOption(option => 
-            option
-            .setName('sections')
-            .setDescription('section maps?')
-            .addChoices(
-                { name: 'Show all maps (default)', value: 'all' },
-                { name: 'Only show section maps', value: 'section_only' },
-                { name: 'Don\'t show section maps', value: 'no_section' }
-            )
-        )
-    )
-    .addSubcommand(subcommand =>
-        subcommand
-        .setName("racers")
-        .setDescription("About the racers/skins")
-        .addStringOption(option => 
-            option
-            .setName('search')
-            .setDescription("search for skins matching the given pattern")
-        )
-        .addNumberOption(option =>
-            option
-            .setName('speed')
-            .setDescription("the speed stats of the racer")
-            .setMinValue(0)
-            .setMaxValue(9)
-        )
-        .addNumberOption(option =>
-            option
-            .setName('weight')
-            .setDescription("the weight stats of the racer")
-            .setMinValue(0)
-            .setMaxValue(9)
-        )
-    )
-    .addSubcommand(subcommand =>
-        subcommand
-        .setName("racer_count")
-        .setDescription("Count the racers/skins")
-        .addStringOption(option => 
-            option
-            .setName('search')
-            .setDescription("search for skins matching the given pattern")
-        )
-        .addNumberOption(option =>
-            option
-            .setName('speed')
-            .setDescription("the speed stats of the racer")
-            .setMinValue(0)
-            .setMaxValue(9)
-        )
-        .addNumberOption(option =>
-            option
-            .setName('weight')
-            .setDescription("the weight stats of the racer")
-            .setMinValue(0)
-            .setMaxValue(9)
-        )
-    ),
-    async execute(interaction, utils){
-        try{
-            await S_CMD__kartInGames(interaction, utils)
-        }
-        catch(err){
-            hereLog(`[kart_ingames] Error! -\n\t${err} - ${err.message}`)
-            let msg= `${my_utils.emoji_retCode(E_RetCode.ERROR_CRITICAL)} Sorry, an internal error occured…`
-            if (interaction.deferred)
-                await interaction.editReply(msg)
-            else
-                await interaction.reply(msg)
-        }        
-    }
-}
-
 let slashKartClip= {
     data: new SlashCommandBuilder()
     .setName('kart_clips')
-    .setDescription("Cools clips from Strashbot's SRB2Kart server and stuff")
+    .setDescription("Cools clips from Strashbot's server and stuff")
     .addSubcommand(subcommand =>
         subcommand
         .setName("new")
