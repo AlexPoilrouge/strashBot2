@@ -38,39 +38,6 @@ function __kartCmd(command){
             :   "false";
 }
 
-function _initAddonsConfig(){
-    b= false;
-    try{
-        var cmd= __kartCmd(kart_stuff.Settings.grf('config_commands.init'))
-        child_process.execSync(cmd, {timeout: 32000});
-        b= true;
-    }
-    catch(err){
-        hereLog("Error while initializing addons: "+err);
-        b= false;
-    }
-    return b;
-}
-
-function __clearScores(user=undefined){
-    var clrScr= undefined
-    if(Boolean(clrScr=kart_stuff.Settings.grf('config_commands.clear_score'))){
-        var cmd= __kartCmd(clrScr)
-        try{
-            str=child_process.execSync(`${cmd}${(Boolean(user))?` ${user.id}`:''}`, {timeout: 16000}).toString();
-        }
-        catch(err){
-            hereLog("[auto stop] error while clearing scores on autoStop: "+err.message);
-            return false;
-        }
-
-        return (Boolean(str) && Boolean(str.match(/^(.*)SCORES?_CLEARED$/)))
-    }
-    else{
-        return false;
-    }
-}
-
 function _serverServiceStatus_API(karter=undefined){
     return new Promise( (resolve, reject) => {
         if ((!Boolean(kart_stuff)) || !Boolean(kart_stuff.Api)){
@@ -127,12 +94,10 @@ let _restartServer= (karter="ringracers", auth) => _kartServiceOp(
 function _autoStopServer(utils){
     return _serverServiceStatus_API().then( r => {
         if(r==='UP'){
-            __clearScores()
-
             hereLog("[auto stop] stopping server…");
             _stopServer(
-                "ringracers",
-                _generateAuthPayload(undefined, payload)
+                kart_stuff.Settings.DefaultRacer,
+                _generateAuthPayload(undefined, utils)
             );
             
             l_guilds.forEach( (g) =>{
@@ -164,20 +129,6 @@ async function _isServerRunning(karter=undefined){
     })
 }
 
-function _startServer(){
-    b= false;
-    try{
-        var cmd= __kartCmd(kart_stuff.Settings.grf('server_commands.start'))
-        child_process.execSync(cmd, {timeout: 32000});
-        b= true;
-    }
-    catch(err){
-        hereLog("Error while launching server: "+err);
-        b= false;
-    }
-    return b;
-}
-
 function _autoStartServer(utils){
     var didAutoStop= l_guilds.some( (g) => {
         return Boolean(utils.settings.get(g, "auto_stop"))
@@ -186,12 +137,18 @@ function _autoStartServer(utils){
     return _serverServiceStatus_API().then( r => {
         if(r!=="UP" && didAutoStop){
             hereLog("[auto start] restarting server…");
-            _startServer();
+            _restartServer(
+                kart_stuff.Settings.DefaultRacer,
+                _generateAuthPayload(undefined, utils)
+            )
         }
     }).catch(e => {
         if(didAutoStop){
             hereLog("[auto start] restarting server…");
-            _startServer();
+            _restartServer(
+                kart_stuff.Settings.DefaultRacer,
+                _generateAuthPayload(undefined, utils)
+            )
         }
     }).finally(() => {
         l_guilds.forEach( (g) =>{
@@ -517,8 +474,6 @@ var status_racer_check_queue= undefined
 
 function kart_init(utils){
     kart_stuff= new KS.KartStuff()
-
-    _initAddonsConfig();
 
     status_racer_check_queue= kart_stuff.Settings.RacerNames
 
@@ -909,21 +864,6 @@ async function S_CMD__kartPassword(interaction, utils){
     })
 }
 
-
-function _startServer(){
-    b= false;
-    try{
-        var cmd= __kartCmd(kart_stuff.Settings.grf('server_commands.start'))
-        child_process.execSync(cmd, {timeout: 32000});
-        b= true;
-    }
-    catch(err){
-        hereLog("Error while launching server: "+err);
-        b= false;
-    }
-    return b;
-}
-
 async function __S_S_CMD_KartServer_Op(op="restart", interaction, utils){
     let force= (interaction.options.getBoolean('force') ?? false)
     let karter= (interaction.options.getString('karter') ?? kart_stuff.Settings.DefaultRacer)
@@ -986,46 +926,6 @@ async function __S_S_CMD_KartServer_Op(op="restart", interaction, utils){
 
 let S_S_CMD_KartServer_Stop= async (interaction, utils) => (await __S_S_CMD_KartServer_Op('stop', interaction, utils))
 let S_S_CMD_KartServer_Restart= async (interaction, utils) => (await __S_S_CMD_KartServer_Op('restart', interaction, utils))
-
-async function S_S_CMD_KartServer_Logs(interaction, utils){
-    var str= undefined
-    try{
-        var cmd= __kartCmd(kart_stuff.Settings.grf('config_commands.get_log'));
-        str= child_process.execSync(cmd, {timeout: 16000}).toString();
-    }
-    catch(err){
-        hereLog("Error while looking for log.txt: "+err);
-        str= undefined
-    }
-
-    if(Boolean(str)){
-        if(Boolean(kart_stuff.Settings.grf('server_commands.through_ssh'))){
-            if(Boolean(kart_stuff.Settings.grf('http_url')) ){
-                await interaction.editReply(`Server's last recorded logs: ${kart_stuff.Settings.grf('http_url')}/${str}`)
-            }
-            else{
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                    "server internal error"
-                );
-            }
-        }
-        else{
-            await interaction.editReply(`Server's last recorded logs:`,
-                {files: [{
-                    attachment: `${str}`,
-                    name: `log.txt`
-                }]}
-            );
-        }
-    }
-    else{
-        await interaction.editReply(
-            `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-            "server internal error"
-        );
-    }
-}
 
 
 async function url_availabe(url){
@@ -1222,140 +1122,6 @@ async function __ssh_download_cmd(cmd, url, utils, fileName=undefined){
     return await exe_p();
 }
 
-async function S_S_CMD_KartServer_Config(interaction, utils){
-    let setAttachmentOpt= interaction.options.getAttachment('set')
-
-    if(!Boolean(setAttachmentOpt)){
-        var str= undefined
-        try{
-            var cmd= __kartCmd(kart_stuff.Settings.grf('config_commands.get_config'));
-            str= child_process.execSync(cmd, {timeout: 32000}).toString();
-        }
-        catch(err){
-            hereLog("Error while keeping addons: "+err);
-            str= undefined
-        }
-
-        if(Boolean(str)){
-            if(Boolean(kart_stuff.Settings.grf('server_commands.through_ssh'))){
-                if(Boolean(kart_stuff.Settings.grf('http_url'))){
-                    await interaction.editReply(`Srb2kart server's startup user config file: ${kart_stuff.Settings.grf('http_url')}/${str}`);
-                }
-                else{
-                    await interaction.editReply(
-                        `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                        "Can't access srb2kart server's config file…"
-                    )
-                }
-            }
-            else if(fs.existsSync(str)){
-                await interaction.editReply({
-                    content: "Srb2kart server's startup user config file:",
-                    files: [{
-                        attachment: `${str}`,
-                        name: `startup.cfg`
-                    }]
-                });
-            }
-            else{
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                    "Can't access server's config file…"
-                )
-            }
-        }
-        else{
-            await interaction.editReply(
-                `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                "Server internal error…"
-            )
-        }
-    }
-    else{
-        let url= setAttachmentOpt.url
-
-        if ( !Boolean(kart_stuff.Settings.grf('dirs.main_folder')) ){
-            hereLog("[cfg upload] no dest directory for cfg dl");
-            await interaction.editReply(
-                `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                `server internal error`
-            );
-        }
-        else if(url.endsWith('.cfg')){
-            var _b= false;
-            if(Boolean(kart_stuff.Settings.grf('server_commands.through_ssh'))){
-                _b= await __ssh_download_cmd(
-                    kart_stuff.Settings.grf('config_commands.add_config_url'),
-                    url, utils
-                );
-            }
-            else{
-                _b= await __downloading(url,
-                    kart_stuff.Settings.grf('dirs.main_folder'), utils, "new_startup.cfg"
-                );
-            }
-
-            if(!_b){
-                hereLog("[uploading cfg] command fail");
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                    `internal error preventing .cfg upload…`
-                );
-                return
-            }
-
-            var str= undefined
-            try{
-                var cmd= __kartCmd(kart_stuff.Settings.grf('config_commands.change_config'));
-                str= child_process.execSync(cmd+" new_startup.cfg", {timeout: 16000}).toString();
-            }
-            catch(err){
-                hereLog("Error while changing config: "+err);
-                str= undefined
-            }
-
-            if(Boolean(str)){
-                // hereLog(`[change cfg] ret: ${str}`)
-                let payload= (str==="updated" && !kart_stuff.Settings.grf('server_commands.through_ssh'))?
-                    {
-                        files: [{
-                            attachment: `${str}`,
-                            name: `startup.cfg.diff`
-                        }]
-                    } : {}
-                if(await _isServerRunning()){
-                    payload.content=
-                        `\`startup.cfg\` a bien été mis à jour.\n`+
-                        `Cependant, cela n'aura aucun effet pour la session déjà en cours\n` +
-                        ( (kart_stuff.Settings.grf('server_commands.through_ssh'))?
-                            `\nDiff: ${kart_stuff.Settings.grf('http_url')}/startup.cfg.diff`
-                            : "Diff generated file"
-                        )
-                }
-                else{
-                    payload.content= 
-                        (kart_stuff.Settings.grf('server_commands.through_ssh'))?
-                                `\nDiff: ${kart_stuff.Settings.grf('http_url')}/startup.cfg.diff`
-                            :   "Diff generated file" 
-                }
-                interaction.editReply(payload)
-            }
-            else{
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                    `internal error while trying to update *startup.cfg*…`
-                );
-            }
-        }
-        else{
-            await interaction.editReply(
-                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                `only .cfg files…`
-            );
-        }
-    }
-}
-
 async function S_CMD__kartServer(interaction, utils){
     await interaction.deferReply()
 
@@ -1367,12 +1133,6 @@ async function S_CMD__kartServer(interaction, utils){
     else if(subcommand==="restart"){
         await S_S_CMD_KartServer_Restart(interaction, utils)
     }
-    // else if(subcommand==='logs'){
-    //     await S_S_CMD_KartServer_Logs(interaction, utils)
-    // }
-    // else if(subcommand==='config'){
-    //     await S_S_CMD_KartServer_Config(interaction, utils)
-    // }
     else{
         await interaction.editReply(
             `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
@@ -1609,91 +1369,6 @@ async function S_S_CMD_kartAddon_loadOrder(interaction, utils){
     }
 }
 
-function _listAddonsConfig(arg=""){
-    var str= undefined;
-    try{
-        // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_stuff.Settings.config_commands.list))?cmd:"false";
-        var cmd= __kartCmd(kart_stuff.Settings.grf('config_commands.list'))
-        str= child_process.execSync(cmd+((Boolean(arg))?` ${arg}`:""), {timeout: 16000}).toString();
-    }
-    catch(err){
-        if(Boolean(err.status) && err.status===3){
-            str="No result found…";
-        }
-        else{
-            hereLog("Error while listing addons: "+err);
-            str= undefined;
-        }
-    }
-    return str;    
-}
-
-async function __addonUpload(url, interaction, utils){
-    var filename= url.split('/').slice(-1)[0]
-
-    let _serv_run= await _isServerRunning();
-
-    let ext= [".pk3",".wad",".lua",".kart",".pk7"];
-    var _ls="";
-    if((_ls=_listAddonsConfig(url.split('/').splice(-1)[0]))!=="No result found…"){
-        await interaction.editReply(
-            `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
-            `The following addons already exist on server:\n${_ls}`
-        );
-    }
-    else if(!Boolean(url) || !ext.some(e => {return url.endsWith(e)})){
-        await interaction.editReply(
-            `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
-            `Seuls les fichiers addons d'extension \`${ext}\` sont acceptés…`
-        )
-    }
-    else if (!Boolean(kart_stuff.Settings.grf('dirs.main_folder')) ||
-        (!_serv_run && !Boolean(kart_stuff.Settings.grf('dirs.dl_dirs.permanent'))) ||
-        !Boolean(kart_stuff.Settings.grf('dirs.dl_dirs.temporary'))
-    ){
-        hereLog("[addons add] no dest directory for addon dl");
-        await interaction.editReply(
-            `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-            `❌ server internal error`
-        );
-    }
-    else{
-        var destDir= (_serv_run)?
-            kart_stuff.Settings.grf('dirs.dl_dirs.temporary') :
-            kart_stuff.Settings.grf('dirs.dl_dirs.permanent');
-        
-        var _b=false;
-        if(Boolean(kart_stuff.Settings.grf('server_commands')) && kart_stuff.Settings.grf('server_commands.through_ssh')){
-            _b= (await __ssh_download_cmd(
-                    kart_stuff.Settings.grf('config_commands.addon_url'),
-                    url, utils
-                ) );
-        }
-        else{
-            _b = (await __downloading(url, destDir, utils) );
-        }
-
-        if(!_b || !_updateAddonsConfig()){
-            await interaction.editReply(
-                `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                `An error as occured, can't properly add \`${filename}\` to the server addons…`
-            );
-            return
-        }
-
-        if(_serv_run){
-            var str= `\`${filename}\` a bien été ajouté au serveur.\n`+
-                `Cependant, il ne peut être utilisé pour une session déjà en cours`;
-            await interaction.editReply(str+'.')         
-        }
-        else{
-            await interaction.editReply(
-                `\`${filename}\` a bien été ajouté et sera disponible prêt à l'emploi lors de la prochaine session.`
-            );
-        }
-    }
-}
-
 async function _addon_action(kartApiMethodName, addon_filename, auth, karter){
     return kart_stuff.Api[kartApiMethodName](addon_filename, auth, karter).then(response => {
         if(Boolean(response.status)){
@@ -1876,67 +1551,6 @@ async function S_S_CMD_kartAddon_Install(interaction, utils) {
     }    
 }
 
-async function S_S_CMD_kartAddon_UploadNew(interaction, utils){
-    let attachment= interaction.options.getAttachment('kart_addon_file')
-
-    if(Boolean(attachment)){
-        let url= attachment.url
-
-        await __addonUpload(url, interaction, utils)
-    }
-    else{
-        await interaction.editReply(
-            `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-            `SRB2Kart addon file expected as attachment…`
-        );
-    }
-}
-
-async function S_S_CMD_kartAddon_LinkNew(interaction, utils){
-    let url= interaction.options.getString('addon_url')
-    let url_rgx= /^(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+$/;
-
-    if(Boolean(url) && Boolean(url.match(url_rgx))){
-        await __addonUpload(url, interaction, utils)
-    }
-    else{
-        await interaction.editReply(
-            `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-            `Required option needs to be a __direct__ URL to a SRB2Kart addon file…`
-        );
-    }
-}
-
-function _removeAddonsConfig(arg){
-    var str= undefined;
-    var r=false;
-    try{
-        // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_stuff.Settings.config_commands.remove))?cmd:"false";
-        var cmd= __kartCmd(kart_stuff.Settings.grf('config_commands.remove'))
-        str= child_process.execSync(cmd+` ${arg}`, {timeout: 32000}).toString();
-        r=true;
-    }
-    catch(err){
-        hereLog("Error while removing addons: "+err);
-    }
-    return [r,str]; 
-}
-
-function _updateAddonsConfig(){
-    b= false;
-    try{
-        // var cmd= (Boolean(kart_settings) && Boolean(cmd=kart_stuff.Settings.config_commands.update))?cmd:"false";
-        var cmd= __kartCmd(kart_stuff.Settings.grf('config_commands.update'))
-        child_process.execSync(cmd, {timeout: 32000});
-        b= true;
-    }
-    catch(err){
-        hereLog("Error while updating addons: "+err);
-        b= false;
-    }
-    return b;
-}
-
 async function __Opt_S_S_CMD_kartAddon_Action_actionAddon(action, karter, addon_filename, interaction, utils) {
     var action_res= {success: false}
     let auth= _generateAuthPayload(interaction.user.id, utils)
@@ -2090,45 +1704,6 @@ async function S_S_CMD_kartAddon_action(interaction, utils) {
     }
 }
 
-async function S_S_CMD_kartAddon_Remove(interaction, utils){
-    let addon_name= interaction.options.getString('addon_name')
-
-    if(Boolean(addon_name)){
-        var resp= _removeAddonsConfig(addon_name);
-        if(Boolean(resp) && resp[0] && Boolean(resp[1])){
-            if(resp[1]==="SCHEDULED_FOR_REMOVAL\n"){
-                await interaction.editReply(
-                    "Addons will be removed on server restart:\n\t"+addon_name
-                );
-            }
-            else if(_updateAddonsConfig()){
-                await interaction.editReply(
-                    "Removed addons for srb2kart server:\n"+resp[1]
-                )
-            }
-            else{
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                    "internal error…"
-                )
-            }
-        }
-        else{
-            hereLog("[rm] got bad resp: "+resp);
-            await interaction.editReply(
-                `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                `Unable to remove${(Boolean(resp[1]))?(`:\n*\t${resp[1]}*`):"…"}`
-            );
-        }
-    }
-    else{
-        await interaction.editReply(
-            `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-            `The __full__ addon file name is required (including extension)…`
-        );
-    }
-}
-
 async function S_CMD__kartAddonManager(interaction, utils){
     await interaction.deferReply()
 
@@ -2143,57 +1718,12 @@ async function S_CMD__kartAddonManager(interaction, utils){
     else if(subcommand==='action'){
         await S_S_CMD_kartAddon_action(interaction, utils)
     }
-    else if(subcommand==='remove'){
-        await S_S_CMD_kartAddon_Remove(interaction, utils)
-    }
     else{
         await interaction.editReply(
             `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
             `Missing subcommand amongst: `+
-            `\`load_order\`,\`upload_new\`,\`link_new\`, or \`remove\``
+            `\`load_order\`,\`install\`, or \`action\`…`
         )
-    }
-}
-
-async function S_S_CMD_kartAddons_List(interaction, utils){
-    let pattern= interaction.options.getString('search') ?? ""
-    var list= _listAddonsConfig(pattern)
-
-    if(Boolean(list)){
-        if(!Boolean(pattern) && Boolean(kart_stuff.Settings.grf('http_url'))){
-            list+=`\n\nStrashbot addons download: ${kart_stuff.Settings.grf('http_url')}/strashbot_addons.zip`
-        }
-
-        var resp= "# Addons list for srb2kart server:\n"+list.replace(/\s+/g,'\n');
-        
-
-        await interaction.editReply({
-            content: `List of ${Boolean(pattern)?'found ':''}installed addons.`,
-            files:[{
-                attachment: Buffer.from(resp),
-                name: `addon_list_${Date.now()}.md`
-            }]
-        })
-    }
-    else{
-        await interaction.editReply(
-            `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
-            `No such addon found…`
-        )
-    }
-}
-
-async function S_S_CMD_kartAddons_Zip(interaction, utils){
-    if(Boolean(kart_stuff.Settings.grf('http_url'))){
-        await interaction.editReply(
-            `You can try downloading the SRB2Kart server's addons at: ${kart_stuff.Settings.grf('http_url')}/strashbot_addons.zip`
-        );
-    }
-    else{
-        await interaction.editReply(
-            `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
-            `Addons direct download link unavailable, sorry… 😩`
-        );
     }
 }
 
@@ -2924,227 +2454,6 @@ async function S_CMD_kartCustomConfigAdmin(interaction, utils){
             `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
             `Missing subcommand amongst: `+
             `\`set\`, \`manage\``
-        )
-    }
-}
-
-function __cmd_fetchJsonInfo(kcmd){
-    if(!Boolean(kcmd)){
-        hereLog(`[fetchInfos] bad cmd config…`);
-        return undefined;
-    }
-
-    var str= undefined
-    try{
-        var cmd= __kartCmd(kcmd);
-        str= child_process.execSync(`${cmd}`, {timeout: 32000}).toString();
-    }
-    catch(err){
-        hereLog(`Error while fetching maps infos…\n\t${err}`);
-        str= undefined
-    }
-
-
-    if(!Boolean(str)) return undefined
-
-    var obj= undefined
-    try{
-        obj= JSON.parse(str)
-    } catch(err){
-        hereLog(`[setServMode] couldn't get server mode info:\n\t${err}`)
-        obj= undefined
-    }
-    return obj
-}
-
-async function S_S_CMD_kartInGames_Maps(interaction, utils, justCount=false){
-    let pattern= interaction.options.getString('search')
-    let search_terms= Boolean(pattern)? pattern.split(/\s/) : []
-    let mapType= interaction.options.getString('type')
-    mapType= ['battle','hell','banned'].includes(mapType)?mapType:undefined
-    let includeSections= interaction.options.getString('sections') ?? 'all'
-    includeSections= ['all','section_only','no_section'].includes(includeSections)?includeSections:'all'
-
-    if(!Boolean(kart_stuff.Settings.grf('config_commands'))){
-        hereLog(`[fetchInfos] bad config…`);
-        await interaction.editReply(
-            `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-            "Internal error"
-        )
-        return
-    }
-
-    let mapObj= __cmd_fetchJsonInfo(kart_stuff.Settings.grf('config_commands.maps_info'))
-
-    if(!(Boolean(mapObj)) || !(Boolean(mapObj.maps))){
-        hereLog(`[mapInfos] couldn't fetch maps infos…`)
-        await interaction.editReply(
-            `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-            "Data access error"
-        )
-        return
-    }    
-    
-    var mapIDs= Object.keys(mapObj.maps)
-
-    mapIDs= mapIDs.filter(mapID => {
-        var map= mapObj.maps[mapID]
-
-        return (
-            (   (   
-                    (mapType==='battle' && map.type==='Battle') ||
-                    (mapType==='hell' && map.hell) ||
-                    (mapType==='banned' && map.type==='Discarded') ||
-                    (   (!Boolean(mapType)) &&
-                        (!['Battle','Discarded'].includes(map.type)) &&
-                        !map.hell
-                    )
-                ) && ( 
-                    includeSections==='all' ||
-                    (includeSections==='section_only' && map.sections) ||
-                    (includeSections==='no_section' && (!map.sections) )
-                )
-            ) &&
-            (
-                (search_terms.length<=0) || (
-                    search_terms.some(st =>{
-                        var lc_st= st.toLowerCase()
-                        return (
-                            mapID.toLowerCase().includes(lc_st) ||
-                            map.title.toLowerCase().includes(lc_st) ||
-                            map.zone.toLowerCase().includes(lc_st) ||
-                            map.subtitle.toLowerCase().includes(lc_st)
-                        )
-                    })
-                )
-            )
-        )
-    })
-
-    var l_ret= mapIDs.map(mapID => {
-        var map= mapObj.maps[mapID]
-        return `🔹 [MAP${mapID}]: *${map.title} ${map.zone}*`+
-                `${(map.subtitle && map.subtitle.length>0)?` (*${map.subtitle}*)`:''}`+
-                `${(Boolean(map.hell))?" > HELL <":""}`
-    })
-
-    if (l_ret.length>0 && !justCount){
-        await interaction.editReply({
-            content: `Found ${l_ret.length} maps.`,
-            files: [{
-                attachment: Buffer.from(`# Found racers ${Boolean(pattern)?`(search '${pattern}') `:""}:\n\n`
-                                        +l_ret.join('\n')),
-                name: `found_maps_${Date.now()}.md`
-            }]
-        })
-    }
-    else if (l_ret.length>0)
-        await interaction.editReply(`Found ${l_ret.length} maps!`)
-    else
-        await interaction.editReply(`No map found…`)
-}
-
-const SKIN_NUM_LIMIT= 255
-
-async function S_S_CMD_kartInGames_Racers(interaction, utils, justCount= false){
-    let pattern= interaction.options.getString('search') ?? ""
-    let search_terms= pattern.split(/\s/)
-
-    let speed_lookup= interaction.options.getNumber('speed') ?? undefined
-    let weight_lookup= interaction.options.getNumber('weight') ?? undefined
-
-    if(!Boolean(kart_stuff.Settings.grf('config_commands'))){
-        hereLog(`[fetchInfos] bad config…`);
-        await interaction.editReply(
-            `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-            "Internal error"
-        )
-        return
-    }
-
-    let skinObj= __cmd_fetchJsonInfo(kart_stuff.Settings.grf('config_commands.skins_info'))
-
-    if(!(Boolean(skinObj)) || !(Boolean(skinObj.skins))){
-        hereLog(`[skinInfos] couldn't fetch skins infos…`)
-        await interaction.editReply(
-            `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-            "Data access error"
-        )
-        return
-    } 
-
-    var skinNames= Object.keys(skinObj.skins).filter(skinName => {
-        skin= skinObj.skins[skinName]
-
-        return (
-            (speed_lookup==undefined || skin.speed==speed_lookup) &&
-            (weight_lookup==undefined || skin.weight==weight_lookup) &&
-            (search_terms.length<=0 || (
-                search_terms.some(st =>{
-                    var lc_st= st.toLowerCase()
-                    return (
-                        skinName.toLowerCase().includes(lc_st) ||
-                        skin.realname.toLowerCase().includes(lc_st)
-                    )
-                })
-            ))
-        )
-    })
-
-    var l_ret= skinNames.map(skinName =>{
-        skin= skinObj.skins[skinName]
-
-        return `🔸 *${skin.realname}* (\`${skinName}\`) [${skin.speed}, ${skin.weight}]`
-    })
-
-
-    var response= `No skin found…`
-    if (l_ret.length>0)
-        response= `Found ${l_ret.length} skins!`
-
-    var alert= undefined
-    if (Boolean(skinObj.alert) && (alert=Number(skinObj.alert))
-        && !isNaN(alert) && alert>SKIN_NUM_LIMIT
-    ){
-        response+= `!\n\t⚠ Skins limit reached (*some skins might be missing*)!`
-    }
-
-    
-    if (l_ret.length>0 && !justCount){
-        await interaction.editReply({
-            content: response,
-            files: [{
-                attachment: Buffer.from(`# Found racers ${Boolean(pattern)?`(search '${pattern}') `:""}:\n\n`
-                                        +l_ret.join('\n')),
-                name: `found_skins_${Date.now()}.md`
-            }]
-        })
-    }
-    else await interaction.editReply(response);        
-}
-
-async function S_CMD__kartInGames(interaction, utils){
-    await interaction.deferReply()
-
-    let subcommand= interaction.options.getSubcommand()
-
-    if(subcommand==='maps'){
-        await S_S_CMD_kartInGames_Maps(interaction, utils)
-    }
-    else if(subcommand==='map_count'){
-        await S_S_CMD_kartInGames_Maps(interaction, utils, true)
-    }
-    else if(subcommand==='racers'){
-        await S_S_CMD_kartInGames_Racers(interaction, utils)
-    }
-    else if(subcommand==='racer_count'){
-        await S_S_CMD_kartInGames_Racers(interaction, utils, true)
-    }
-    else{
-        await interaction.editReply(
-            `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-            `Missing subcommand amongst: `+
-            `\`maps\`, \`map_count\`, \`racers\` or \`racer_count\``
         )
     }
 }
