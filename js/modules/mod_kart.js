@@ -699,7 +699,7 @@ async function S_CMD__kartInfo(interaction, utils){
                 })
             }
 
-            if(AppNum>APP_ID.DRRR && ss.avgpwrlvl!==undefined){
+            if(AppNum>=APP_ID.DRRR && ss.avgpwrlvl!==undefined && ss.avgpwrlvl>0){
                 embed.fields.push({
                     name: "Average Powerlevel",
                     value: `${ss.avgpwrlvl}`
