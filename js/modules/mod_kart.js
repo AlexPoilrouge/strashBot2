@@ -578,13 +578,14 @@ function kart_init_per_guild(guild, utils){
 }
 
 async function S_CMD__kartInfo(interaction, utils){
-    await interaction.deferReply();
-
     let connectionStr= interaction.options.getString('server')
+    let public_visibility= !Boolean(interaction.options.getBoolean('is_public') ?? true)
     
     var embed= {}
     embed.title= `Kart Server${Boolean(connectionStr)? ` @ \`${connectionStr}\``:''}`;
     embed.color= 0xff0000 //that's red (i hope? this rgba, right?)
+
+    await interaction.deferReply({ephemeral: public_visibility});
 
     return await _askServInfos(connectionStr).then(async serverInfos => {
         embed.fields=[];
@@ -1107,8 +1108,6 @@ async function __ssh_download_cmd(cmd, url, utils, fileName=undefined){
 }
 
 async function S_CMD__kartServer(interaction, utils){
-    await interaction.deferReply()
-
     let subcommand= interaction.options.getSubcommand()
 
     if(subcommand==='stop'){
@@ -1308,6 +1307,9 @@ async function S_S_CMD_kartAddon_loadOrder(interaction, utils){
 
     let attachment= interaction.options.getAttachment('file_yaml')
     var url= interaction.options.getString('url')
+    let public_visibility= !Boolean(interaction.options.getBoolean('is_public') ?? false)
+
+    await interaction.deferReply({ephemeral: public_visibility})
 
     if(Boolean(attachment)){
         url= attachment.url
@@ -1645,8 +1647,6 @@ async function S_S_CMD_kartAddon_action(interaction, utils) {
 }
 
 async function S_CMD__kartAddonManager(interaction, utils){
-    await interaction.deferReply()
-
     let subcommand= interaction.options.getSubcommand()
 
     if(subcommand==='load_order'){
@@ -1841,10 +1841,11 @@ async function _processAddonsInfoList(interaction, list, karter, lookup=undefine
 }
 
 async function S_CMD__kartAddons(interaction, utils){
-    await interaction.deferReply()
-
     let karter= (interaction.options.getString('karter') ?? kart_stuff.Settings.DefaultRacer)
     let lookup= interaction.options.getString('lookup')
+    let public_visibility= !Boolean(interaction.options.getBoolean('is_public') ?? true)
+
+    await interaction.deferReply({ephemeral: public_visibility})
 
     await _addonsInfo(karter).then(addonsInfoList =>
         _processAddonsInfoList(interaction, addonsInfoList, karter, lookup)
@@ -1970,7 +1971,7 @@ async function S_S_CMD_kartCustomConfig_info(interaction, utils){
 
 async function S_S_CMD_kartGetCustomConfig(interaction, utils) {
     let karter= (interaction.options.getString('karter') ?? kart_stuff.Settings.DefaultRacer)
-    let config_name= interaction.options.getString('config')
+    let config_name= interaction.options.getString('lookup')
     if(!config_name){
         await interaction.editReply(
             `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
@@ -2034,22 +2035,16 @@ async function S_S_CMD_kartGetCustomConfig(interaction, utils) {
 }
 
 async function S_CMD_kartCustomConfig(interaction, utils){
-    await interaction.deferReply()
+    let lookup= interaction.options.getString('lookup')
+    let public_visibility= !Boolean(interaction.options.getBoolean('is_public') ?? false)
 
-    let subcommand= interaction.options.getSubcommand()
-
-    if(subcommand==='info'){
-        await S_S_CMD_kartCustomConfig_info(interaction, utils)
-    }
-    else if(subcommand==='get'){
+    await interaction.deferReply({ephemeral: public_visibility})
+    
+    if(lookup){
         await S_S_CMD_kartGetCustomConfig(interaction, utils)
     }
     else{
-        await interaction.editReply(
-            `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-            `Missing subcommand amongst: `+
-            `\`info\`, \`get\``
-        )
+        await S_S_CMD_kartCustomConfig_info(interaction, utils)
     }
 }
 
@@ -2966,6 +2961,10 @@ let slashKartInfo= {
                 option
                 .setName('server')
                 .setDescription('srb2kart, ringracers, [alias], [address], or [address]:[port]')
+            ).addBooleanOption(option =>
+                option
+                .setName('is_public')
+                .setDescription('show result to everyone (default: true)')
             ),
     async execute(interaction, utils){
         try{
@@ -3111,6 +3110,11 @@ let slashKartAddonManage= {
             .setName('url')
             .setDescription('Download and set from url.')
         )
+        .addBooleanOption(option =>
+            option
+            .setName('is_public')
+            .setDescription('show result to everyone (default: false)')
+        )
     )
     .addSubcommand(subcommand => 
         subcommand
@@ -3208,6 +3212,10 @@ let slashKartAddons= {
         .setDescription('lookup for a specific addon…')
         .setMaxLength(128)
         .setAutocomplete(true)
+    ).addBooleanOption(option =>
+        option
+        .setName('is_public')
+        .setDescription('show result to everyone (default: true)')
     ),
     async execute(interaction, utils){
         try{
@@ -3237,35 +3245,22 @@ let slashKartCustomConfig= {
     .setName('kart_custom_config')
     .setDescription("Info and handle of available custom configs for karter's server")
     .setDefaultMemberPermissions(0)
-    .addSubcommand(subcommand =>
-        subcommand
-        .setName("info")
-        .setDescription("Infos about karter's custom configs")
-        .addStringOption(option =>
-            option
-            .setName('karter')
-            .setDescription('Which kart game?')
-            .addChoices(...slashKartData_getKarterChoices())
-        )
+    .addStringOption(option =>
+        option
+        .setName('lookup')
+        .setDescription('Which custom config to fetch?')
+        .setMaxLength(128)
+        .setAutocomplete(true)
     )
-    .addSubcommand(subcommand =>
-        subcommand
-        .setName("get")
-        .setDescription("About a specific custom config")
-        .addStringOption(option =>
-            option
-            .setName('config')
-            .setDescription('Which custom config to fetch?')
-            .setRequired(true)
-            .setMaxLength(128)
-            .setAutocomplete(true)
-        )
-        .addStringOption(option =>
-            option
-            .setName('karter')
-            .setDescription('Which kart game?')
-            .addChoices(...slashKartData_getKarterChoices())
-        )
+    .addStringOption(option =>
+        option
+        .setName('karter')
+        .setDescription('Which kart game?')
+        .addChoices(...slashKartData_getKarterChoices())
+    ).addBooleanOption(option =>
+        option
+        .setName('is_public')
+        .setDescription('show result to everyone (default: false)')
     ),
     async execute(interaction, utils){
         try{
