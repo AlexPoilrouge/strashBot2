@@ -4,7 +4,7 @@ const my_utils= require('../../utils');
 const path= require('path')
 
 import { AxiosResponse } from 'axios';
-import {CallApi} from '../utils/api_call'
+import {ApiResponseHandle, CallApi} from '../utils/api_call'
 import { TokenKey, TokensHandler } from '../utils/token_maker';
 import { Cacher } from '../utils/cacher';
 
@@ -220,7 +220,7 @@ export class KartApi{
 
 
     info(address?: string, port?: string | number)
-        : Promise<AxiosResponse<any>>
+        : Promise<ApiResponseHandle<any>>
     {
         var queries= {}
         if(Boolean(address)) queries['address']= address;
@@ -232,7 +232,7 @@ export class KartApi{
                     queries          })
     }
 
-    service(karter?: string): Promise<AxiosResponse<any>>{
+    service(karter?: string): Promise<ApiResponseHandle<any>>{
         var _karter= karter ?? this.settings.DefaultRacer
 
         return this.apiCaller.Call(EP_SERVICE_NAME,
@@ -241,7 +241,7 @@ export class KartApi{
     }
 
     service_op(op: ServiceOp, auth: KartTokenAuth, karter?: string) 
-        : Promise<AxiosResponse<any>>
+        : Promise<ApiResponseHandle<any>>
     {
         var _karter= karter ?? this.settings.DefaultRacer
 
@@ -263,8 +263,8 @@ export class KartApi{
         "stop", auth, karter
     )
 
-    get_password(auth: KartTokenAuth, karter?: string)
-        : Promise<AxiosResponse<any>>
+    async get_password(auth: KartTokenAuth, karter?: string)
+        : Promise<ApiResponseHandle<any>>
     {
         var _karter= karter ?? this.settings.DefaultRacer
 
@@ -281,7 +281,7 @@ export class KartApi{
     }
 
     get_addons(addon?: string, karter?: string)
-        : Promise<AxiosResponse<any>>
+        : Promise<ApiResponseHandle<any>>
     {
         var _karter= karter ?? this.settings.DefaultRacer
 
@@ -297,7 +297,7 @@ export class KartApi{
     }
 
     get_addon_load_order_config(karter?: string)
-     : Promise<AxiosResponse<any>>
+     : Promise<ApiResponseHandle<any>>
     {
         var _karter= karter ?? this.settings.DefaultRacer
 
@@ -309,7 +309,7 @@ export class KartApi{
     }
 
     set_addon_load_order_config(config_url:string, auth: KartTokenAuth, karter?: string)
-        : Promise<AxiosResponse<any>>
+        : Promise<ApiResponseHandle<any>>
     {
         var _karter= karter ?? this.settings.DefaultRacer
 
@@ -327,7 +327,7 @@ export class KartApi{
     }
 
     install_addon_from_url(addon_url: string, auth: KartTokenAuth, karter?: string)
-        : Promise<AxiosResponse<any>>
+        : Promise<ApiResponseHandle<any>>
     {
         var _karter= karter ?? this.settings.DefaultRacer
 
@@ -345,7 +345,7 @@ export class KartApi{
     }
 
     private _api_addon_post_action(endpoint_id: string, addon_filename: string, auth: KartTokenAuth, karter?: string)
-        : Promise<AxiosResponse<any>>
+        : Promise<ApiResponseHandle<any>>
     {
         var _karter= karter ?? this.settings.DefaultRacer
 
@@ -372,7 +372,7 @@ export class KartApi{
         this._api_addon_post_action(EP_ADDONS_REMOVE, addon_filename, auth, karter)
 
     get_custom_configs(karter?: string)
-        : Promise<AxiosResponse<any>>
+        : Promise<ApiResponseHandle<any>>
     {
         var _karter= karter ?? this.settings.DefaultRacer
 
@@ -384,7 +384,7 @@ export class KartApi{
     }
 
     get_custom_yaml_config(config_name: string, karter?: string)
-        : Promise<AxiosResponse<any>>
+        : Promise<ApiResponseHandle<any>>
     {
         var _karter= karter ?? this.settings.DefaultRacer
 
@@ -396,7 +396,7 @@ export class KartApi{
     }
 
     set_custom_yaml_config(config_url: string, auth: KartTokenAuth, karter?: string)
-        : Promise<AxiosResponse<any>>
+        : Promise<ApiResponseHandle<any>>
     {
         var _karter= karter ?? this.settings.DefaultRacer
 
@@ -414,7 +414,7 @@ export class KartApi{
     }
 
     remove_custom_yaml_config(config_name: string, auth: KartTokenAuth, karter?: string)
-        : Promise<AxiosResponse<any>>
+        : Promise<ApiResponseHandle<any>>
     {
         var _karter= karter ?? this.settings.DefaultRacer
 
@@ -431,7 +431,7 @@ export class KartApi{
     }
 
     disable_custom_yaml_config(config_name: string, auth: KartTokenAuth, karter?: string)
-        : Promise<AxiosResponse<any>>
+        : Promise<ApiResponseHandle<any>>
     {
         var _karter= karter ?? this.settings.DefaultRacer
 
@@ -448,7 +448,7 @@ export class KartApi{
     }
 
     enable_custom_yaml_config(config_name: string, triggertime: string, auth: KartTokenAuth, karter?: string)
-        : Promise<AxiosResponse<any>>
+        : Promise<ApiResponseHandle<any>>
     {
         var _karter= karter ?? this.settings.DefaultRacer
 
@@ -490,39 +490,37 @@ class KartApiCache{
             hereLog(`[KartApiCache] registering '${_karter}${ENTRY_ADDONS_NAMES_BASE_NAME}'`)
             this.cache.registerEntryAccess(`${_karter}${ENTRY_ADDONS_NAMES_BASE_NAME}`,
                 async () : Promise<string[]> => {
-                    var addons= []
                     try{
-                        addons= await kart_api.get_addons(undefined, _karter).then( response => {
-                            if(response.status===404) return []
-                            else if( response.status!==200 || (!Boolean(response.data))){
+                        return (await kart_api.get_addons(undefined, _karter).then( async handle => {
+                            return await ( handle.onCode(404, response => { return []; })
+                            .catch(err_action => {
                                 throw new Error(`Bad result from /addons/${_karter} (1)…`)
-                            }
+                            })
+                            .onSuccess(response => {
+                                let response_data= response.data
 
-                            let response_data= response.data
-
-                            if(response_data.status==="not_found") return []
-                            if( Boolean(response_data.result) && Boolean(response_data.result.infos) ){
-                                if(response_data.status==="fetched"){
-                                    return response_data.result.infos.map(
-                                        (a : {name: string, [key:string]: any}) => a.name
-                                    )
-                                } else if(response_data.status==="found"){
-                                    return [ response_data.result.infos.name ]
+                                if(response_data.status==="not_found") return []
+                                if( Boolean(response_data.result) && Boolean(response_data.result.infos) ){
+                                    if(response_data.status==="fetched"){
+                                        return response_data.result.infos.map(
+                                            (a : {name: string, [key:string]: any}) => a.name
+                                        )
+                                    } else if(response_data.status==="found"){
+                                        return [ response_data.result.infos.name ]
+                                    }
+                                    else{
+                                        return []
+                                    }
                                 }
                                 else{
                                     return []
                                 }
-                            }
-                            else{
-                                return []
-                            }
-                        })
+                            }).Parse())
+                        }))
                     } catch(err) {
                         hereLog(`[KartApiCache] addons names access… - ${err}`)
-                        addons= []
+                        return []
                     }
-
-                    return addons
                 },
                 []
             )
@@ -543,31 +541,29 @@ class KartApiCache{
 
     private _getServPop(karter: string, kart_api: KartApi) : Promise<number|undefined>{
         return new Promise<number|undefined>( (resolve, reject) => {
-            kart_api.service(karter).then(response => {
-                if( response.status===200 &&
-                    Boolean(response.data) && response.data.status==='UP'
-                ){
-                    kart_api.info(karter).then(response => {
-                        if( response.status===200 ){
-                            let kart_infos= response.data
+            kart_api.service(karter).then(handle => {
+                handle.onSuccess(service_response => {
+
+                    kart_api.info(karter).then( info_handle => {
+                        info_handle.onSuccess(info_response => {
+                            let kart_infos= info_response.data
                             
                             if(Boolean(kart_infos) && Boolean(kart_infos.server)){
                                 resolve(kart_infos.server.numberofplayer)
-                            }                    
-                        }
-                        else {
-                            // hereLog(`[KartApiCache] bad 'kart/info' response, rc= ${response.status}`)
+                            }    
+                        })
+                        .fallBack(info_response => {
                             resolve(undefined)
-                        }
-                    }).catch(err => {
-                        hereLog(`[KartApiCache] error on 'kart/info' fetch - ${err}`)
-                        resolve(undefined)
+                        })
+                        .catch(action_error => {
+                            hereLog(`[KartApiCache] error on 'kart/info' fetch - ${action_error}`)
+                            resolve(undefined)
+                        }).Parse()
                     })
-                }
-                else{
-                    // hereLog(`[KartApiCache] bad 'service' response, rc= ${response.status}`)
+
+                }).catch(error_action => {
                     resolve(undefined)
-                }
+                })
             }).catch(err => {
                 hereLog(`[KartApiCache] error on service fetch - ${err}`)
                 resolve(undefined)
@@ -577,17 +573,13 @@ class KartApiCache{
 
     private _getConfigNames(karter: string, kart_api: KartApi) : Promise<CustomConfig_name[]>{
         return new Promise<CustomConfig_name[]>( (resolve, reject) => {
-            kart_api.get_custom_configs(karter).then( response => {
-                var available_configs: Object[] = [] 
-                if( response.status===200 &&
-                    Boolean(available_configs=my_utils.getFromFieldPath(response.data, 'custom_cfg.available_configs')) &&
-                    Array.isArray(available_configs)
-                ){
+            kart_api.get_custom_configs(karter).then( handle => {
+                handle.onSuccess( response => {
+                    let available_configs= my_utils.getFromFieldPath(response.data, 'custom_cfg.available_configs')
                     resolve(available_configs.map(cfg => ({name: cfg['name'], filename: cfg['filename']})))
-                }
-                else{
+                }).catch(error_action => {
                     resolve([])
-                }
+                })
             }).catch(err => {
                 hereLog(`[KartApiCache.getConfigNames] error on custom cfg fetch - ${err}`)
                 resolve([])

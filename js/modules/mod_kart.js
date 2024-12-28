@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, AttachmentBuilder } = require("discord.js")
+const { SlashCommandBuilder, PermissionFlagsBits, AttachmentBuilder, InteractionContextType } = require("discord.js")
 
 const fs= require( 'fs' );
 const path= require('path')
@@ -45,42 +45,47 @@ function _serverServiceStatus_API(karter=undefined){
             reject("Bad info - couldn't access kart_settings…")
         }
         
-       kart_stuff.Api.service(karter).then(response => {
-            if( response.status===200 &&
-                Boolean(response.data) && Boolean(response.data.status)
-            ){
-                resolve(response.data.status.toUpperCase());
-            }
-            else{
-                hereLog(`[bad server service result] from "service" endpoint…`)
-            }
+       kart_stuff.Api.service(karter).then(handle => {
+            handle
+            .onSuccess(response => {
+                if(Boolean(response.data) && Boolean(response.data.status)){
+                    resolve(response.data.status.toUpperCase());
+                }
+                else{
+                    hereLog(`[bad server service result] from "service" endpoint…`)
 
-            resolve('UNAVAILABLE');
-        }).catch(err => {
-            hereLog(`[server status] API call to 'service' endpoint error - ${err}`)
+                    resolve('UNAVAILABLE');
+                }
+            }).catch(error_action => {
+                hereLog(`[server status] API call to 'service' endpoint error - ${error_action}`)
 
-            resolve('UNAVAILABLE');
-        });
+                resolve('UNAVAILABLE');
+            }).Parse()
+        })
     });
 }
 
 function _kartServiceOp(auth, op="restart", karter="ringracers"){
-    return kart_stuff.Api.service_op(`${op}`, auth, karter)
-        .then(response => {
-                return response.data
-        })
-        .catch(err => {
-            if(err && err.response &&
-                err.response.status===503 &&
-                err.response.data &&
-                err.response.data.state==="cooldown"
-            ){
-                return err.response.data
+    return kart_stuff.Api.service_op(
+        `${op}`, auth, karter
+    ).then( async handle => {
+        return await (handle
+        .onSuccess(response => {
+            return response.data
+        }).onCode(503, response => {
+            let data= response.data
+            if(data && data.state==="cooldown"){
+                return data
             }
             else{
-                throw new Error(`Error on '${op}' server - ${err}`)
+                throw new Error(`Error on '${op}' server - no data`)
             }
-        })
+        }).catch(error_action => {
+            throw new Error(`Error on '${op}' server - ${error_action}`)
+        }).Parse())
+    }).catch(err => {
+        throw new Error(`Error on '${op}' server - ${err}`)
+    })
 }
 
 let _stopServer= (karter="ringracers", auth) => _kartServiceOp(
@@ -204,18 +209,20 @@ function _askServInfos(connectionString=undefined){
             return { service_status, connectionInfo: connection }
         }
         else{
-            return kart_stuff.Api.info(a, p).then( response => {
-                if(response.status!==200){
-                    hereLog(`[askServInfo] API bad response status: ${response.status}`);
-                    throw new Error("API info - bad response")
-                }
-                else{
-                    let kart_infos= response.data
+            return kart_stuff.Api.info(a, p).then( async handle => {
+                return await (handle.onSuccess(response => {
+                    var kart_infos= response.data
                     kart_infos.service_status= service_status
                     kart_infos.connectionInfo= connection
 
                     return kart_infos
-                }
+                }).fallBack(response => {
+                    hereLog(`[askServInfo] API bad response status: ${response.status}`);
+                    throw new Error("API info - bad response")
+                }).catch(error_action => {
+                    hereLog(`[askServInfo] API bad response - ${error_action}`);
+                    throw new Error("API info - bad response")
+                }).Parse())
             }).catch(err => {
                 hereLog(`[askServInfo] API /info error - ${err}`)
                 throw(new Error("API info - error"))
@@ -787,79 +794,56 @@ async function S_CMD__kartInfo(interaction, utils){
 async function S_CMD__kartPassword(interaction, utils){
     let karter= interaction.options.getString('karter') ?? kart_stuff.Settings.DefaultRacer
 
-    let status_parse= async (rc) => {
-        try{
-            if(rc===200){
-                return true
-            }
-            else if(rc===401 || rc===403){
-                hereLog(`[getPassword]{${karter}} access failure: ${rc}`)
+    await interaction.deferReply({ ephemeral: true })
+    await _serverServiceStatus_API(karter).then(async r => {
+        if(r==="UP"){
+            await (await kart_stuff.Api
+                .get_password(
+                    _generateAuthPayload(interaction.user.id, utils), karter
+                )
+            )
+            .onCode(200, async response => {
+                let pwd= response.data.password;
+                await interaction.editReply(
+                    `Server admin password: \`${pwd}\`\n` +
+                    `\tUne fois connecté au serveur **${karter}**, ingame utilise la commande ` +
+                    `\`login ${pwd}\` pour accéder à l'interface d'admin!`
+                ).catch(err => 
+                    hereLog(`[getPassword]{${karter}} reply error (7) - ${err}`)
+                );
+            })
+            .onCode([401,403], async response => {
+                hereLog(`[getPassword]{${karter}} access failure: ${response.status}`)
                 await interaction.editReply(
                     `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
                     `Authorization to fetch ${karter}'s password was denied…`
                 ).catch(err => 
                     hereLog(`[getPassword]{${karter}} reply error (1) - ${err}`)
                 );
-            }
-            else if(rc===404){
+            })
+            .onCode(404, async response => {
                 await interaction.editReply(
                     `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
                     `No password for '${karter}' seems to be available…`
                 ).catch(err => 
                     hereLog(`[getPassword]{${karter}} reply error (2) - ${err}`)
                 );
-            }
-            else{
-                if(rc!==999){
-                    hereLog(`[getPassword] unhandled status code: ${rc}…`)
-                }
-
+            })
+            .catch(async err => {
+                hereLog(`[getPassword]{${karter}} response error (8) - ${err}`)
                 await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
                     `Error occured trying to fetch password for \`${karter}\`…`
                 ).catch(err => 
-                    hereLog(`[getPassword]{${karter}} reply error (5) - ${err}`)
+                    hereLog(`[getPassword]{${karter}} reply error (6) - ${err}`)
                 );
-            }
-
-            return false
-        } catch(err){
-            await interaction.editReply(
-                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                `Error occured trying to fetch password for \`${karter}\`…`
-            ).catch(err => 
-                hereLog(`[getPassword]{${karter}} reply error (6) - ${err}`)
-            );
-
-            return false
-        }
-    }
-
-    await interaction.deferReply({ ephemeral: true })
-    _serverServiceStatus_API(karter).then(async r => {
-        if(r==="UP"){
-            await kart_stuff.Api.get_password(
-                _generateAuthPayload(interaction.user.id, utils), karter
-            ).then( async response => {
-                if(await status_parse(response.status, interaction)){
-                    hereLog(`iiiiiiiiii ${JSON.stringify(response.data)}`)
-                    let pwd= response.data.password;
-
-                    await interaction.editReply(
-                        `Server admin password: \`${pwd}\`\n` +
-                        `\tUne fois connecté au serveur **${karter}**, ingame utilise la commande ` +
-                        `\`login ${pwd}\` pour accéder à l'interface d'admin!`
-                    ).catch(err => 
-                        hereLog(`[getPassword]{${karter}} reply error (7) - ${err}`)
-                    );
-                }
-            })
+            }).Parse();
         }
         else{
             await interaction.editReply(`Aucun serveur '${karter}' actif…`);
         }
     }).catch(async err => {
-        hereLog(`[getPassword]{${karter}} reply error (8) - ${err}`)
+        hereLog(`[getPassword]{${karter}} reply error (9) - ${err}`)
         await interaction.editReply(`Aucun serveur '${karter}' actif…`);
     })
 }
@@ -1143,47 +1127,8 @@ async function S_CMD__kartServer(interaction, utils){
 }
 
 async function __Opt_S_S_CMD_kartAddon_loadOrder_Get(karter, interaction){
-    let status_parse= async (rc, interaction) => {
-        try{
-            if(rc===200){
-                return true
-            }
-            else if(rc===404){
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                    `No "*load order config*" found or set for \`${karter}\`…`
-                ).catch(err => 
-                    hereLog(`[getAddonsLoadOrder]{${karter}} reply error (1) - ${err}`)
-                );
-            }
-            else{
-                if(rc!==999){
-                    hereLog(`[getAddonsLoadOrder] unhandled status code: ${rc}…`)
-                }
-
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                    `Error occured accession addons load order config from \`${karter}\`…`
-                ).catch(err => 
-                    hereLog(`[getAddonsLoadOrder]{${karter}} reply error (2) - ${err}`)
-                );
-            }
-
-            return false
-        } catch(err){
-            await interaction.editReply(
-                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                `Error occured accession addons load order config from  \`${karter}\`…`
-            ).catch(err => 
-                hereLog(`[getAddonsLoadOrder]{${karter}} reply error (3) - ${err}`)
-            );
-
-            return false
-        }
-    }
-
-    await kart_stuff.Api.get_addon_load_order_config(karter).then( async response => {
-        if(await status_parse(response.status, interaction)){
+    await kart_stuff.Api.get_addon_load_order_config(karter).then( async handle => {
+        await (handle.onSuccess(async response => {
             await interaction.editReply( {
                 content: `## Strashbot's ${karter} server addons load order config\n`,
                 files: [{
@@ -1193,7 +1138,32 @@ async function __Opt_S_S_CMD_kartAddon_loadOrder_Get(karter, interaction){
             } ).catch(err => 
                 hereLog(`[getAddonsLoadOrder]{${karter}} reply error (4) - ${err}`)
             )
-        }
+        }).onCode(404, async response => {
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                `No "*load order config*" found or set for \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[getAddonsLoadOrder]{${karter}} reply error (1) - ${err}`)
+            );
+        }).fallBack(async response => {
+            hereLog(`[getAddonsLoadOrder] unhandled status code: ${response.status}…`)
+
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                `Error occured accession addons load order config from \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[getAddonsLoadOrder]{${karter}} reply error (2) - ${err}`)
+            );
+        }).catch(async error_action => {
+            hereLog(`[getAddonsLoadOrder]{${karter}} error fetching addon load order config - ${error_action}`)
+
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                `Error occured accession addons load order config from \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[getAddonsLoadOrder]{${karter}} reply error (2) - ${err}`)
+            );
+        }).Parse())
     }).catch(async err => {
         if(Boolean(err.response) && Boolean(err.response.status)){
             await status_parse(err.response.status, interaction)
@@ -1218,113 +1188,95 @@ async function __Opt_S_S_CMD_kartAddon_loadOrder_Set(url, karter, interaction, u
         return
     }
 
-    let status_parse= async (response, interaction) => {
-        let rc= response.status
-        let data= response.data
-        try{
-            if(rc===200){
-                return true
-            }
-            else if(rc===401 || rc===403){
-                hereLog(`[setAddonsLoadOrder]{${karter}} access failure: ${rc}`)
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
-                    `Access failure on "*load order config*" upload for \`${karter}\`…`
-                ).catch(err => 
-                    hereLog(`[setAddonsLoadOrder]{${karter}} reply error (1) - ${err}`)
-                );
-            }
-            else if(rc===404){
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                    `Can't upload "*load order config*" for \`${karter}\`…`
-                ).catch(err => 
-                    hereLog(`[setAddonsLoadOrder]{${karter}} reply error (2) - ${err}`)
-                );
-            }
-            else if(rc===415){
-                await interaction.editReply({                    
-                    content: ( `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                                `Uploaded config for \`${karter}\` is invalid or badly constructed…` ),
-                    files: (data && data.details) ?
-                                [{
-                                    attachment: Buffer.from(data.details),
-                                    name: `load_order.yaml.errors.txt`
-                                }]
-                            : undefined
-                }).catch(err => 
-                    hereLog(`[setAddonsLoadOrder]{${karter}} reply error (7) - ${err}`)
-                );
-            }
-            else if(rc===440){
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                    `Upload file is too big!`
-                ).catch(err => 
-                    hereLog(`[setAddonsLoadOrder]{${karter}} reply error (3) - ${err}`)
-                );
-            }
-            else if(rc===441 || rc===442){
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                    `"*Load order config*" has bad type, or extension`
-                ).catch(err => 
-                    hereLog(`[setAddonsLoadOrder]{${karter}} reply error (4) - ${err}`)
-                );
-            }
-            else if(rc===513){
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                    `Upload error on server…`
-                ).catch(err => 
-                    hereLog(`[setAddonsLoadOrder]{${karter}} reply error (5) - ${err}`)
-                );
-            }
-            else{
-                if(rc!==999){
-                    hereLog(`[setAddonsLoadOrder] unhandled status code: ${rc}…`)
-                }
-
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                    `Error occured installing new *load order config* for \`${karter}\`…`
-                ).catch(err => 
-                    hereLog(`[setAddonsLoadOrder]{${karter}} reply error (5) - ${err}`)
-                );
-            }
-
-            return false
-        } catch(err){
-            await interaction.editReply(
-                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                `Error occured installing new *load order config* for \`${karter}\`…`
-            ).catch(err => 
-                hereLog(`[setAddonsLoadOrder]{${karter}} reply error (6) - ${err}`)
-            );
-
-            return false
-        }
-    }
-
     await kart_stuff.Api.set_addon_load_order_config(
         _url, _generateAuthPayload(interaction.user.id, utils), karter
-    ).then( async response => {
-        if(await status_parse(response, interaction)){
+    ).then( async handle => {
+        await (handle
+        .onSuccess(async response => {
             await interaction.editReply(
                 `## New *${karter}* addon load config upload\n\n`+
                 `✅ Success`
             ).catch(err => 
                 hereLog(`[setAddonsLoadOrder]{${karter}} reply error (6) - ${err}`)
             );
-        }
-    }).catch(async err => {
-        if(Boolean(err.response) && Boolean(err.response.status)){
-            await status_parse(err.response, interaction)
-        }
-        else{
+        }).onCode([401,403], async response => {
+            hereLog(`[setAddonsLoadOrder]{${karter}} access failure: ${response.status}`)
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
+                `Access failure on "*load order config*" upload for \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[setAddonsLoadOrder]{${karter}} reply error (1) - ${err}`)
+            );
+        }).onCode(404, async response => {
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                `Can't upload "*load order config*" for \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[setAddonsLoadOrder]{${karter}} reply error (2) - ${err}`)
+            );
+        }).onCode(415, async response => {
+            let data= response.data
+            await interaction.editReply({                    
+                content: ( `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                            `Uploaded config for \`${karter}\` is invalid or badly constructed…` ),
+                files: (data && data.details) ?
+                            [{
+                                attachment: Buffer.from(data.details),
+                                name: `load_order.yaml.errors.txt`
+                            }]
+                        : undefined
+            }).catch(err => 
+                hereLog(`[setAddonsLoadOrder]{${karter}} reply error (7) - ${err}`)
+            );
+        }).onCode(440, async response => {
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                `Upload file is too big!`
+            ).catch(err => 
+                hereLog(`[setAddonsLoadOrder]{${karter}} reply error (3) - ${err}`)
+            );
+        }).onCode([441,442], async response => {
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                `"*Load order config*" has bad type, or extension`
+            ).catch(err => 
+                hereLog(`[setAddonsLoadOrder]{${karter}} reply error (4) - ${err}`)
+            );
+        }).onCode(513, async response => {
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                `Upload error on server…`
+            ).catch(err => 
+                hereLog(`[setAddonsLoadOrder]{${karter}} reply error (5) - ${err}`)
+            );
+        }).fallBack(async response => {
+            hereLog(`[setAddonsLoadOrder] unhandled status code: ${response.status}…`)
+
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                `Error occured installing new *load order config* for \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[setAddonsLoadOrder]{${karter}} reply error (6) - ${err}`)
+            );
+        }).catch(async action_error => {
             hereLog(`[setAddonsLoadOrder]{${karter}} error setting addon load order config - ${err}`)
-            await status_parse(999, interaction)
-        }
+
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                `Error occured installing new *load order config* for \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[setAddonsLoadOrder]{${karter}} reply error (7) - ${err}`)
+            );
+        }).Parse())
+    }).catch(async err => {
+        hereLog(`[setAddonsLoadOrder]{${karter}} error setting addon load order config - ${err}`)
+
+        await interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+            `Error occured installing new *load order config* for \`${karter}\`…`
+        ).catch(err => 
+            hereLog(`[setAddonsLoadOrder]{${karter}} reply error (8) - ${err}`)
+        );
     })
 }
 
@@ -1370,13 +1322,16 @@ async function S_S_CMD_kartAddon_loadOrder(interaction, utils){
 }
 
 async function _addon_action(kartApiMethodName, addon_filename, auth, karter){
-    return kart_stuff.Api[kartApiMethodName](addon_filename, auth, karter).then(response => {
-        if(Boolean(response.status)){
-            return {success: (response.status===200), rc: response.status}
-        }
-        else{
+    return kart_stuff.Api[kartApiMethodName](addon_filename, auth, karter).then(async handle => {
+        return await (handle
+        .onSuccess(response=> {
+            return {success: true, rc: response.status}
+        }).fallBack(response => {
+            return {success: false, rc: response.status}
+        }).catch(error_action => {
+            hereLog(`[addon_action](${kartApiMethodName}){${addon_filename}}{${karter}} error - ${error_action}`)
             return {success: false, rc: 999}
-        }
+        }).Parse())
     }).catch(err => {
         if(Boolean(err.response) && Boolean(err.response.status)){
             return {success: false, rc: err.response.status}
@@ -1429,81 +1384,10 @@ async function S_S_CMD_kartAddon_Install(interaction, utils) {
             return
         }
 
-        let status_parse= async (rc, interaction) => {
-            try{
-                if(rc===200){
-                    return true
-                }
-                else if(rc===401 || rc===403){
-                    hereLog(`[addInstall]{${karter}} access failure: ${rc}`)
-                    await interaction.editReply(
-                        `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
-                        `Access failure on "*addon_install*" for \`${karter}\`…`
-                    ).catch(err => 
-                        hereLog(`[addInstall]{${karter}} reply error (2) - ${err}`)
-                    );
-                }
-                else if(rc===404){
-                    await interaction.editReply(
-                        `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                        `Addon install for \`${karter}\` seems unavailable…`
-                    ).catch(err => 
-                        hereLog(`[addInstall]{${karter}} reply error (3) - ${err}`)
-                    );
-                }
-                else if(rc===440){
-                    await interaction.editReply(
-                        `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                        `Addon file is too big!`
-                    ).catch(err => 
-                        hereLog(`[addInstall]{${karter}} reply error (4) - ${err}`)
-                    );
-                }
-                else if(rc===441 || rc===442){
-                    await interaction.editReply(
-                        `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                        `"Addon file has bad type, or extension`
-                    ).catch(err => 
-                        hereLog(`[addInstall]{${karter}} reply error (5) - ${err}`)
-                    );
-                }
-                else if(rc===513){
-                    await interaction.editReply(
-                        `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                        `Upload error on server…`
-                    ).catch(err => 
-                        hereLog(`[addInstall]{${karter}} reply error (6) - ${err}`)
-                    );
-                }
-                else{
-                    if(rc!==999){
-                        hereLog(`[addInstall]{${karter}} unhandled status code: ${rc}…`)
-                    }
-    
-                    await interaction.editReply(
-                        `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                        `Error occured install addon for \`${karter}\`…`
-                    ).catch(err => 
-                        hereLog(`[addInstall]{${karter}} reply error (7) - ${err}`)
-                    );
-                }
-
-                return false
-            } catch(err){
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                    `Error occured installing addon for \`${karter}\`…`
-                ).catch(err => 
-                    hereLog(`[addInstall]{${karter}} reply error (8) - ${err}`)
-                );
-    
-                return false
-            }
-        }
-
         let auth= _generateAuthPayload(interaction.user.id, utils)
-        await kart_stuff.Api.install_addon_from_url(_url, auth, karter).then(async response => {
-            if(await status_parse(response.status, interaction)){
+        await kart_stuff.Api.install_addon_from_url(_url, auth, karter).then(async handle => {
+            await (handle
+            .onSuccess(async response => {
                 var addon_filename= my_utils.getFromFieldPath(response,'data.result.addon')
                 var base_url=  undefined
                 try{
@@ -1538,15 +1422,71 @@ async function S_S_CMD_kartAddon_Install(interaction, utils) {
                     .catch(err => 
                         hereLog(`[addInstall]{${karter}} reply error (6) - ${err}`)
                     );
-            }
-        }).catch(async err => {
-            if(Boolean(err.response) && Boolean(err.response.status)){
-                await status_parse(err.response.status, interaction)
-            }
-            else{
+            }).onCode([401,403], async response => {
+                hereLog(`[addInstall]{${karter}} access failure: ${response.status}`)
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
+                    `Access failure on "*addon_install*" for \`${karter}\`…`
+                ).catch(err => 
+                    hereLog(`[addInstall]{${karter}} reply error (2) - ${err}`)
+                );
+            }).onCode(404, async response => {
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                    `Addon install for \`${karter}\` seems unavailable…`
+                ).catch(err => 
+                    hereLog(`[addInstall]{${karter}} reply error (3) - ${err}`)
+                );
+            }).onCode(440, async response => {
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                    `Addon file is too big!`
+                ).catch(err => 
+                    hereLog(`[addInstall]{${karter}} reply error (4) - ${err}`)
+                );
+            }).onCode([441,442], async response => {
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                    `"Addon file has bad type, or extension`
+                ).catch(err => 
+                    hereLog(`[addInstall]{${karter}} reply error (5) - ${err}`)
+                );
+            }).onCode(513, async response => {
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                    `Upload error on server…`
+                ).catch(err => 
+                    hereLog(`[addInstall]{${karter}} reply error (6) - ${err}`)
+                );
+            }).fallBack(async response => {
+                hereLog(`[addInstall]{${karter}} unhandled status code: ${response.status}…`)
+    
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                    `Error occured install addon for \`${karter}\`…`
+                ).catch(err => 
+                    hereLog(`[addInstall]{${karter}} reply error (7) - ${err}`)
+                );
+            }).catch(async error_action => {
                 hereLog(`[addInstall]{${karter}} error installing addon from '${_url}'- ${err}`)
-                await status_parse(999, interaction)
-            }
+
+                await interaction.editReply(
+                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                    `Error occured install addon for \`${karter}\`…`
+                ).catch(err => 
+                    hereLog(`[addInstall]{${karter}} reply error (8) - ${err}`)
+                );
+            })
+            .Parse())
+        }).catch(async err => {
+            hereLog(`[addInstall]{${karter}} error installing addon from '${_url}'- ${err}`)
+
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                `Error occured install addon for \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[addInstall]{${karter}} reply error (9) - ${err}`)
+            );
         })
     }    
 }
@@ -1728,28 +1668,32 @@ async function S_CMD__kartAddonManager(interaction, utils){
 }
 
 function _addonsInfo(karter){
-    return kart_stuff.Api.get_addons(undefined, karter).then(response => {
-        if(response.status===404) return []
-        else if( response.status!==200 || (!Boolean(response.data))){
-            throw({ status: "result_error" })
-        }
+    return kart_stuff.Api.get_addons(undefined, karter).then(async handle => {
+        return await (handle
+        .onSuccess(async response => {
+            let response_data= response.data
 
-        let response_data= response.data
-
-        if(response_data.status==="not_found") return []
-        if( Boolean(response_data.result) && Boolean(response_data.result.infos) ){
-            if(response_data.status==="fetched"){
-                return response_data.result.infos
-            } else if(response_data.status==="found"){
-                return [ response_data.info ]
+            if(response_data.status==="not_found") return []
+            if( Boolean(response_data.result) && Boolean(response_data.result.infos) ){
+                if(response_data.status==="fetched"){
+                    return response_data.result.infos
+                } else if(response_data.status==="found"){
+                    return [ response_data.info ]
+                }
+                else{
+                    return []
+                }
             }
             else{
                 return []
             }
-        }
-        else{
+        }).onCode(404, async response => {
             return []
-        }
+        }).catch(action_error => {
+            hereLog(`[addonInfos_get] error on api call (1)? - ${action_error}`)
+
+            throw({ status: "result_error" })
+        }).Parse())
     })
     .catch(err => {
         if(Boolean(err.response) && err.response.status===404){
@@ -1759,7 +1703,7 @@ function _addonsInfo(karter){
             throw err;
         }
         else{
-            hereLog(`[addonInfos_get] error on api call? - ${err}`)
+            hereLog(`[addonInfos_get] error on api call (2)? - ${err}`)
             throw({status: "bad_response", error: err})
         }
     })
@@ -1927,20 +1871,20 @@ async function S_CMD__kartAddons(interaction, utils){
 }
 
 function _customConfigInfo(karter){
-    return kart_stuff.Api.get_custom_configs(karter).then(response => {
-        if( response.status!==200 || (!Boolean(response.data))){
+    return kart_stuff.Api.get_custom_configs(karter).then(async handle => {
+        return await (handle
+        .onSuccess(response => {
+            return response.data
+        })
+        .catch(action_error => {
+            hereLog(`[configInfos_get] error on api call (1)? - ${error_action}`)
             throw({ status: "result_error" })
-        }
-        else return response.data;
+        })
+        .Parse())
     })
     .catch(err => {
-        if(err.status){
-            throw err;
-        }
-        else{
-            hereLog(`[configInfos_get] error on api call? - ${err}`)
-            throw({status: "bad_response", error: err})
-        }
+        hereLog(`[configInfos_get] error on api call (2)? - ${err}`)
+        throw({status: "bad_response", error: err})
     })
 }
 
@@ -2036,48 +1980,9 @@ async function S_S_CMD_kartGetCustomConfig(interaction, utils) {
         );
     }
 
-    let status_parse= async (rc, interaction) => {
-        try{
-            if(rc===200){
-                return true
-            }
-            else if(rc===404){
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                    `No custom config "*${config_name}*" found or set for \`${karter}\`…`
-                ).catch(err => 
-                    hereLog(`[getCustomConfig]{${karter}} reply error (1) - ${err}`)
-                );
-            }
-            else{
-                if(rc!==999){
-                    hereLog(`[getCustomConfig] unhandled status code: ${rc}…`)
-                }
-
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                    `Error occured fetching custom config from \`${karter}\`…`
-                ).catch(err => 
-                    hereLog(`[getCustomConfig]{${karter}} reply error (2) - ${err}`)
-                );
-            }
-
-            return false
-        } catch(err){
-            hereLog(`[getCustomConfig]{${karter}} Error handle - ${err}`)
-            await interaction.editReply(
-                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                `Error occured accession custom config '${config_name}' from  \`${karter}\`…`
-            ).catch(err => 
-                hereLog(`[getCustomConfig]{${karter}} reply error (3) - ${err}`)
-            );
-
-            return false
-        }
-    }
-
-    await kart_stuff.Api.get_custom_yaml_config(config_name, karter).then( async response => {
-        if(await status_parse(response.status)){
+    await kart_stuff.Api.get_custom_yaml_config(config_name, karter).then( async handle => {
+        await (handle
+        .onSuccess( async response => {
             let filename= (config_name.endsWith('.yaml') || config_name.endsWith('.yml'))?
                                 config_name
                             :   `${config_name}.yaml`
@@ -2090,15 +1995,41 @@ async function S_S_CMD_kartGetCustomConfig(interaction, utils) {
             } ).catch(err => 
                 hereLog(`[getCustomConfig]{${karter}} reply error (4) - ${err}`)
             )
-        }
+        }).onCode(404, async response => {
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                `No custom config "*${config_name}*" found or set for \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[getCustomConfig]{${karter}} reply error (1) - ${err}`)
+            );
+        }).fallBack(async response => {
+            hereLog(`[getCustomConfig] unhandled status code: ${response.status}…`)
+
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                `Error occured fetching custom config from \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[getCustomConfig]{${karter}} reply error (2) - ${err}`)
+            );
+        }).catch(async error_action => {
+            hereLog(`[getCustomConfig]{${karter}} Error handle - ${error_action}`)
+            
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                `Error occured accession custom config '${config_name}' from  \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[getCustomConfig]{${karter}} reply error (3) - ${err}`)
+            );
+        }).Parse())
     }).catch(async err => {
-        if(Boolean(err.response) && Boolean(err.response.status)){
-            await status_parse(err.response.status, interaction)
-        }
-        else{
-            hereLog(`[getCustomConfig]{${karter}} error getting config '${config_name}' - ${err}`)
-            await status_parse(999, interaction)
-        }
+        hereLog(`[getCustomConfig]{${karter}} error getting config '${config_name}' - ${err}`)
+
+        await interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+            `Error occured accession custom config '${config_name}' from  \`${karter}\`…`
+        ).catch(err => 
+            hereLog(`[getCustomConfig]{${karter}} reply error (4) - ${err}`)
+        );
     })
 }
 
@@ -2135,113 +2066,95 @@ async function __Opt_S_S_CMD_kartCustomConfig_Set(url, karter, interaction, util
         return
     }
 
-    let status_parse= async (response, interaction) => {
-        let rc= response.status
-        let data= response.data
-        try{
-            if(rc===200){
-                return true
-            }
-            else if(rc===400){
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                    `Can't upload "*custom config*" for \`${karter}\`…`
-                ).catch(err => 
-                    hereLog(`[setCustomConfig]{${karter}} reply error (2) - ${err}`)
-                );
-            }            
-            else if(rc===401 || rc===403){
-                hereLog(`[setCustomConfig]{${karter}} access failure: ${rc}`)
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
-                    `Access failure on "*custom config*" upload for \`${karter}\`…`
-                ).catch(err => 
-                    hereLog(`[setCustomConfig]{${karter}} reply error (1) - ${err}`)
-                );
-            }
-            else if(rc===415){
-                await interaction.editReply({                    
-                    content: ( `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                                `Uploaded config for \`${karter}\` is invalid or badly constructed…` ),
-                    files: (data && data.details) ?
-                                [{
-                                    attachment: Buffer.from(data.details),
-                                    name: `custom_config.yaml.errors.txt`
-                                }]
-                            : undefined
-                }).catch(err => 
-                    hereLog(`[setCustomConfig]{${karter}} reply error (7) - ${err}`)
-                );
-            }
-            else if(rc===440){
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                    `Upload file is too big!`
-                ).catch(err => 
-                    hereLog(`[setCustomConfig]{${karter}} reply error (3) - ${err}`)
-                );
-            }
-            else if(rc===441 || rc===442){
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                    `"*Custom config*" has bad type, or extension`
-                ).catch(err => 
-                    hereLog(`[setCustomConfig]{${karter}} reply error (4) - ${err}`)
-                );
-            }
-            else if(rc===513){
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                    `Upload error on server…`
-                ).catch(err => 
-                    hereLog(`[setCustomConfig]{${karter}} reply error (5) - ${err}`)
-                );
-            }
-            else{
-                if(rc!==999){
-                    hereLog(`[setAddonsLoadOrder] unhandled status code: ${rc}…`)
-                }
-
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                    `Error occured installing new *custom config* for \`${karter}\`…`
-                ).catch(err => 
-                    hereLog(`[setCustomConfig]{${karter}} reply error (5) - ${err}`)
-                );
-            }
-
-            return false
-        } catch(err){
-            await interaction.editReply(
-                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                `Error occured installing new *load order config* for \`${karter}\`…`
-            ).catch(err => 
-                hereLog(`[setAddonsLoadOrder]{${karter}} reply error (6) - ${err}`)
-            );
-
-            return false
-        }
-    }
-
     await kart_stuff.Api.set_custom_yaml_config(
         _url, _generateAuthPayload(interaction.user.id, utils), karter
-    ).then( async response => {
-        if(await status_parse(response)){
+    ).then( async handle => {
+        await (handle
+        .onSuccess(async response => {
             await interaction.editReply(
                 `## New *${karter}* custom config upload\n\n`+
                 `✅ Success`
             ).catch(err => 
                 hereLog(`[setCustomConfig]{${karter}} reply error (6) - ${err}`)
             );
-        }
+        }).onCode(400, async response => {
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                `Can't upload "*custom config*" for \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[setCustomConfig]{${karter}} reply error (2) - ${err}`)
+            );
+        }).onCode([401, 403], async response => {
+            hereLog(`[setCustomConfig]{${karter}} access failure: ${rc}`)
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
+                `Access failure on "*custom config*" upload for \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[setCustomConfig]{${karter}} reply error (1) - ${err}`)
+            );
+        }).onCode(415, async response => {
+            let data= response.data
+            await interaction.editReply({                    
+                content: ( `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                            `Uploaded config for \`${karter}\` is invalid or badly constructed…` ),
+                files: (data && data.details) ?
+                            [{
+                                attachment: Buffer.from(data.details),
+                                name: `custom_config.yaml.errors.txt`
+                            }]
+                        : undefined
+            }).catch(err => 
+                hereLog(`[setCustomConfig]{${karter}} reply error (7) - ${err}`)
+            );
+        }).onCode(440, async response => {
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                `Upload file is too big!`
+            ).catch(err => 
+                hereLog(`[setCustomConfig]{${karter}} reply error (3) - ${err}`)
+            );
+        }).onCode([441,442], async response => {
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                `"*Custom config*" has bad type, or extension`
+            ).catch(err => 
+                hereLog(`[setCustomConfig]{${karter}} reply error (4) - ${err}`)
+            );
+        }).onCode(513, async response => {
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                `Upload error on server…`
+            ).catch(err => 
+                hereLog(`[CustomConfig]{${karter}} reply error (5) - ${err}`)
+            );
+        }).fallBack(async response => {
+            hereLog(`[setAddonsLoadOrder] unhandled status code: ${rc}…`)
+
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                `Error occured installing new *custom config* for \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[setCustomConfig]{${karter}} reply error (5) - ${err}`)
+            );
+        }).catch(async error_action => {
+            hereLog(`[setAddonsLoadOrder] error setting custom config - ${error_action}`)
+
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                `Error occured installing new *custom config* for \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[setCustomConfig]{${karter}} reply error (6) - ${err}`)
+            );
+        }).Parse())
     }).catch(async err => {
-        if(Boolean(err.response) && Boolean(err.response.status)){
-            await status_parse(err.response, interaction)
-        }
-        else{
-            hereLog(`[setCustomConfig]{${karter}} error setting custom config - ${err}`)
-            await status_parse(999, interaction)
-        }
+        hereLog(`[setCustomConfig]{${karter}} error setting custom config - ${err}`)
+
+        await interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+            `Error occured installing new *load order config* for \`${karter}\`…`
+        ).catch(err => 
+            hereLog(`[setAddonsLoadOrder]{${karter}} reply error (8) - ${err}`)
+        );
     })
 }
 
@@ -2270,151 +2183,97 @@ async function S_S_CMD_kartCustomConfigAdmin_set(interaction, utils) {
 }
 
 async function __Opt_S_S_CMD_kartCustomConfig_action(action, karter, config_name, interaction, utils) {
-    var action_res= {success: false}
     let auth= _generateAuthPayload(interaction.user.id, utils)
 
     //default: enable
     var action_emoji= '✅'
     var action_ing= "enabling"
     var action_done= "enabled"
+    var handle= undefined
 
     try{
         if(action==='disable'){
-            try{
-                var response= await kart_stuff.Api.disable_custom_yaml_config(config_name, auth, karter)
-                if(Boolean(response.status)){
-                    action_res= {success: (response.status===200), rc: response.status}
-                }
-                else{
-                    action_res= {success: false, rc: 999}
-                }
-            } catch(err){
-                hereLog(`[actionCustomConfig]<${action}>{${karter}}(1) Error trying to ${action} custom config - ${err}`)
-                if(Boolean(err.response) && Boolean(err.response.status)){
-                    action_res= {success: false, rc: err.response.status}
-                }
-                else{
-                    throw err
-                }
-            }
+            handle= await kart_stuff.Api.disable_custom_yaml_config(
+                config_name, auth, karter
+            )
             action_emoji= '⏹'
             action_ing= "disabling"
             action_done= "disabled"
         }
         else if(action==='remove'){
-            try{
-                var response= await kart_stuff.Api.remove_custom_yaml_config(config_name, auth, karter)
-                if(Boolean(response.status)){
-                    action_res= {success: (response.status===200), rc: response.status}
-                }
-                else{
-                    action_res= {success: false, rc: 999}
-                }
-            } catch(err){
-                hereLog(`[actionCustomConfig]<${action}>{${karter}}(2) Error trying to ${action} custom config - ${err}`)
-                if(Boolean(err.response) && Boolean(err.response.status)){
-                    action_res= {success: false, rc: err.response.status}
-                }
-                else{
-                    throw err
-                }
-            }
+            handle= await kart_stuff.Api.remove_custom_yaml_config(
+                config_name, auth, karter
+            )
             action_emoji= '❎'
             action_ing= "removing"
             action_done= "removed"
         }
         else{
             var triggertime= interaction.options.getString('triggertime') ?? '* * * * *'
-            try{
-                var response= await kart_stuff.Api.enable_custom_yaml_config(config_name, triggertime, auth, karter)
-                if(Boolean(response.status)){
-                    action_res= {success: (response.status===200), rc: response.status}
-                }
-                else{
-                    action_res= {success: false, rc: 999}
-                }
-            } catch(err){
-                hereLog(`[actionCustomConfig]<${action}>{${karter}}(3) Error trying to ${action} custom config - ${err}`)
-                if(Boolean(err.response) && Boolean(err.response.status)){
-                    action_res= {success: false, rc: err.response.status}
-                }
-                else{
-                    throw err
-                }
-            }
+            handle= await kart_stuff.Api.enable_custom_yaml_config(
+                config_name, triggertime, auth, karter
+            )
         }
-    } catch(err){
-        hereLog(`[actionCustomConfig]<${action}>{${karter}}(4) Error trying to ${action} custom config - ${err}`)
-    }
 
-    let status_parse= async (rc, interaction) => {
-        try{
-            if(rc===200){
-                return true
-            }
-            else if(rc===400){
-                hereLog(`[actionCustomConfig]<${action}>{${karter}} bad request: ${rc}`)
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                    `"*custom_config_${action}*" \`${config_name}\` for \`${karter}\` seems like bad request…`
-                ).catch(err => 
-                    hereLog(`[actionCustomConfig]<${action}>{${karter}} reply error (1) - ${err}`)
-                );
-            }
-            else if(rc===401 || rc===403){
-                hereLog(`[actionCustomConfig]<${action}>{${karter}} access failure: ${rc}`)
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
-                    `Access failure on "*custom_config_${action}*" for \`${karter}\`…`
-                ).catch(err => 
-                    hereLog(`[actionCustomConfig]<${action}>{${karter}} reply error (2) - ${err}`)
-                );
-            }
-            else if(rc===404){
-                hereLog(`[actionCustomConfig]<${action}>{${karter}} not found?: ${rc}`)
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
-                    `custom_config ${action_ing} \`${config_name}\` on \`${karter}\` seems unavailable…`
-                ).catch(err => 
-                    hereLog(`[actionCustomConfig]<${action}>{${karter}} reply error (3) - ${err}`)
-                );
-            }
-            else{
-                if(rc!==999){
-                    hereLog(`[actionCustomConfig]<${action}>{${karter}} unhandled status code: ${rc}…`)
-                }
-
-                await interaction.editReply(
-                    `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
-                    `Error occured ${action_ing} custom_config \`${config_name}\` for \`${karter}\`…`
-                ).catch(err => 
-                    hereLog(`[actionCustomConfig]<${action}>{${karter}} reply error (7) - ${err}`)
-                );
-            }
-
-            return false
-        } catch(err){
+        await (handle
+        .onSuccess(async response => {
+            await interaction.editReply(
+                `## Addon ${action_done} on StrashBot's *${karter}* server\n\n`+
+                `${action_emoji} ${config_name}\n`+
+                `(takes effect on next server restart…)`
+            )
+        }).onCode(400, async response => {
+            hereLog(`[actionCustomConfig]<${action}>{${karter}} bad request: ${response.status}`)
             await interaction.editReply(
                 `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                `"*custom_config_${action}*" \`${config_name}\` for \`${karter}\` seems like bad request…`
+            ).catch(err => 
+                hereLog(`[actionCustomConfig]<${action}>{${karter}} reply error (1) - ${err}`)
+            );
+        }).onCode([401, 403], async response => {
+            hereLog(`[actionCustomConfig]<${action}>{${karter}} access failure: ${response.status}`)
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} `+
+                `Access failure on "*custom_config_${action}*" for \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[actionCustomConfig]<${action}>{${karter}} reply error (2) - ${err}`)
+            );
+        }).onCode(404, async response => {
+            hereLog(`[actionCustomConfig]<${action}>{${karter}} not found?: ${response.status}`)
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
+                `custom_config ${action_ing} \`${config_name}\` on \`${karter}\` seems unavailable…`
+            ).catch(err => 
+                hereLog(`[actionCustomConfig]<${action}>{${karter}} reply error (3) - ${err}`)
+            );
+        }).fallBack(async response => {
+            hereLog(`[actionCustomConfig]<${action}>{${karter}} unhandled status code: ${response.status}…`)
+
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+                `Error occured ${action_ing} custom_config \`${config_name}\` for \`${karter}\`…`
+            ).catch(err => 
+                hereLog(`[actionCustomConfig]<${action}>{${karter}} reply error (7) - ${err}`)
+            );
+        }).catch(async error_action => {
+            hereLog(`[actionCustomConfig]<${action}>{${karter}} action error on request: ${error_action}…`)
+
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
                 `Error occured ${action_ing} custom_config \`${config_name}\` for \`${karter}\`…`
             ).catch(err => 
                 hereLog(`[actionCustomConfig]<${action}>{${karter}} reply error (8) - ${err}`)
             );
+        }).Parse())
+    } catch(err){
+        hereLog(`[actionCustomConfig]<${action}>{${karter}}(4) Error trying to ${action} custom config - ${err}`)
 
-            return false
-        }
-    }
-    
-    if(action_res.success && status_parse(action_res.rc)){
         await interaction.editReply(
-            `## Addon ${action_done} on StrashBot's *${karter}* server\n\n`+
-            `${action_emoji} ${config_name}\n`+
-            `(takes effect on next server restart…)`
-        )
-    }
-    else{
-        hereLog(`[actionCustomConfig]<${action}>{${karter}}(5) error ${action_ing} custom_config - ${err}`)
-        await status_parse(999, interaction)
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} `+
+            `Error occured ${action_ing} custom_config \`${config_name}\` for \`${karter}\`…`
+        ).catch(err => 
+            hereLog(`[actionCustomConfig]<${action}>{${karter}} reply error (9) - ${err}`)
+        );
     }
 }
 
@@ -3143,7 +3002,7 @@ let slashKartPassword= {
                 .setDescription('Which kart game?')
                 .addChoices(...slashKartData_getKarterChoices())
             )
-            .setDMPermission(false),
+            .setContexts(InteractionContextType.Guild),
     async execute(interaction, utils){
         try{
             await S_CMD__kartPassword(interaction, utils)
@@ -3211,7 +3070,7 @@ let slashKartStartStop= {
             //         .setDescription('Sumbit a new server config')
             //     )
             // )
-            .setDMPermission(false),
+            .setContexts(InteractionContextType.Guild),
     async execute(interaction, utils){
         try{
             await S_CMD__kartServer(interaction, utils)
@@ -3309,7 +3168,7 @@ let slashKartAddonManage= {
             .addChoices(...slashKartData_getKarterChoices())
         )
     )
-    .setDMPermission(false),
+    .setContexts(InteractionContextType.Guild),
     async execute(interaction, utils){
         try{
             await S_CMD__kartAddonManager(interaction, utils)
@@ -3407,8 +3266,7 @@ let slashKartCustomConfig= {
             .setDescription('Which kart game?')
             .addChoices(...slashKartData_getKarterChoices())
         )
-    )
-    .setDMPermission(false),
+    ),
     async execute(interaction, utils){
         try{
             await S_CMD_kartCustomConfig(interaction, utils)
@@ -3494,7 +3352,7 @@ let slashKartCustomConfigManager= {
             .setMaxLength(64)
         )
     )
-    .setDMPermission(false),
+    .setContexts(InteractionContextType.Guild),
     async execute(interaction, utils){
         try{
             await S_CMD_kartCustomConfigAdmin(interaction, utils)
@@ -3583,7 +3441,7 @@ let slashKartClip= {
             .setMaxLength(512) 
         ) 
     )
-    .setDMPermission(false),
+    .setContexts(InteractionContextType.Guild),
     async execute(interaction, utils){
         try{
             await S_CMD__kartClips(interaction, utils)
@@ -3623,7 +3481,7 @@ let slaskKartDiscord= {
             )
         )
     )
-    .setDMPermission(false),
+    .setContexts(InteractionContextType.Guild),
     async execute(interaction, utils){
         try{
             await S_CMD_postStatusChannel(interaction, utils)
