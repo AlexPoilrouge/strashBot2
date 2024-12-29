@@ -1110,6 +1110,8 @@ async function __ssh_download_cmd(cmd, url, utils, fileName=undefined){
 async function S_CMD__kartServer(interaction, utils){
     let subcommand= interaction.options.getSubcommand()
 
+    await interaction.deferReply()
+
     if(subcommand==='stop'){
         await S_S_CMD_KartServer_Stop(interaction, utils)
     }
@@ -1354,6 +1356,8 @@ let remove_addon = async (addon_filename, auth, karter) =>
     ( await _addon_action( 'remove_addon', addon_filename, auth, karter) )
 
 async function S_S_CMD_kartAddon_Install(interaction, utils) {
+    await interaction.deferReply()
+
     var karter= await Interaction_checkKarter_StringOpt(interaction, utils)
     if(!Boolean(karter)) return
 
@@ -1627,6 +1631,8 @@ async function __Opt_S_S_CMD_kartAddon_Action_actionAddon(action, karter, addon_
 }
 
 async function S_S_CMD_kartAddon_action(interaction, utils) {
+    await interaction.deferReply()
+
     var karter= await Interaction_checkKarter_StringOpt(interaction, utils)
     if(!Boolean(karter)) return
 
@@ -1659,6 +1665,7 @@ async function S_CMD__kartAddonManager(interaction, utils){
         await S_S_CMD_kartAddon_action(interaction, utils)
     }
     else{
+        await interaction.deferReply({ephemeral: true})
         await interaction.editReply(
             `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
             `Missing subcommand amongst: `+
