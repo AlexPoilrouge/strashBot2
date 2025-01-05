@@ -563,7 +563,7 @@ class KartApiCache{
 
                 }).catch(error_action => {
                     resolve(undefined)
-                })
+                }).Parse()
             }).catch(err => {
                 hereLog(`[KartApiCache] error on service fetch - ${err}`)
                 resolve(undefined)
@@ -579,7 +579,7 @@ class KartApiCache{
                     resolve(available_configs.map(cfg => ({name: cfg['name'], filename: cfg['filename']})))
                 }).catch(error_action => {
                     resolve([])
-                })
+                }).Parse()
             }).catch(err => {
                 hereLog(`[KartApiCache.getConfigNames] error on custom cfg fetch - ${err}`)
                 resolve([])

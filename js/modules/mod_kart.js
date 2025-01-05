@@ -460,11 +460,11 @@ function _checkServerStatus(karter, utils){
             _oldServerPop[karter]= pop;
             
             if(pop>0){
-                hereLog(`Changes in srb2kart server status detected… (player count: ${pop})`);
+                hereLog(`Changes in ${karter} server status detected… (player count: ${pop})`);
                 bot.user.setActivity(`Hosting ${(AppNum>=APP_ID.DRRR)?"Dr Robotnik's Ring Races":"SRB2Kart Races"}`, { type: ActivityType.Playing });
             }
             else{
-                hereLog(`Changes in srb2kart server status detected… (not enough player though)`);
+                hereLog(`Changes in ${karter} server status detected… (not enough player though)`);
                 bot.user.setActivity(_postCancelStatus());
             }
         }
@@ -484,27 +484,27 @@ function kart_init(utils){
 
     status_racer_check_queue= kart_stuff.Settings.RacerNames
 
-    if(!Boolean(stop_job)){
-        stop_job= cron.schedule('0 4 * * *', async () =>{
-            hereLog("[schedule] 4 am: looking to stop srb2kart serv…");
-            try{
-                await _autoStopServer(utils);
-            } catch(err){
-                hereLog(`[cron-job]{stop} failure stopping server - ${err}`)
-            }
-        });
-    }
+    // if(!Boolean(stop_job)){
+    //     stop_job= cron.schedule('0 4 * * *', async () =>{
+    //         hereLog("[schedule] 4 am: looking to stop srb2kart serv…");
+    //         try{
+    //             await _autoStopServer(utils);
+    //         } catch(err){
+    //             hereLog(`[cron-job]{stop} failure stopping server - ${err}`)
+    //         }
+    //     });
+    // }
 
-    if(!Boolean(start_job)){
-        start_job= cron.schedule('0 8 * * *', () =>{
-            hereLog("[schedule] 8 am: looking to start srb2kart serv…");
-            try{
-                _autoStartServer(utils)
-            } catch(err){
-                hereLog(`[cron-job]{start} failure starting server - ${err}`)
-            }
-        });
-    }
+    // if(!Boolean(start_job)){
+    //     start_job= cron.schedule('0 8 * * *', () =>{
+    //         hereLog("[schedule] 8 am: looking to start srb2kart serv…");
+    //         try{
+    //             _autoStartServer(utils)
+    //         } catch(err){
+    //             hereLog(`[cron-job]{start} failure starting server - ${err}`)
+    //         }
+    //     });
+    // }
 
     if(!Boolean(status_job)){
         status_job= cron.schedule('*/2 * * * *', () =>{
