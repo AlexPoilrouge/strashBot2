@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, AttachmentBuilder, InteractionContextType } = require("discord.js")
+const { SlashCommandBuilder, PermissionFlagsBits, AttachmentBuilder, InteractionContextType, MessageFlags } = require("discord.js")
 
 const fs= require( 'fs' );
 const path= require('path')
@@ -239,30 +239,36 @@ let AppThresholds= {
         {   number: 4,
             message: "Looks like some guys wana race on some good'ol SRB2Kart! 🏁",
             coolDownTime: 30*1000, //4 min
-            color: 0x88ccff
+            color: 0x88ccff,
+            thumbnail_url: "https://strashbot.fr/img/server/srb2k.png",
         },{ number: 8,
             message: "More people just joined the SRB2Kart party!!! 🏎💨",
             coolDownTime: 30*1000, //4 min
-            color: 0xa020f0
+            color: 0xa020f0,
+            thumbnail_url: "https://strashbot.fr/img/server/srb2k.png",
         }, { number: 0,
             message: "Fun's over… SRB2Kart is going back to sleep 🛌",
             comingFromTop: true,
-            color: 0x666666
+            color: 0x666666,
+            thumbnail_url: "https://strashbot.fr/img/server/srb2k_off.png",
         }
     ],
     ringracers: [
         {   number: 4,
             message: "Looks like some guys are hungy for some rings! 🏁",
             coolDownTime: 30*1000, //4 min
-            color: 0xffa500
+            color: 0xffa500,
+            thumbnail_url: "https://strashbot.fr/img/server/drrr.png",
         },{ number: 8,
             message: "More people are racing *at the next level*! 🏎💨",
             coolDownTime: 30*1000, //4 min
-            color: 0xff0000
+            color: 0xff0000,
+            thumbnail_url: "https://strashbot.fr/img/server/drrr.png",
         }, { number: 0,
             message: "Fun's over… No more rings for robotnik… 🛌",
             comingFromTop: true,
-            color: 0x666666
+            color: 0x666666,
+            thumbnail_url: "https://strashbot.fr/img/server/drrr_off.png",
         }
     ]
 }
@@ -331,7 +337,8 @@ function __checkPlayerNumStep(karter, numberOfPlayers){
             res= {
                 number: testThreshold.number,
                 message: testThreshold.message,
-                color: testThreshold.color
+                color: testThreshold.color,
+                thumbnail_url: testThreshold.thumbnail_url
             }
         }
     }
@@ -421,7 +428,8 @@ function _checkServerStatus(karter, utils){
                                             value: infoStep.message,
                                             inline: false
                                         }],
-                                        footer: { text: 'strashbot.fr' }
+                                        footer: { text: 'strashbot.fr' },
+                                        thumbnail: { url: infoStep.thumbnail_url }
                                     }]
                                 };
                                 
@@ -579,13 +587,17 @@ function kart_init_per_guild(guild, utils){
 
 async function S_CMD__kartInfo(interaction, utils){
     let connectionStr= interaction.options.getString('server')
-    let public_visibility= !Boolean(interaction.options.getBoolean('is_public') ?? true)
+    let public_visibility= Boolean(interaction.options.getBoolean('is_public') ?? true)
     
     var embed= {}
     embed.title= `Kart Server${Boolean(connectionStr)? ` @ \`${connectionStr}\``:''}`;
     embed.color= 0xff0000 //that's red (i hope? this rgba, right?)
 
-    await interaction.deferReply({ephemeral: public_visibility});
+    await interaction.deferReply(
+        public_visibility?
+            {}
+        :   { flags: MessageFlags.Ephemeral }
+    );
 
     return await _askServInfos(connectionStr).then(async serverInfos => {
         embed.fields=[];
@@ -795,7 +807,8 @@ async function S_CMD__kartInfo(interaction, utils){
 async function S_CMD__kartPassword(interaction, utils){
     let karter= interaction.options.getString('karter') ?? kart_stuff.Settings.DefaultRacer
 
-    await interaction.deferReply({ ephemeral: true })
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+
     await _serverServiceStatus_API(karter).then(async r => {
         if(r==="UP"){
             await (await kart_stuff.Api
@@ -1309,9 +1322,13 @@ async function S_S_CMD_kartAddon_loadOrder(interaction, utils){
 
     let attachment= interaction.options.getAttachment('file_yaml')
     var url= interaction.options.getString('url')
-    let public_visibility= !Boolean(interaction.options.getBoolean('is_public') ?? false)
+    let public_visibility= Boolean(interaction.options.getBoolean('is_public') ?? false)
 
-    await interaction.deferReply({ephemeral: public_visibility})
+    await interaction.deferReply(
+        public_visibility?
+            {}
+        :   { flags: MessageFlags.Ephemeral }
+    )
 
     if(Boolean(attachment)){
         url= attachment.url
@@ -1665,7 +1682,7 @@ async function S_CMD__kartAddonManager(interaction, utils){
         await S_S_CMD_kartAddon_action(interaction, utils)
     }
     else{
-        await interaction.deferReply({ephemeral: true})
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral })
         await interaction.editReply(
             `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} `+
             `Missing subcommand amongst: `+
@@ -1747,7 +1764,7 @@ async function _processAddonsInfoList(interaction, list, karter, lookup=undefine
     var res_list= list
     var uninstalledButActiveAddons=
         (servAddons_infos.available)?
-            servAddons_infos.addons.filter(e => Boolean(list.find(info => info.name!==e.name)))
+            servAddons_infos.addons.filter(e => !Boolean(list.find(info => info.name===e.name)))
         : []
 
     let withLookup= Boolean(lookup)
@@ -1822,7 +1839,9 @@ async function _processAddonsInfoList(interaction, list, karter, lookup=undefine
                 name: obj.name,
                 size: obj.size,
                 racer: obj.racer,
-                active: ((servAddons_infos.available)? (servAddons_infos.addons.includes(obj.name)) : undefined),
+                active: ((servAddons_infos.available)?
+                            Boolean(servAddons_infos.addons.find(a => obj.name===a.name))
+                        : undefined),
                 pendingOp: obj.pendingOp,
                 url: ((Boolean(base_url))?`${base_url}/${obj.name}`:undefined)
             }))
@@ -1850,9 +1869,13 @@ async function _processAddonsInfoList(interaction, list, karter, lookup=undefine
 async function S_CMD__kartAddons(interaction, utils){
     let karter= (interaction.options.getString('karter') ?? kart_stuff.Settings.DefaultRacer)
     let lookup= interaction.options.getString('lookup')
-    let public_visibility= !Boolean(interaction.options.getBoolean('is_public') ?? true)
+    let public_visibility= Boolean(interaction.options.getBoolean('is_public') ?? true)
 
-    await interaction.deferReply({ephemeral: public_visibility})
+    await interaction.deferReply(
+        public_visibility?
+            {}
+        :   { flags: MessageFlags.Ephemeral }
+    )
 
     await _addonsInfo(karter).then(addonsInfoList =>
         _processAddonsInfoList(interaction, addonsInfoList, karter, lookup)
@@ -2043,9 +2066,13 @@ async function S_S_CMD_kartGetCustomConfig(interaction, utils) {
 
 async function S_CMD_kartCustomConfig(interaction, utils){
     let lookup= interaction.options.getString('lookup')
-    let public_visibility= !Boolean(interaction.options.getBoolean('is_public') ?? false)
+    let public_visibility= Boolean(interaction.options.getBoolean('is_public') ?? false)
 
-    await interaction.deferReply({ephemeral: public_visibility})
+    await interaction.deferReply(
+        public_visibility?
+            {}
+        :   { flags: MessageFlags.Ephemeral }
+    )
     
     if(lookup){
         await S_S_CMD_kartGetCustomConfig(interaction, utils)
@@ -2220,7 +2247,7 @@ async function __Opt_S_S_CMD_kartCustomConfig_action(action, karter, config_name
         await (handle
         .onSuccess(async response => {
             await interaction.editReply(
-                `## Addon ${action_done} on StrashBot's *${karter}* server\n\n`+
+                `## Custom config ${action_done} on StrashBot's *${karter}* server\n\n`+
                 `${action_emoji} ${config_name}\n`+
                 `(takes effect on next server restart…)`
             )
@@ -2338,7 +2365,7 @@ function __readkey_from_file(configEntryName){
     return key
 }
 
-let JWT_SIGN_OPTIIONS= {
+let JWT_SIGN_OPTIONS= {
     expiresIn: '1m',
     algorithm:  "RS256"
 }
@@ -2357,7 +2384,7 @@ function _generateAuthPayload(userId= undefined, utils){
     }
 }
 
-function __api_generateUserPrivilegedToken(user, admin=false){
+function __api_generateUserPrivilegedToken(user, admin=false, expiresIn="1m"){
     var key= undefined
     if(Boolean(kart_stuff.Settings.grf('api.token_keys'))){
         try{
@@ -2387,7 +2414,10 @@ function __api_generateUserPrivilegedToken(user, admin=false){
         id: user.id
     }
 
-    return jwt.sign({auth}, key, JWT_SIGN_OPTIIONS)
+    let options= Object.assign({}, JWT_SIGN_OPTIONS)
+    options.expiresIn= expiresIn
+
+    return jwt.sign({auth}, key, options)
 }
 
 async function __send_clipInfo_req(clipID ,interaction, utils, newClip=false){
@@ -2856,7 +2886,7 @@ async function S_CMD__kartClips(interaction, utils){
 }
 
 async function S_CMD_postStatusChannel(interaction, utils){
-    await interaction.deferReply({ ephemeral: true })
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
     let subcommand= interaction.options.getSubcommand()
     if(subcommand==='post_status_channel'){
@@ -2900,6 +2930,65 @@ async function S_CMD_postStatusChannel(interaction, utils){
                 )
             }
         }
+    }
+}
+
+async function S_CMD_askJWT(interaction, utils){
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+
+    let masterID= utils.getMasterID()
+
+    if(interaction.user.id!==masterID){
+        await interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_REFUSAL)} forbidden command!`
+        )
+        hereLog(
+            `[AskJWT] Refused access to JWT for ${interaction.user}.`
+        )
+
+        return
+    }
+
+    let subcommand= interaction.options.getSubcommand()
+    if(subcommand==='jwt'){
+        let optUser= interaction.options.getUser('user')
+        let optExpiry= interaction.options.getString('expires_in')
+
+        let tokenUser= optUser ?? interaction.user
+        let admin= (masterID===tokenUser.id)
+        let expiresIn= optExpiry ?? '16m'
+
+        try{
+            let token= kart_stuff.Api.getUserToken(
+                tokenUser.id,
+                expiresIn
+            )
+
+            await interaction.editReply(            
+                {
+                    content:    `${my_utils.emoji_retCode(E_RetCode.SUCCESS)} generated ${admin?'admin':''} JWT `+
+                                `(as ${tokenUser}; expires in ${expiresIn})`,
+                    files: [{
+                        attachment: Buffer.from(token),
+                        name: `token_${tokenUser.id}_${Date.now()}.jwt`
+                    }]
+                }
+            )
+        }
+        catch(err){
+            await interaction.editReply(
+                `${my_utils.emoji_retCode(E_RetCode.ERROR_INTERNAL)} error generating JWT!`
+            )
+            hereLog(
+                `[AskJWT] Generation error (user: ${tokenUser}, admin: ${admin}, expiresIn: ${expiresIn}) - ${err}`
+            )
+        }
+    }
+    else{
+        await interaction.editReply(
+            `${my_utils.emoji_retCode(E_RetCode.ERROR_INPUT)} bad subcommand '${subcommand}'?!`
+        )
+        hereLog(`[AskJWT] WTF?! subcmd '${subcommand}'!!!!?`)
     }
 }
 
@@ -3499,6 +3588,42 @@ let slaskKartDiscord= {
     }
 }
 
+let slashKartAdmin= {
+    data: new SlashCommandBuilder()
+    .setName('kart_admin')
+    .setDescription("Restricted bot kart commands. Don't userInfo.")
+    .setDefaultMemberPermissions(0)
+    .addSubcommand(subcommand =>
+        subcommand
+        .setName('jwt')
+        .setDescription("Need a connection token?")
+        .addUserOption(option =>
+            option
+            .setName('user')
+            .setDescription("for whom?")
+        )
+        .addStringOption(option => 
+            option
+            .setName('expires_in')
+            .setDescription('vercel ms, ex: 1d, 2h, 30m')
+        )
+    )
+    .setContexts(InteractionContextType.BotDM),
+    async execute(interaction, utils){
+        try{
+            await S_CMD_askJWT(interaction, utils)
+        }
+        catch(err){
+            hereLog(`[kart_clips] Error! -\n\t${err} - ${err.message}`)
+            let msg= `${my_utils.emoji_retCode(E_RetCode.ERROR_CRITICAL)} Sorry, an internal error occured…`
+            if (interaction.deferred)
+                await interaction.editReply(msg)
+            else
+                await interaction.reply(msg)
+        }
+    }
+}
+
 function kart_destroy(utils){
     hereLog("destroy…");
     if(Boolean(stop_job)){
@@ -3582,7 +3707,8 @@ module.exports= {
         slashKartCustomConfig,
         slashKartCustomConfigManager,
         slashKartClip,
-        slaskKartDiscord
+        slaskKartDiscord,
+        slashKartAdmin
     ],
     oldGuildCommands: [
         {name: 'kart', execute: ogc_kart}

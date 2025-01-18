@@ -170,6 +170,9 @@ const EP_CONFIG_REMOVE          =   "config_remove"
 const EP_CONFIG_DISABLE         =   "config_disable"
 const EP_CONFIG_ENABLE          =   "config_enable"
 
+const TKN_ROLE_ADMIN            =   "ADMIN"
+const TKN_ROLE_DISCORD_USER     =   "DISCORD_USER"
+
 export class KartApi{
     private apiCaller: CallApi
     private settings: KartSettings
@@ -202,14 +205,14 @@ export class KartApi{
 
         this.tokens= new TokensHandler()
 
-        this.tokens.register( "ADMIN",
+        this.tokens.register( TKN_ROLE_ADMIN,
             {   key: TokenKey.create({
                     file: this.settings.grf('api.token_keys.adminSignkey')
                 }),
                 defaultOptions: { expiresIn: '1m', algorithm:  "RS256" },
             }
         )
-        this.tokens.register( "DISCORD_USER",
+        this.tokens.register( TKN_ROLE_DISCORD_USER,
             {   key: TokenKey.create({
                     file: this.settings.grf('api.token_keys.discorduserSignkey')
                 }),
@@ -461,6 +464,18 @@ export class KartApi{
                     data: { triggertime },
                     headers: {'x-access-token': token}
                 }
+            }
+        )
+    }
+
+    getUserToken(userId: string, expiresIn?: string){
+        return this.tokens.generateToken(TKN_ROLE_DISCORD_USER,
+            { auth: {   role: TKN_ROLE_DISCORD_USER,
+                    id: userId,
+                }
+            },
+            {   expiresIn: (expiresIn ?? '16m'),
+                algorithm:  "RS256",
             }
         )
     }
