@@ -1,0 +1,6 @@
+${STRASHBOT_USER} ALL=(ALL) NOPASSWD: /bin/systemctl start {{ craft.service }}
+${STRASHBOT_USER} ALL=(ALL) NOPASSWD: /bin/systemctl stop {{ craft.service }}
+${STRASHBOT_USER} ALL=(ALL) NOPASSWD: /bin/systemctl restart {{ craft.service }}
+${STRASHBOT_USER} ALL=(ALL) NOPASSWD: /bin/systemctl is-active {{ craft.service }}
+${STRASHBOT_USER} ALL=(ALL) NOPASSWD: {{ craft.directory }}/craft_script.sh UPDATE_JOIN {{ install_dir }}/js/modules/data/allowlist.json.tmp
+${STRASHBOT_USER} ALL=(ALL) NOPASSWD: {{ craft.directory }}/craft_script.sh SERVER_UPDATE [A-Za-Z.-_0-9]*

@@ -1,0 +1,30 @@
+{
+    "server_commands":{
+            "start":"sudo /bin/systemctl start {{ craft.service }}",
+            "stop":"sudo /bin/systemctl stop {{ craft.service }}",
+            "restart":"sudo /bin/systemctl restart {{ craft.service }}",
+            "is_active":"sudo /bin/systemctl is-active {{ craft.service }}"
+    },
+    "api":{
+            "minecraft_player_url":"https://api.mojang.com/users/profiles/minecraft",
+            "minecraft_profile_url":"https://sessionserver.mojang.com/session/minecraft/profile",
+            "bedrock_server_status_url":"https://api.mcstatus.io/v2/status/bedrock"
+    },
+    "dirs":{
+            "main_folder":"{{ craft.directory }}"
+    },
+    "files":{
+            "allowlist":"/opt/{{ craft.service }}/allowlist.json",
+            "gamestatus":"/opt/{{ craft.service }}/MC_game_status.json",
+            "version":"/opt/{{ craft.service }}/version.txt"
+    },
+    "config_commands":{
+            "update_join":"sudo {{ craft.directory }}/${CRAFT_DIR}/craft_script.sh UPDATE_JOIN",
+            "server_update":"sudo {{ craft.directory }}/${CRAFT_DIR}/craft_script.sh SERVER_UPDATE"
+    },
+    "server":{
+            "name":"{{ craft.bedrock_server.name }}",
+            "address":"{{ craft.bedrock_server.address }}"
+    },
+    "update_key": "{{ craft.bedrock_server.update_key }}"
+}

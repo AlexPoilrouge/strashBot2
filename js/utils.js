@@ -548,6 +548,72 @@ function strMatchesDiscordID(str){
     return Boolean(str.match(/^[0,9]{15-21}$/));
 }
 
+function getFromFieldPath(obj, fieldpath, separator='.'){
+    if((!fieldpath) || !obj) return obj
+
+    var path= (Array.isArray(fieldpath))?
+                                fieldpath.filter(e => e.length>0)
+                            :   fieldpath.split(separator).filter(e => e.length>0)
+
+    if(path.length<=0) return value;
+
+    let hasBracketAccess= (s) => {
+        let _s= s.split('[')
+        if(_s.length<2) return undefined;
+        else if(!_s.at(-1).endsWith(']')) return undefined;
+        else{
+            return [
+                _s[0],
+                ( _s.slice(1).join('[').slice(0,-1))
+            ]
+
+        }
+    }
+    var index= 0;
+    while(index<path.length){
+        var n= path[index]
+        var pair= undefined
+
+        if(Boolean(pair=hasBracketAccess(n))){
+            path.splice(index,1,pair[0],pair[1])
+            index+=2
+        }
+        else index ++
+    }
+
+    var value= obj
+    var node = path.shift()
+    while(node){
+        value= value[node]
+        if((!Boolean(value)) && value!==''){
+            return undefined
+        }
+
+        node= path.shift()
+    }
+
+    return value
+}
+
+function formatBytes(bytes) {
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    if (bytes === 0) return '0 Bytes';
+    
+    const i = Math.floor(Math.log(bytes) / Math.log(1024)); // Determine size index
+    const formattedSize = (bytes / Math.pow(1024, i)).toFixed(1); // Divide by appropriate factor
+    
+    return `${formattedSize} ${sizes[i]}`;
+}
+
+function checkUrl(str){
+    try{
+        return `${new URL(str)}`
+    }
+    catch(err){
+        return undefined
+    }
+}
+
 module.exports.JSONCheck= JSONCheck;
 module.exports.loadJSONFile= loadJSONFile;
 module.exports.writeJSON= writeJSON;
@@ -571,3 +637,6 @@ module.exports.fighterStuff= {
     getFighters: () => _fightersOBJ,
     loadFighters: _loadFightersObj
 }
+module.exports.getFromFieldPath= getFromFieldPath;
+module.exports.formatBytes= formatBytes;
+module.exports.checkUrl= checkUrl

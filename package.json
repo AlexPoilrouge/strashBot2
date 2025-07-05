@@ -4,7 +4,9 @@
   "description": "",
   "main": "bot_main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "npx tsc",
+    "register_slash": "sh ./launch.sh SLASH_REGISTER"
   },
   "author": "Dr_Nope",
   "license": "ISC",
@@ -12,7 +14,7 @@
     "async-mutex": "^0.4.0",
     "axios": "^1.2.1",
     "config": "^3.3.8",
-    "discord.js": "^14.13.0",
+    "discord.js": "^14.16.1",
     "fs": "0.0.1-security",
     "glob": "^8.0.3",
     "googleapis": "^110.0.0",
@@ -24,5 +26,9 @@
     "sqlite3": "^5.1.4",
     "unzipper": "^0.10.11",
     "xml2json": "^0.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.4",
+    "typescript": "^5.5.4"
   }
 }

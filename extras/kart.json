@@ -18,6 +18,7 @@
             }
     },
     "http_url": "http://bogus.fr/.srb2kart",
+    "addons_http_source": "http://kart_serv_addr/source",
     "config_commands":{
             "init":"/home/strashbot/.srb2kart/addon_script.sh INIT",
             "update":"/home/strashbot/.srb2kart/addon_script.sh UPDATE",

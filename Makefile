@@ -1,16 +1,21 @@
 
-slash_registration = 
+
+IMAGE_NAME:= strashbot_test:0.0.0
+CONTAINER_NAME:= strashbot_tester
 
 .docker_start:
 	systemctl is-active docker.service || systemctl start docker.service
 
 test_build: .docker_start
-	docker build --rm --build-arg Register_Slash="$(slash_registration)" -f Dockerfile -t strashbot_test:0.0.0 .
+	docker build -f Dockerfile -t $(IMAGE_NAME) .
 
-test_run: test_build
-	docker run --rm --name strashbot_tester -it strashbot_test:0.0.0
+test_run: 
+	docker run --rm --name ${CONTAINER_NAME} -it $(IMAGE_NAME)
 
-test_init: test_run
+test_run_bash:
+	docker run --rm --name ${CONTAINER_NAME} -it $(IMAGE_NAME) bash
+
+test_init: test_build test_run
 
 test_exec_bash:
-	docker exec -it strashbot_tester bash
+	docker exec -it ${CONTAINER_NAME} bash

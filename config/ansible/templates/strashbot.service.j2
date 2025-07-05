@@ -7,8 +7,8 @@ Type=simple
 OOMScoreAdjust=-1000
 
  
-User=${STRASHBOT_USER}
-WorkingDirectory=${STRASHBOT_DIR}
+User={{ strashbot.username }}
+WorkingDirectory={{ root_dir }}/{{ install_dir }}
 ExecStart= sh launch.sh
  
 Restart=on-failure

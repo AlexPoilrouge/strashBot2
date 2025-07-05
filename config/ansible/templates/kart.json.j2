@@ -1,0 +1,81 @@
+{
+    "default_racer": "{{ default_racer }}",
+
+    "racers": {
+        {% for racer in racers %}"{{ racer.name }}" : {
+            "server_commands":{
+                "start": "{{ racer.server.commands.start }}",
+                "stop": "{{ racer.server.commands.stop }}",
+                "restart": "{{ racer.server.commands.restart }}",
+                "is_active": "{{ racer.server.commands.is_active }}",
+
+                "through_ssh": {% if (racer.server.through_ssh is defined and racer.server.through_ssh)%}true{% else %}false{% endif %},
+                "server_ip": "{{ racer.server.ip }}",
+                "server_addr": "{{ racer.server.address }}",
+                "server_port": "{{ racer.server.port }}",
+                "distant_user": "{{ racer.server.distant_user }}"
+            },
+
+            "api":{
+                "host": "{{ racer.api.host }}",
+                "port": "{{ racer.api.port }}",
+                "root": "{{ racer.api.root }}",
+                "token_keys": {
+                    "adminSignkey": "{{ racer.api.token_keys_paths.admin_signing_key }}",
+                    "discorduserSignkey": "{{ racer.api.token_keys_paths.discord_user_signing_key }}"
+                }
+            },
+
+            "dirs":{
+                "main_folder": "{{ racer.directories.main }}",
+                "addons_dl": "{{ racer.directories.addons_dl }}"
+            },
+
+            "http_url": "{{ racer.http_url }}",
+            "addons_http_source": "{{ racer.addons_http_source }}",
+            
+            "config_commands": {
+                "init":"false",
+                "update":"false",
+                "serv_info":"false",
+                "addon_url":"false",
+                "list":"false",
+                "clean":"false",
+                "remove":"false",
+                "keep":"false",
+                "get_config":"false",
+                "add_config_url":"false",
+                "change_config":"false",
+                "cfg_blacklist":"false",
+                "get_addon_load_config":"false",
+                "add_addon_order_config_url":"false",
+                "change_addon_order_config":"false",
+                "get_log":"false",
+                "map_times":"false",
+                "add_times":"false",
+                "add_times_url":"false",
+                "get_times":"false",
+                "time_info":"false",
+                "remove_times":"false",
+                "register":"false",
+                "is_registered":"false",
+                "clear_score":"false",
+                "clip_add":"false",
+                "clip_remove":"false",
+                "clip_info":"false",
+                "outdated_clips":"false",
+                "clip_edit_description":"false",
+                "maps_info":"false",
+                "skins_info":"false"
+            },
+
+            "source_url": "{{ git.url }}"
+        }{% if not loop.last %},{% endif %}{% endfor %}
+
+    },
+
+    "web_page": {
+        "base_url": "{{ web_pages.base_url }}",
+        "clips_page": "{{ web_pages.gallery_route }}"
+    }
+}

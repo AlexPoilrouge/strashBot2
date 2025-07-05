@@ -6,29 +6,47 @@ COPY ./docker/mirrorlist /etc/pacman.d/mirrorlist
 
 RUN pacman-db-upgrade
 
-RUN pacman -Syyu --noconfirm nodejs-lts-hydrogen gcc npm make openssh sudo nano git imagemagick openssh libssh2 boost-libs inkscape zip unzip wget
+RUN pacman -Syyu --noconfirm \
+                nodejs-lts-hydrogen \
+                gcc \
+                npm \
+                python-setuptools \
+                make \
+                ansible \
+                openssh \
+                sudo \
+                nano \
+                git \
+                imagemagick \
+                openssh \
+                libssh2 \
+                boost-libs \
+                inkscape \
+                zip \
+                unzip \
+                wget \
+                yq
 
-COPY . /tmp/recieved
+RUN mkdir -p /var/strashbot_source
+
+COPY config /var/strashbot_source/config
+COPY js /var/strashbot_source/js
+COPY extras /var/strashbot_source/extras
+COPY package.json install.sh bot_main.js tsconfig.json README.md \
+    /var/strashbot_source/
+
+WORKDIR /var/strashbot_source
 
 RUN echo "Add copy script as 'docker_test/copies.sh' if needed - " && \
-    ( [ -f /tmp/recieved/docker_test/copies.sh ] && \
-        bash /tmp/recieved/docker_test/copies.sh || \
+    ( [ -f /var/strashbot_source/config/ansible/docker_test/data/copies.sh ] && \
+        bash /var/strashbot_source/config/ansible/docker_test/data/copies.sh || \
         echo 'none given' )
-
-WORKDIR /tmp/recieved
 
 RUN ssh-keyscan $( [ -f /tmp/ssh_host ] && head -n1 /tmp/ssh_host || echo "127.0.0.1" ) >> /root/.ssh/known_hosts || echo "no keys…"
 
-RUN echo "'docker_test/values.txt' must be provided…" && cp -vf docker_test/values.txt ./values.txt || echo "…but isn't…"
-
-ARG Register_Slash=""
-ENV STRASHBOT_SLASH_REGISTER "${Register_Slash}"
-
 RUN chmod u+x install.sh
-RUN ./install.sh 
+RUN ./install.sh -d -v /var/strashbot_source/config/ansible/docker_test/variables.yaml
 
 WORKDIR /var/app/strashBot
 
-RUN echo "'docker_test/guildConfigs.json' must be provided…" && cp -vf /tmp/recieved/docker_test/guildConfigs.json data/
-
-CMD "./launch.sh"
+CMD [ "./launch.sh" ]

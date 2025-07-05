@@ -1,0 +1,10 @@
+my_hosts:
+  vars_files:
+    - ./variables.yaml
+  hosts:
+    ssh_test:
+      ansible_host: localhost
+      ansible_port: "2222"
+      ansible_user: "ansible_test"
+      ansible_ssh_pass: "P@55w0rd"
+      ansible_ssh_common_args: '-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o CheckHostIP=no'
