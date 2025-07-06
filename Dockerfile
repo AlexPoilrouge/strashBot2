@@ -7,7 +7,7 @@ COPY ./docker/mirrorlist /etc/pacman.d/mirrorlist
 RUN pacman-db-upgrade
 
 RUN pacman -Syyu --noconfirm \
-                nodejs-lts-hydrogen \
+                nodejs-lts-jod \
                 gcc \
                 npm \
                 python-setuptools \

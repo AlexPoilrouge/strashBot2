@@ -65,7 +65,6 @@
         - { filename: "kart.json", dest_dir: "{{ root_dir }}/{{ install_dir }}/js/modules/data" }
         - { filename: "launch.sh", dest_dir: "{{ root_dir }}/{{ install_dir }}" }
         - { filename: "strashbot.service", dest_dir: "{{ root_dir }}/etc/systemd/system" }
-        - { filename: "smashgg_infos.json", dest_dir: "{{ root_dir }}/{{ install_dir }}/js/modules/top8gen/smashgg" }
         - { filename: "craft.json", dest_dir: "{{ root_dir }}/{{ install_dir }}/js/modules/data" }
       loop_control:
         loop_var: template_info
