@@ -1,5 +1,9 @@
 - name: handling source from git
   block:
+    - name: clearing previous source if exists
+      ansible.builtin.file:
+        path: "{{ root_dir }}/{{ git.cloned_repo_dir }}"
+        state: absent
     - name: fetching source from git
       ansible.builtin.git:
         repo: "{{ git.url }}"
