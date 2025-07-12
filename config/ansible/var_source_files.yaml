@@ -1,0 +1,8 @@
+source_files:
+    - "js/"
+    - "bot_main.js"
+    - "tsconfig.json"
+    - "README.md"
+    - "package.json"
+    - "config/default.json"
+    - "config/custom-environment-variables.json"

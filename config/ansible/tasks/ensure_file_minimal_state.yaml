@@ -1,3 +1,11 @@
+- name: Ensuring '{{ file_info.path }}''s parent path exists
+  ansible.builtin.file:
+    path: "{{ file_info.path | dirname }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ strashbot.username }}"
+    group: "{{ strashbot.username }}"
+
 - name: Check if {{ file_info.path }} exists
   stat:
     path: "{{ file_info.path }}"
