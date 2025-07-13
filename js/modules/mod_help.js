@@ -1,5 +1,7 @@
 const { SlashCommandBuilder } = require("discord.js")
 
+const config= require('config');
+
 const my_utils= require('../utils.js')
 
 
@@ -14,9 +16,14 @@ let helpSlash1= {
             .setName('help')
             .setDescription('get a bit of help and info about this bot'),
     async execute(interaction, utils){
+        let strashConfig= config.get('StrashBot');
+        let buildInfo= strashConfig ?? {build: strashConfig.build, source: strashConfig.source}
+
         try{
             await interaction.reply({
-                content: `For a bit of help and info, maybe check: ${help_page_url}`,
+                content:
+                    (buildInfo? `[***StrashBot***](<${buildInfo.source}>) discord bot - build: ${buildInfo.build}`:'***StrashBot*** discord bot') +
+                    `\n\nFor a bit of help and info, maybe check: ${help_page_url}`,
                 ephemeral: true
             })
         }

@@ -1,8 +1,8 @@
 #!/bin/bash
 
 
-export STRASHBOT_BUILD="{{ git.branch }}"
-export STRASHBOT_SRC="{{ git.url }}"
+export STRASHBOT_BUILD="{{ git.branch | default('debug') }}"
+export STRASHBOT_SRC="{{ git.url | default('https://github.com/AlexPoilrouge/strashBot2.git') }}"
 
 export STRASHBOT_CLIENTID="{{ discord_bot.client_id }}"
 export STRASHBOT_TOKEN="{{ discord_bot.token }}"
